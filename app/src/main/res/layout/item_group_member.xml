@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clipChildren="false">
+
+    <!-- Background Action Buttons (revealed on swipe right) -->
+    <LinearLayout
+        android:id="@+id/memberActions"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+        <!-- Mute Button -->
+        <FrameLayout
+            android:id="@+id/actionMute"
+            android:layout_width="80dp"
+            android:layout_height="match_parent"
+            android:background="#3A3A3C"
+            android:clickable="true"
+            android:focusable="true">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <ImageView
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:src="@android:drawable/ic_lock_silent_mode"
+                    app:tint="#FFFFFF"
+                    android:layout_marginBottom="4dp"
+                    android:contentDescription="Mute" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Mute"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp"
+                    android:fontFamily="@font/poppins_medium" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Remove Button -->
+        <FrameLayout
+            android:id="@+id/actionRemove"
+            android:layout_width="80dp"
+            android:layout_height="match_parent"
+            android:background="#FF3B30"
+            android:clickable="true"
+            android:focusable="true">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <ImageView
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:src="@android:drawable/ic_menu_delete"
+                    app:tint="#FFFFFF"
+                    android:layout_marginBottom="4dp"
+                    android:contentDescription="Remove" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Remove"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp"
+                    android:fontFamily="@font/poppins_medium" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- Promote Button -->
+        <FrameLayout
+            android:id="@+id/actionPromote"
+            android:layout_width="80dp"
+            android:layout_height="match_parent"
+            android:background="#FF9500"
+            android:clickable="true"
+            android:focusable="true">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <ImageView
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:src="@android:drawable/ic_menu_upload"
+                    app:tint="#FFFFFF"
+                    android:layout_marginBottom="4dp"
+                    android:contentDescription="Promote" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Promote"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp"
+                    android:fontFamily="@font/poppins_medium" />
+            </LinearLayout>
+        </FrameLayout>
+
+    </LinearLayout>
+
+    <!-- Foreground Content (swipeable) -->
+    <LinearLayout
+        android:id="@+id/memberForeground"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="#000000">
+
+        <!-- Top border line -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="?attr/colorSurfaceContainerHigh" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp">
+
+            <!-- Member Avatar -->
+            <com.securelegion.views.AvatarView
+                android:id="@+id/memberAvatar"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:contentDescription="Member Photo" />
+
+            <!-- Name + Role -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="14dp">
+
+                <TextView
+                    android:id="@+id/memberName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="16sp"
+                    android:textColor="?attr/colorOnSurface"
+                    android:fontFamily="@font/poppins_medium"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+
+                <TextView
+                    android:id="@+id/memberRole"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="13sp"
+                    android:textColor="#888888"
+                    android:fontFamily="@font/poppins_regular"
+                    android:maxLines="1" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Bottom border line -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="?attr/colorSurfaceContainerHigh" />
+
+    </LinearLayout>
+
+</FrameLayout>
