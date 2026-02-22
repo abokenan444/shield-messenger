@@ -1,19 +1,24 @@
 import { useTranslation } from '../../lib/i18n';
 import { getLandingT } from '../../lib/i18n/landingLocales';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { ShieldIcon } from '../../components/icons/ShieldIcon';
 import { useEffect } from 'react';
 
 export function LandingPage() {
   const { locale } = useTranslation();
   const t = getLandingT(locale);
+  const location = useLocation();
 
   useEffect(() => {
-    if (window.location.hash) {
-      const el = document.getElementById(window.location.hash.slice(1));
-      el?.scrollIntoView({ behavior: 'smooth' });
+    if (location.hash) {
+      const el = document.getElementById(location.hash.slice(1));
+      if (el) {
+        setTimeout(() => el.scrollIntoView({ behavior: 'smooth' }), 100);
+      }
+    } else {
+      window.scrollTo(0, 0);
     }
-  }, []);
+  }, [location.hash]);
 
   return (
     <div>

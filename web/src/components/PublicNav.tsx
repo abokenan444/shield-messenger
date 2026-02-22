@@ -12,12 +12,19 @@ export function PublicNav() {
 
   const isActive = (path: string) => location.pathname === path;
 
+  const scrollToHash = (hash: string) => {
+    const el = document.getElementById(hash);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   const navLinks = [
-    { to: '/', label: lt.nav_home },
-    { to: '/#features', label: lt.nav_features },
-    { to: '/pricing', label: lt.nav_pricing },
-    { to: '/faq', label: lt.nav_faq },
-    { to: '/blog', label: lt.nav_blog },
+    { to: '/', label: lt.nav_home, hash: '' },
+    { to: '/#features', label: lt.nav_features, hash: 'features' },
+    { to: '/pricing', label: lt.nav_pricing, hash: '' },
+    { to: '/faq', label: lt.nav_faq, hash: '' },
+    { to: '/blog', label: lt.nav_blog, hash: '' },
   ];
 
   return (
@@ -38,6 +45,13 @@ export function PublicNav() {
               <Link
                 key={link.to}
                 to={link.to}
+                onClick={(e) => {
+                  if (link.hash && location.pathname === '/') {
+                    e.preventDefault();
+                    scrollToHash(link.hash);
+                    window.history.replaceState(null, '', `/#${link.hash}`);
+                  }
+                }}
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   isActive(link.to)
                     ? 'text-primary-400 bg-primary-600/10'
@@ -106,7 +120,14 @@ export function PublicNav() {
               <Link
                 key={link.to}
                 to={link.to}
-                onClick={() => setMenuOpen(false)}
+                onClick={(e) => {
+                  setMenuOpen(false);
+                  if (link.hash && location.pathname === '/') {
+                    e.preventDefault();
+                    scrollToHash(link.hash);
+                    window.history.replaceState(null, '', `/#${link.hash}`);
+                  }
+                }}
                 className="block px-3 py-2 rounded-lg text-sm text-dark-300 hover:text-white hover:bg-dark-800"
               >
                 {link.label}
