@@ -17,6 +17,7 @@ import { TransparencyPage } from './pages/landing/TransparencyPage';
 import { FaqPage } from './pages/landing/FaqPage';
 import { PricingPage } from './pages/landing/PricingPage';
 import { BlogPage } from './pages/landing/BlogPage';
+import { DownloadPage } from './pages/landing/DownloadPage';
 
 export function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -27,6 +28,8 @@ export function App() {
         {/* Public pages with shared nav/footer layout */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={isAuthenticated ? <Navigate to="/chat" /> : <LandingPage />} />
+          <Route path="/home" element={<LandingPage />} />
+          <Route path="/download" element={<DownloadPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/transparency" element={<TransparencyPage />} />

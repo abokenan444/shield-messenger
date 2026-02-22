@@ -93,7 +93,7 @@ export function PublicNav() {
             <Link to="/login" className="btn-secondary !py-2 !px-4 text-sm">
               {lt.nav_login}
             </Link>
-            <Link to="/#download" className="btn-primary !py-2 !px-4 text-sm">
+            <Link to="/download" className="btn-primary !py-2 !px-4 text-sm">
               {lt.nav_download}
             </Link>
           </div>
@@ -137,7 +137,7 @@ export function PublicNav() {
               <Link to="/login" onClick={() => setMenuOpen(false)} className="btn-secondary text-center text-sm">
                 {lt.nav_login}
               </Link>
-              <Link to="/#download" onClick={() => setMenuOpen(false)} className="btn-primary text-center text-sm">
+              <Link to="/download" onClick={() => setMenuOpen(false)} className="btn-primary text-center text-sm">
                 {lt.nav_download}
               </Link>
             </div>
