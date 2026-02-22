@@ -1,0 +1,56 @@
+version: "3.9"
+
+services:
+  # ── API Gateway & Web Services ──────────────
+  api:
+    build: ./server
+    container_name: sl-api
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - JWT_SECRET=${JWT_SECRET}
+      - FIELD_ENCRYPTION_KEY=${FIELD_ENCRYPTION_KEY}
+      - CORS_ORIGIN=${CORS_ORIGIN:-https://securelegion.app}
+      - SQLITE_PATH=/app/data/secure_legion.db
+      - DISCOVERY_ENABLED=true
+      - ANALYTICS_ENABLED=true
+    volumes:
+      - api-data:/app/data
+    restart: unless-stopped
+    networks:
+      - internal
+
+  # ── Static Web App (Vite build) ─────────────
+  web:
+    build: ./web
+    container_name: sl-web
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+    networks:
+      - internal
+
+  # ── Reverse Proxy (NGINX) ───────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: sl-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api
+      - web
+    restart: unless-stopped
+    networks:
+      - internal
+
+volumes:
+  api-data:
+
+networks:
+  internal:
+    driver: bridge

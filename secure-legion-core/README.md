@@ -1,8 +1,8 @@
-# Secure Legion Core Library (Rust)
+# Shield Messenger Core Library (Rust)
 
-**Privacy-focused cryptography and messaging core for Secure Legion**
+**Privacy-focused cryptography and messaging core for Shield Messenger**
 
-This is the Rust core library that powers Secure Legion's cryptographic operations, networking, and blockchain integration. It provides native JNI bindings for Android.
+This is the Rust core library that powers Shield Messenger's cryptographic operations, networking, and blockchain integration. It provides native JNI bindings for Android.
 
 ## 🏗️ Architecture
 
@@ -91,20 +91,20 @@ After building, copy the libraries to your Android project:
 ```bash
 # ARM64
 cp target/aarch64-linux-android/release/libsecurelegion.so \
-   ../secure-legion-android/app/src/main/jniLibs/arm64-v8a/
+   ../shield-messenger-android/app/src/main/jniLibs/arm64-v8a/
 
 # ARMv7
 cp target/armv7-linux-androideabi/release/libsecurelegion.so \
-   ../secure-legion-android/app/src/main/jniLibs/armeabi-v7a/
+   ../shield-messenger-android/app/src/main/jniLibs/armeabi-v7a/
 ```
 
 On Windows:
 ```cmd
 copy target\aarch64-linux-android\release\libsecurelegion.so ^
-     ..\secure-legion-android\app\src\main\jniLibs\arm64-v8a\
+     ..\shield-messenger-android\app\src\main\jniLibs\arm64-v8a\
 
 copy target\armv7-linux-androideabi\release\libsecurelegion.so ^
-     ..\secure-legion-android\app\src\main\jniLibs\armeabi-v7a\
+     ..\shield-messenger-android\app\src\main\jniLibs\armeabi-v7a\
 ```
 
 ## 🧪 Testing
@@ -151,7 +151,7 @@ cargo test -- --nocapture
 use securelegion::crypto::encrypt_message;
 
 let key = [0u8; 32]; // 32-byte key
-let plaintext = b"Hello, Secure Legion!";
+let plaintext = b"Hello, Shield Messenger!";
 
 let encrypted = encrypt_message(plaintext, &key)?;
 // Returns: [24-byte nonce][ciphertext][16-byte tag]
@@ -246,7 +246,7 @@ Java_com_securelegion_crypto_RustBridge_
 ### Project Structure
 
 ```
-secure-legion-core/
+shield-messenger-core/
 ├── src/
 │   ├── lib.rs                    # Main library entry
 │   ├── crypto/
@@ -350,7 +350,7 @@ TBD - See main project for license information.
 
 ## 🤝 Contributing
 
-This is part of the Secure Legion project. See main repository for contribution guidelines.
+This is part of the Shield Messenger project. See main repository for contribution guidelines.
 
 ---
 

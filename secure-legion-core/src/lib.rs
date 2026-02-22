@@ -1,9 +1,12 @@
 pub mod crypto;
 pub mod protocol;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod network;
 pub mod nlx402;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod audio;
 pub mod ffi;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod crdt;
 
 // Re-export main types
@@ -14,6 +17,7 @@ pub use crypto::{
 };
 
 pub use protocol::{Message, ContactCard, SecurityMode, MessageType};
+#[cfg(not(target_arch = "wasm32"))]
 pub use network::{PingToken, PongToken, PingPongManager, TorManager};
 pub use nlx402::{PaymentQuote, create_quote, verify_payment, verify_payment_simple, extract_quote_hash_from_memo, VerificationResult};
 

@@ -645,7 +645,7 @@ mod tests {
     #[test]
     fn test_encrypt_decrypt() {
         let key = generate_key();
-        let plaintext = b"Hello, Secure Legion!";
+        let plaintext = b"Hello, Shield Messenger!";
 
         let encrypted = encrypt_message(plaintext, &key).unwrap();
         assert!(encrypted.len() > plaintext.len());

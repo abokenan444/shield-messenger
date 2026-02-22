@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Shield Messenger Protocol Types",
+  "description": "Shared type definitions for the Shield Messenger P2P messaging protocol",
+  "definitions": {
+    "MessageType": {
+      "type": "string",
+      "enum": ["text", "image", "file", "audio", "video", "location", "payment", "system"]
+    },
+    "MessageStatus": {
+      "type": "string",
+      "enum": ["sending", "sent", "delivered", "read", "failed"]
+    },
+    "EncryptionAlgorithm": {
+      "type": "string",
+      "enum": ["xchacha20-poly1305"]
+    },
+    "KeyExchangeAlgorithm": {
+      "type": "string",
+      "enum": ["x25519+ml-kem-1024"]
+    },
+    "SignatureAlgorithm": {
+      "type": "string",
+      "enum": ["ed25519"]
+    },
+    "Message": {
+      "type": "object",
+      "required": ["id", "conversationId", "senderId", "content", "timestamp", "type", "encrypted"],
+      "properties": {
+        "id": { "type": "string", "description": "Unique message ID (UUID)" },
+        "conversationId": { "type": "string", "description": "Conversation ID (UUID)" },
+        "senderId": { "type": "string", "description": "Sender's user ID (Ed25519 public key hash)" },
+        "senderName": { "type": "string", "description": "Display name of sender" },
+        "content": { "type": "string", "description": "Message content (plaintext after decryption)" },
+        "timestamp": { "type": "integer", "description": "Unix timestamp in milliseconds" },
+        "type": { "$ref": "#/definitions/MessageType" },
+        "encrypted": { "type": "boolean", "description": "Whether message uses E2EE (always true)" },
+        "status": { "$ref": "#/definitions/MessageStatus" },
+        "replyTo": { "type": "string", "description": "ID of message being replied to" },
+        "editOf": { "type": "string", "description": "ID of message being edited" },
+        "selfDestruct": { "type": "integer", "description": "Self-destruct timer in seconds (0 = disabled)" },
+        "signature": { "type": "string", "description": "Ed25519 signature of the message" },
+        "attachment": { "$ref": "#/definitions/Attachment" }
+      }
+    },
+    "Attachment": {
+      "type": "object",
+      "required": ["blobId", "mimeType", "size"],
+      "properties": {
+        "blobId": { "type": "string", "description": "Encrypted blob ID for P2P file transfer" },
+        "mimeType": { "type": "string" },
+        "size": { "type": "integer", "description": "File size in bytes" },
+        "name": { "type": "string", "description": "Original filename" },
+        "width": { "type": "integer", "description": "Image/video width in pixels" },
+        "height": { "type": "integer", "description": "Image/video height in pixels" },
+        "duration": { "type": "integer", "description": "Audio/video duration in ms" },
+        "thumbnailBlobId": { "type": "string", "description": "Encrypted thumbnail blob ID" }
+      }
+    },
+    "Conversation": {
+      "type": "object",
+      "required": ["id", "name", "encrypted", "isDirect"],
+      "properties": {
+        "id": { "type": "string", "description": "Conversation ID (UUID)" },
+        "name": { "type": "string" },
+        "avatar": { "type": "string", "description": "Base64-encoded encrypted avatar" },
+        "topic": { "type": "string", "description": "Conversation topic/description" },
+        "encrypted": { "type": "boolean", "description": "Always true — all conversations are E2EE" },
+        "isDirect": { "type": "boolean", "description": "Whether this is a 1:1 DM" },
+        "members": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of member public key hashes"
+        },
+        "unreadCount": { "type": "integer", "default": 0 },
+        "lastMessage": { "$ref": "#/definitions/Message" }
+      }
+    },
+    "User": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "description": "User ID (Ed25519 public key hash)" },
+        "displayName": { "type": "string" },
+        "avatar": { "type": "string", "description": "Base64-encoded encrypted avatar" },
+        "publicKey": { "type": "string", "description": "Base64-encoded Ed25519 public key" },
+        "onionAddress": { "type": "string", "description": "Tor .onion address for P2P connection" },
+        "verified": { "type": "boolean", "description": "Whether key is verified" },
+        "online": { "type": "boolean" }
+      }
+    },
+    "CallEvent": {
+      "type": "object",
+      "required": ["callId", "type", "conversationId"],
+      "properties": {
+        "callId": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["invite", "answer", "candidates", "hangup", "reject"]
+        },
+        "conversationId": { "type": "string" },
+        "sdp": { "type": "string", "description": "WebRTC SDP for call signaling (encrypted)" },
+        "candidates": {
+          "type": "array",
+          "items": { "type": "object" },
+          "description": "ICE candidates"
+        },
+        "encrypted": { "type": "boolean", "default": true }
+      }
+    },
+    "PaymentQuote": {
+      "type": "object",
+      "description": "Secure Pay payment request sent in chat",
+      "required": ["id", "amount", "currency", "senderId", "recipientId"],
+      "properties": {
+        "id": { "type": "string" },
+        "amount": { "type": "string", "description": "Amount as decimal string" },
+        "currency": {
+          "type": "string",
+          "enum": ["ZEC", "SOL", "USDC", "USDT"]
+        },
+        "senderId": { "type": "string" },
+        "recipientId": { "type": "string" },
+        "memo": { "type": "string", "description": "Encrypted payment memo" },
+        "expiresAt": { "type": "integer", "description": "Expiry timestamp" },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "paid", "expired", "cancelled"]
+        },
+        "txSignature": { "type": "string", "description": "Blockchain transaction signature" }
+      }
+    }
+  }
+}

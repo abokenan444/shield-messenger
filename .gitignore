@@ -1,4 +1,37 @@
-# Android Studio
+# ═══════════════════════════════════════════════════
+# Shield Messenger — .gitignore
+# ═══════════════════════════════════════════════════
+
+# ── Sensitive / Secret Files ──────────────────────
+*.env
+*.env.*
+!*.env.example
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# ── Deployment Artifacts ──────────────────────────
+*.tar.gz
+*.zip
+server-update.*
+deploy/shieldmessenger.conf
+
+# ── Seed / Admin Scripts (contain credentials) ───
+server/seed-admin.cjs
+server/src/seed-admin.ts
+server/test-login.json
+server/test-admin.sh
+
+# ── Database Files ────────────────────────────────
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*_backup.db
+
+# ── Android Studio ────────────────────────────────
 *.iml
 .gradle/
 .idea/
@@ -6,7 +39,7 @@ local.properties
 .DS_Store
 .kotlin/
 
-# Android builds
+# ── Android Builds ────────────────────────────────
 build/
 app/build/
 */build/
@@ -14,55 +47,80 @@ captures/
 .externalNativeBuild/
 .cxx/
 
-# APK files
+# ── APK / AAB ─────────────────────────────────────
 *.apk
 *.aab
 *.ap_
 *.dex
 
-# Native libraries (built by Rust)
-# Note: .so files are included in git for easy building without Rust toolchain
-# app/src/main/jniLibs/  # Commented out - we want these in git
-# *.so                   # Commented out - Android native libraries included
-*.dylib                  # macOS libs not needed
-*.dll                    # Windows libs not needed
+# ── Native Libraries (platform-specific) ──────────
+*.dylib
+*.dll
 
-# Rust
+# ── Rust ──────────────────────────────────────────
 secure-legion-core/target/
 secure-legion-core/**/*.rs.bk
 secure-legion-core/Cargo.lock
 
-# Old/duplicate projects
+# ── Node.js ───────────────────────────────────────
+node_modules/
+dist/
+.cache/
+.parcel-cache/
+coverage/
+
+# ── Server Data ───────────────────────────────────
+server/data/
+server/dist/
+server/node_modules/
+server/logs/
+
+# ── Web Build ─────────────────────────────────────
+web/dist/
+web/node_modules/
+
+# ── Old / Duplicate Projects ─────────────────────
 secure-legion-android/
 conductor/
 relay-server/
 
-# Misc
-nul
-*.log
-*.md
-payment_request_fixes_backup.txt
-SECURITY_ROADMAP.txt
+# ── OS Files ──────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini
 
-# Implementation documentation (sensitive/internal)
+# ── IDE ───────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── Logs ──────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── Signing Keys (NEVER commit) ──────────────────
+*.jks
+*.keystore
+keystore.properties
+release-keystore.jks
+
+# ── Internal / Sensitive Docs ─────────────────────
+AUDIT_REPORT.md
 WALLET_DATABASE_SECURITY_AUDIT.md
 VOICE_MESSAGES_IMPLEMENTATION.md
 PING_PONG_IMPLEMENTATION.md
 PROTOCOL_README.md
 README MAIN.md
+payment_request_fixes_backup.txt
+SECURITY_ROADMAP.txt
+kt_summary.txt
 
-# Signing keys (NEVER commit these!)
-*.jks
-*.keystore
-keystore.properties
-release-keystore.jks
+# ── Images (review individually) ─────────────────
 *.bat
-*.png
 notification_*.png
 screenshot_*.png
 pixel6a.png
-
-# Database backups
-*.db
-*_backup.db
-secure_legion_backup.db

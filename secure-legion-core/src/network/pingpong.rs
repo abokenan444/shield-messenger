@@ -83,7 +83,7 @@ pub struct DeliveryAck {
 }
 
 /// Ping-Pong Protocol Manager
-/// Handles the Secure Legion Ping-Pong Wake Protocol
+/// Handles the Shield Messenger Ping-Pong Wake Protocol
 pub struct PingPongManager {
     /// Local keypair for signing
     keypair: SigningKey,

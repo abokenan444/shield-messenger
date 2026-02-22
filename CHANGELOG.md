@@ -644,7 +644,7 @@ CREATE TABLE messages (
   - Status updates via async callbacks from TorManager
   - Automatic navigation to MainActivity after initialization
 
-- **JNI Bridge Enhancements** (secure-legion-core/src/ffi/android.rs)
+- **JNI Bridge Enhancements** (shield-messenger-core/src/ffi/android.rs)
   - Added `startHiddenServiceListener(port)` - Starts TCP listener for incoming connections
   - Added `stopHiddenServiceListener()` - Gracefully shuts down listener
   - Added `pollIncomingPing()` - Non-blocking retrieval of incoming Ping tokens
@@ -668,7 +668,7 @@ CREATE TABLE messages (
   - Notification channel configured with low importance to minimize user interruption
   - START_STICKY return value ensures Android restarts service if killed
 
-- **TorManager Rust Implementation** (secure-legion-core/src/network/tor.rs)
+- **TorManager Rust Implementation** (shield-messenger-core/src/network/tor.rs)
   - Enhanced `create_hidden_service()` with configurable service and local ports
   - Added port configuration fields: `hs_service_port` and `hs_local_port`
   - Implemented `start_listener()` method with Tokio TCP socket binding
@@ -728,7 +728,7 @@ CREATE TABLE messages (
 
 **File Structure Changes:**
 ```
-secure-legion-core/
+shield-messenger-core/
 ├── src/network/tor.rs          (Modified - added listener methods)
 ├── src/ffi/android.rs          (Modified - added JNI bindings)
 
