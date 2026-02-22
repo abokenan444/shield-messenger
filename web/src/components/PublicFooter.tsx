@@ -49,7 +49,7 @@ export function PublicFooter() {
           <div>
             <h4 className="text-white font-semibold mb-4">{lt.nav_source}</h4>
             <div className="space-y-2">
-              <a href="https://github.com/shield-messenger" target="_blank" rel="noopener noreferrer" className="block text-dark-400 text-sm hover:text-primary-400 transition-colors">GitHub</a>
+              <a href="https://github.com/abokenan444/shield-messenger" target="_blank" rel="noopener noreferrer" className="block text-dark-400 text-sm hover:text-primary-400 transition-colors">GitHub</a>
               <Link to="/blog" className="block text-dark-400 text-sm hover:text-primary-400 transition-colors">{lt.nav_blog}</Link>
               <Link to="/faq" className="block text-dark-400 text-sm hover:text-primary-400 transition-colors">{lt.nav_faq}</Link>
             </div>
