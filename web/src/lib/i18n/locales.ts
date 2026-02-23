@@ -230,6 +230,15 @@ export interface Translations {
   tor_health: string;
   tor_circuits: string;
   tor_vpnMode: string;
+
+  // PWA
+  pwa_installTitle: string;
+  pwa_installDesc: string;
+  pwa_install: string;
+  pwa_later: string;
+  pwa_updateAvailable: string;
+  pwa_updateDesc: string;
+  pwa_refresh: string;
 }
 
 /* ───── Arabic (العربية) ───── */
@@ -441,6 +450,13 @@ export const ar: Translations = {
   tor_health: 'صحة الشبكة',
   tor_circuits: 'الدوائر',
   tor_vpnMode: 'وضع VPN',
+  pwa_installTitle: 'تثبيت Shield Messenger',
+  pwa_installDesc: 'ثبّت التطبيق للوصول السريع والعمل بدون إنترنت.',
+  pwa_install: 'تثبيت',
+  pwa_later: 'لاحقاً',
+  pwa_updateAvailable: 'تحديث متاح',
+  pwa_updateDesc: 'إصدار جديد جاهز.',
+  pwa_refresh: 'تحديث',
 };
 
 /* ───── English ───── */
@@ -652,6 +668,13 @@ export const en: Translations = {
   tor_health: 'Network Health',
   tor_circuits: 'Circuits',
   tor_vpnMode: 'VPN Mode',
+  pwa_installTitle: 'Install Shield Messenger',
+  pwa_installDesc: 'Install for quick access, offline support, and push notifications.',
+  pwa_install: 'Install',
+  pwa_later: 'Later',
+  pwa_updateAvailable: 'Update Available',
+  pwa_updateDesc: 'A new version is ready.',
+  pwa_refresh: 'Refresh',
 };
 
 /* ───── Français ───── */
@@ -863,6 +886,13 @@ export const fr: Translations = {
   tor_health: 'Santé du réseau',
   tor_circuits: 'Circuits',
   tor_vpnMode: 'Mode VPN',
+  pwa_installTitle: 'Installer Shield Messenger',
+  pwa_installDesc: 'Installez pour un accès rapide et le mode hors ligne.',
+  pwa_install: 'Installer',
+  pwa_later: 'Plus tard',
+  pwa_updateAvailable: 'Mise à jour disponible',
+  pwa_updateDesc: 'Une nouvelle version est prête.',
+  pwa_refresh: 'Actualiser',
 };
 
 /* ───── Español ───── */
@@ -1074,6 +1104,13 @@ export const es: Translations = {
   tor_health: 'Salud de la red',
   tor_circuits: 'Circuitos',
   tor_vpnMode: 'Modo VPN',
+  pwa_installTitle: 'Instalar Shield Messenger',
+  pwa_installDesc: 'Instala para acceso rápido y soporte sin conexión.',
+  pwa_install: 'Instalar',
+  pwa_later: 'Después',
+  pwa_updateAvailable: 'Actualización disponible',
+  pwa_updateDesc: 'Una nueva versión está lista.',
+  pwa_refresh: 'Actualizar',
 };
 
 /* ───── Deutsch ───── */
@@ -1285,6 +1322,13 @@ export const de: Translations = {
   tor_health: 'Netzwerkgesundheit',
   tor_circuits: 'Schaltkreise',
   tor_vpnMode: 'VPN-Modus',
+  pwa_installTitle: 'Shield Messenger installieren',
+  pwa_installDesc: 'Installieren für schnellen Zugriff und Offline-Unterstützung.',
+  pwa_install: 'Installieren',
+  pwa_later: 'Später',
+  pwa_updateAvailable: 'Update verfügbar',
+  pwa_updateDesc: 'Eine neue Version ist bereit.',
+  pwa_refresh: 'Aktualisieren',
 };
 
 /* ───── Türkçe ───── */
@@ -1496,6 +1540,13 @@ export const tr: Translations = {
   tor_health: 'Ağ Sağlığı',
   tor_circuits: 'Devreler',
   tor_vpnMode: 'VPN Modu',
+  pwa_installTitle: 'Shield Messenger Yükle',
+  pwa_installDesc: 'Hızlı erişim ve çevrimdışı destek için yükleyin.',
+  pwa_install: 'Yükle',
+  pwa_later: 'Sonra',
+  pwa_updateAvailable: 'Güncelleme Mevcut',
+  pwa_updateDesc: 'Yeni bir sürüm hazır.',
+  pwa_refresh: 'Yenile',
 };
 
 /* ───── فارسی (Persian) ───── */
@@ -1707,6 +1758,13 @@ export const fa: Translations = {
   tor_health: 'سلامت شبکه',
   tor_circuits: 'مدارها',
   tor_vpnMode: 'حالت VPN',
+  pwa_installTitle: 'نصب Shield Messenger',
+  pwa_installDesc: 'برای دسترسی سریع و پشتیبانی آفلاین نصب کنید.',
+  pwa_install: 'نصب',
+  pwa_later: 'بعداً',
+  pwa_updateAvailable: 'بروزرسانی موجود',
+  pwa_updateDesc: 'نسخه جدید آماده است.',
+  pwa_refresh: 'بروزرسانی',
 };
 
 /* ───── اردو (Urdu) ───── */
@@ -1918,6 +1976,13 @@ export const ur: Translations = {
   tor_health: 'نیٹ ورک صحت',
   tor_circuits: 'سرکٹس',
   tor_vpnMode: 'VPN موڈ',
+  pwa_installTitle: 'Shield Messenger انسٹال کریں',
+  pwa_installDesc: 'فوری رسائی اور آف لائن سپورٹ کے لیے انسٹال کریں۔',
+  pwa_install: 'انسٹال',
+  pwa_later: 'بعد میں',
+  pwa_updateAvailable: 'اپ ڈیٹ دستیاب',
+  pwa_updateDesc: 'نیا ورژن تیار ہے۔',
+  pwa_refresh: 'ریفریش',
 };
 
 /* ───── 中文 (Chinese Simplified) ───── */
@@ -2129,6 +2194,13 @@ export const zh: Translations = {
   tor_health: '网络健康',
   tor_circuits: '线路',
   tor_vpnMode: 'VPN 模式',
+  pwa_installTitle: '安装 Shield Messenger',
+  pwa_installDesc: '安装以快速访问和离线支持。',
+  pwa_install: '安装',
+  pwa_later: '稍后',
+  pwa_updateAvailable: '有可用更新',
+  pwa_updateDesc: '新版本已就绪。',
+  pwa_refresh: '刷新',
 };
 
 /* ───── 日本語 (Japanese) ───── */
@@ -2340,6 +2412,13 @@ export const ja: Translations = {
   tor_health: 'ネットワーク健全性',
   tor_circuits: '回線',
   tor_vpnMode: 'VPNモード',
+  pwa_installTitle: 'Shield Messengerをインストール',
+  pwa_installDesc: '素早いアクセスとオフラインサポートのためにインストール。',
+  pwa_install: 'インストール',
+  pwa_later: '後で',
+  pwa_updateAvailable: 'アップデート利用可能',
+  pwa_updateDesc: '新しいバージョンが利用可能です。',
+  pwa_refresh: '更新',
 };
 
 /* ───── 한국어 (Korean) ───── */
@@ -2551,6 +2630,13 @@ export const ko: Translations = {
   tor_health: '네트워크 상태',
   tor_circuits: '회로',
   tor_vpnMode: 'VPN 모드',
+  pwa_installTitle: 'Shield Messenger 설치',
+  pwa_installDesc: '빠른 접근과 오프라인 지원을 위해 설치하세요.',
+  pwa_install: '설치',
+  pwa_later: '나중에',
+  pwa_updateAvailable: '업데이트 가능',
+  pwa_updateDesc: '새 버전이 준비되었습니다.',
+  pwa_refresh: '새로고침',
 };
 
 /* ───── Русский (Russian) ───── */
@@ -2762,6 +2848,13 @@ export const ru: Translations = {
   tor_health: 'Состояние сети',
   tor_circuits: 'Цепи',
   tor_vpnMode: 'Режим VPN',
+  pwa_installTitle: 'Установить Shield Messenger',
+  pwa_installDesc: 'Установите для быстрого доступа и офлайн-поддержки.',
+  pwa_install: 'Установить',
+  pwa_later: 'Позже',
+  pwa_updateAvailable: 'Доступно обновление',
+  pwa_updateDesc: 'Новая версия готова.',
+  pwa_refresh: 'Обновить',
 };
 
 /* ───── Português ───── */
@@ -2973,6 +3066,13 @@ export const pt: Translations = {
   tor_health: 'Saúde da rede',
   tor_circuits: 'Circuitos',
   tor_vpnMode: 'Modo VPN',
+  pwa_installTitle: 'Instalar Shield Messenger',
+  pwa_installDesc: 'Instale para acesso rápido e suporte offline.',
+  pwa_install: 'Instalar',
+  pwa_later: 'Depois',
+  pwa_updateAvailable: 'Atualização disponível',
+  pwa_updateDesc: 'Uma nova versão está pronta.',
+  pwa_refresh: 'Atualizar',
 };
 
 /* ───── Italiano ───── */
@@ -3184,6 +3284,13 @@ export const it: Translations = {
   tor_health: 'Salute della rete',
   tor_circuits: 'Circuiti',
   tor_vpnMode: 'Modalità VPN',
+  pwa_installTitle: 'Installa Shield Messenger',
+  pwa_installDesc: 'Installa per un accesso rapido e supporto offline.',
+  pwa_install: 'Installa',
+  pwa_later: 'Dopo',
+  pwa_updateAvailable: 'Aggiornamento disponibile',
+  pwa_updateDesc: 'Una nuova versione è pronta.',
+  pwa_refresh: 'Aggiorna',
 };
 
 /* ───── हिन्दी (Hindi) ───── */
@@ -3395,6 +3502,13 @@ export const hi: Translations = {
   tor_health: 'नेटवर्क स्वास्थ्य',
   tor_circuits: 'सर्किट',
   tor_vpnMode: 'VPN मोड',
+  pwa_installTitle: 'Shield Messenger इंस्टॉल करें',
+  pwa_installDesc: 'त्वरित पहुँच और ऑफलाइन समर्थन के लिए इंस्टॉल करें।',
+  pwa_install: 'इंस्टॉल',
+  pwa_later: 'बाद में',
+  pwa_updateAvailable: 'अपडेट उपलब्ध',
+  pwa_updateDesc: 'नया संस्करण तैयार है।',
+  pwa_refresh: 'रिफ्रेश',
 };
 
 /* ───── Bahasa Indonesia ───── */
@@ -3606,6 +3720,13 @@ export const id: Translations = {
   tor_health: 'Kesehatan Jaringan',
   tor_circuits: 'Sirkuit',
   tor_vpnMode: 'Mode VPN',
+  pwa_installTitle: 'Instal Shield Messenger',
+  pwa_installDesc: 'Instal untuk akses cepat dan dukungan offline.',
+  pwa_install: 'Instal',
+  pwa_later: 'Nanti',
+  pwa_updateAvailable: 'Pembaruan tersedia',
+  pwa_updateDesc: 'Versi baru sudah siap.',
+  pwa_refresh: 'Segarkan',
 };
 
 /* ───── Nederlands ───── */
@@ -3817,6 +3938,13 @@ export const nl: Translations = {
   tor_health: 'Netwerkgezondheid',
   tor_circuits: 'Circuits',
   tor_vpnMode: 'VPN-modus',
+  pwa_installTitle: 'Shield Messenger installeren',
+  pwa_installDesc: 'Installeer voor snelle toegang en offline ondersteuning.',
+  pwa_install: 'Installeren',
+  pwa_later: 'Later',
+  pwa_updateAvailable: 'Update beschikbaar',
+  pwa_updateDesc: 'Een nieuwe versie is klaar.',
+  pwa_refresh: 'Vernieuwen',
 };
 
 /* ───── Locale registry ───── */

@@ -10,6 +10,7 @@ import { WalletPage } from './pages/WalletPage';
 import { SecurityPage } from './pages/SecurityPage';
 import { CallOverlay, IncomingCallDialog } from './components/CallOverlay';
 import { MobileNav } from './components/MobileNav';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { PublicLayout } from './components/PublicLayout';
 import { LandingPage } from './pages/landing/LandingPage';
 import { PrivacyPage } from './pages/landing/PrivacyPage';
@@ -89,6 +90,9 @@ export function App() {
           <MobileNav />
         </>
       )}
+
+      {/* PWA Install Prompt */}
+      <PWAInstallPrompt />
     </>
   );
 }
