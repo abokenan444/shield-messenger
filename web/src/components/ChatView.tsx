@@ -1,21 +1,20 @@
 import { useState, useRef, useEffect, useCallback, type FormEvent } from 'react';
 import { useChatStore, type Message } from '../lib/store/chatStore';
 import { useAuthStore } from '../lib/store/authStore';
-import { useCallStore } from '../lib/store/callStore';
 import { useTranslation } from '../lib/i18n';
 import { sendMessage as protocolSendMessage } from '../lib/protocolClient';
 import { ShieldIcon } from './icons/ShieldIcon';
 
 interface ChatViewProps {
   roomId: string;
+  onBack?: () => void;
 }
 
-export function ChatView({ roomId }: ChatViewProps) {
+export function ChatView({ roomId, onBack }: ChatViewProps) {
   const room = useChatStore((s) => s.rooms.find((r) => r.id === roomId));
   const messages = useChatStore((s) => s.messages[roomId] || []);
   const addMessage = useChatStore((s) => s.addMessage);
   const userId = useAuthStore((s) => s.userId);
-  const startCall = useCallStore((s) => s.startCall);
   const { t, locale } = useTranslation();
   const [input, setInput] = useState('');
   const [replyTo, setReplyTo] = useState<Message | null>(null);
@@ -32,48 +31,11 @@ export function ChatView({ roomId }: ChatViewProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Load mock messages
+  // Load messages from server/P2P when room opens
   useEffect(() => {
-    const { setMessages } = useChatStore.getState();
-    if (messages.length === 0) {
-      const mockMessages: Message[] = [
-        {
-          id: '1',
-          roomId,
-          senderId: 'sl_other',
-          senderName: room?.name || t.chat_user,
-          content: 'Hello! 👋',
-          timestamp: Date.now() - 600000,
-          type: 'text',
-          encrypted: true,
-          status: 'read',
-        },
-        {
-          id: '2',
-          roomId,
-          senderId: userId || 'sl_me',
-          senderName: t.chat_me,
-          content: 'Hey! How are you?',
-          timestamp: Date.now() - 300000,
-          type: 'text',
-          encrypted: true,
-          status: 'read',
-        },
-        {
-          id: '3',
-          roomId,
-          senderId: 'sl_other',
-          senderName: room?.name || t.chat_user,
-          content: 'Doing great! Have you tried the new encryption? 🔐',
-          timestamp: Date.now() - 120000,
-          type: 'text',
-          encrypted: true,
-          status: 'delivered',
-        },
-      ];
-      setMessages(roomId, mockMessages);
-    }
-  }, [roomId, userId, room?.name, messages.length]);
+    // Messages will be loaded from encrypted local storage or server
+    // No mock data — real messages come through the protocol client
+  }, [roomId]);
 
   const handleSend = async (e: FormEvent) => {
     e.preventDefault();
@@ -222,15 +184,11 @@ export function ChatView({ roomId }: ChatViewProps) {
   }, []);
 
   const handleVoiceCall = () => {
-    if (!room) return;
-    const target = room.members.find((m) => m !== (userId || 'sl_me')) || room.members[0];
-    startCall(roomId, 'voice', target, room.name);
+    alert('P2P encrypted calls are available on the native Android & iOS apps. Web calling coming soon.');
   };
 
   const handleVideoCall = () => {
-    if (!room) return;
-    const target = room.members.find((m) => m !== (userId || 'sl_me')) || room.members[0];
-    startCall(roomId, 'video', target, room.name);
+    alert('P2P encrypted calls are available on the native Android & iOS apps. Web calling coming soon.');
   };
 
   const emojis = ['😀', '😂', '❤️', '👍', '🔒', '🛡️', '✅', '🎉', '🙏', '💪', '🌟', '🔐'];
@@ -251,8 +209,16 @@ export function ChatView({ roomId }: ChatViewProps) {
   return (
     <div className="flex-1 flex flex-col bg-dark-950">
       {/* Chat Header */}
-      <div className="px-6 py-3 bg-dark-900 border-b border-dark-800 flex items-center justify-between">
+      <div className="px-4 md:px-6 py-3 bg-dark-900 border-b border-dark-800 flex items-center justify-between">
         <div className="flex items-center gap-3">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="md:hidden text-dark-400 hover:text-dark-200 transition p-1"
+            >
+              ←
+            </button>
+          )}
           <div className="avatar">{room.isDirect ? room.name[0] : '👥'}</div>
           <div>
             <h3 className="font-semibold text-white">{room.name}</h3>
@@ -305,7 +271,7 @@ export function ChatView({ roomId }: ChatViewProps) {
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+      <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4 space-y-3">
         {/* Encryption Notice */}
         <div className="text-center py-4">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-900/20 rounded-full text-xs text-primary-400">
@@ -450,7 +416,7 @@ export function ChatView({ roomId }: ChatViewProps) {
 
       {/* Message Input */}
       {!isRecording && (
-        <div className="px-6 py-4 bg-dark-900 border-t border-dark-800">
+        <div className="px-3 md:px-6 py-3 md:py-4 bg-dark-900 border-t border-dark-800">
           <form onSubmit={handleSend} className="flex items-center gap-2">
             <input
               ref={fileInputRef}

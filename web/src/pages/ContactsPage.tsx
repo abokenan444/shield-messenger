@@ -53,9 +53,9 @@ export function ContactsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-dark-950">
+    <div className="min-h-screen bg-dark-950 pb-16 md:pb-0">
       {/* Header */}
-      <div className="bg-dark-900 border-b border-dark-800 px-6 py-4 flex items-center gap-4">
+      <div className="bg-dark-900 border-b border-dark-800 px-4 md:px-6 py-4 flex items-center gap-4">
         <button onClick={() => navigate('/')} className="text-dark-400 hover:text-dark-200 transition">←</button>
         <h1 className="text-xl font-semibold">{t.contacts_title}</h1>
         <div className="flex-1" />
@@ -69,7 +69,7 @@ export function ContactsPage() {
 
       {/* QR Code Modal */}
       {showQR && (
-        <div className="max-w-2xl mx-auto px-6 pt-4">
+          <div className="max-w-2xl mx-auto px-4 md:px-6 pt-4">
           <div className="card text-center">
             <div className="w-48 h-48 mx-auto bg-white rounded-xl flex items-center justify-center mb-4">
               <div className="text-6xl">📱</div>
@@ -92,8 +92,8 @@ export function ContactsPage() {
       )}
 
       {/* Tabs */}
-      <div className="max-w-2xl mx-auto px-6 pt-4">
-        <div className="flex gap-2 mb-4">
+      <div className="max-w-2xl mx-auto px-4 md:px-6 pt-4">
+        <div className="flex gap-2 mb-4 overflow-x-auto">
           {(['contacts', 'requests', 'add'] as const).map((t2) => (
             <button
               key={t2}
@@ -111,7 +111,7 @@ export function ContactsPage() {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-6 pb-6 space-y-4">
+      <div className="max-w-2xl mx-auto px-4 md:px-6 pb-6 space-y-4">
         {/* Contacts Tab */}
         {tab === 'contacts' && (
           <>

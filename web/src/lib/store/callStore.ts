@@ -87,45 +87,7 @@ export const useCallStore = create<CallStoreState>()((set, get) => {
     showIncomingCall: false,
     incomingCallFrom: '',
     incomingCallType: 'voice',
-    callLog: [
-      // Mock call history
-      {
-        id: '1',
-        callId: 'call-001',
-        roomId: 'conv-001',
-        userId: 'sl_ahmed',
-        displayName: 'أحمد محمد',
-        type: 'voice',
-        direction: 'incoming',
-        duration: 180,
-        timestamp: Date.now() - 3600000,
-        missed: false,
-      },
-      {
-        id: '2',
-        callId: 'call-002',
-        roomId: 'conv-003',
-        userId: 'sl_sarah',
-        displayName: 'سارة أحمد',
-        type: 'video',
-        direction: 'outgoing',
-        duration: 420,
-        timestamp: Date.now() - 7200000,
-        missed: false,
-      },
-      {
-        id: '3',
-        callId: 'call-003',
-        roomId: 'conv-001',
-        userId: 'sl_ahmed',
-        displayName: 'أحمد محمد',
-        type: 'voice',
-        direction: 'incoming',
-        duration: 0,
-        timestamp: Date.now() - 86400000,
-        missed: true,
-      },
-    ],
+    callLog: [],
 
     startCall: async (roomId, type, userId, displayName) => {
       try {
@@ -136,7 +98,7 @@ export const useCallStore = create<CallStoreState>()((set, get) => {
           audioEnabled: true,
         });
       } catch (err) {
-        console.error('[SL-Call] Start failed:', err);
+        console.warn('[SL-Call] P2P calls require the native app. Web calling coming soon.');
       }
     },
 

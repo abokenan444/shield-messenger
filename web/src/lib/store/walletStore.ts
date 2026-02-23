@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export interface WalletToken {
   symbol: string;
@@ -34,7 +35,9 @@ interface WalletState {
   setTransactions: (txs: WalletTransaction[]) => void;
 }
 
-export const useWalletStore = create<WalletState>()((set) => ({
+export const useWalletStore = create<WalletState>()(
+  persist(
+    (set) => ({
   hasWallet: false,
   walletType: null,
   address: null,
@@ -101,4 +104,9 @@ export const useWalletStore = create<WalletState>()((set) => ({
     set((state) => ({ transactions: [tx, ...state.transactions] })),
 
   setTransactions: (txs) => set({ transactions: txs }),
-}));
+    }),
+    {
+      name: 'shield-messenger-wallet',
+    },
+  ),
+);

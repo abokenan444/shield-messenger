@@ -22,7 +22,7 @@ export function Sidebar({ isOpen }: SidebarProps) {
   };
 
   return (
-    <div className="w-16 bg-dark-900 border-l border-dark-800 flex flex-col items-center py-4 gap-2">
+    <div className="hidden md:flex w-16 bg-dark-900 border-l border-dark-800 flex-col items-center py-4 gap-2">
       {/* Logo */}
       <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center mb-4">
         <ShieldIcon className="w-6 h-6 text-white" />

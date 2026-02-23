@@ -46,13 +46,13 @@ export function WalletPage() {
 
   if (!hasWallet) {
     return (
-      <div className="min-h-screen bg-dark-950">
-        <div className="bg-dark-900 border-b border-dark-800 px-6 py-4 flex items-center gap-4">
+      <div className="min-h-screen bg-dark-950 pb-16 md:pb-0">
+        <div className="bg-dark-900 border-b border-dark-800 px-4 md:px-6 py-4 flex items-center gap-4">
           <button onClick={() => navigate('/')} className="text-dark-400 hover:text-dark-200 transition">←</button>
           <h1 className="text-xl font-semibold">{t.wallet_title}</h1>
         </div>
 
-        <div className="max-w-md mx-auto p-6 mt-16">
+        <div className="max-w-md mx-auto p-4 md:p-6 mt-8 md:mt-16">
           {!setupStep && (
             <div className="text-center space-y-6">
               <div className="text-6xl mb-4">💰</div>
@@ -150,9 +150,9 @@ export function WalletPage() {
   }
 
   return (
-    <div className="min-h-screen bg-dark-950">
+    <div className="min-h-screen bg-dark-950 pb-16 md:pb-0">
       {/* Header */}
-      <div className="bg-dark-900 border-b border-dark-800 px-6 py-4 flex items-center gap-4">
+      <div className="bg-dark-900 border-b border-dark-800 px-4 md:px-6 py-4 flex items-center gap-4">
         <button onClick={() => navigate('/')} className="text-dark-400 hover:text-dark-200 transition">←</button>
         <h1 className="text-xl font-semibold">{t.wallet_title}</h1>
         <span className="text-xs bg-dark-800 px-2 py-0.5 rounded text-dark-400">
@@ -160,7 +160,7 @@ export function WalletPage() {
         </span>
       </div>
 
-      <div className="max-w-2xl mx-auto p-6 space-y-6">
+      <div className="max-w-2xl mx-auto p-4 md:p-6 space-y-6">
         {/* Balance Card */}
         <div className="card text-center">
           <p className="text-dark-400 text-sm mb-1">{t.wallet_totalBalance}</p>

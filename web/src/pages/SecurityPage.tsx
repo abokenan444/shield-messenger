@@ -31,15 +31,15 @@ export function SecurityPage() {
   };
 
   return (
-    <div className="min-h-screen bg-dark-950">
+    <div className="min-h-screen bg-dark-950 pb-16 md:pb-0">
       {/* Header */}
-      <div className="bg-dark-900 border-b border-dark-800 px-6 py-4 flex items-center gap-4">
+      <div className="bg-dark-900 border-b border-dark-800 px-4 md:px-6 py-4 flex items-center gap-4">
         <button onClick={() => navigate('/')} className="text-dark-400 hover:text-dark-200 transition">←</button>
         <ShieldIcon className="w-5 h-5 text-primary-400" />
         <h1 className="text-xl font-semibold">{t.security_lock}</h1>
       </div>
 
-      <div className="max-w-2xl mx-auto p-6 space-y-6">
+      <div className="max-w-2xl mx-auto p-4 md:p-6 space-y-6">
         {/* App Lock */}
         <div className="card">
           <h2 className="text-lg font-semibold mb-4">{t.security_appLock}</h2>

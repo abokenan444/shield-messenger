@@ -28,7 +28,7 @@ export function ChatList({ onSelectRoom, activeRoomId }: ChatListProps) {
   };
 
   return (
-    <div className="w-80 bg-dark-950 border-l border-dark-800 flex flex-col">
+    <div className="w-full md:w-80 bg-dark-950 border-l border-dark-800 flex flex-col">
       {/* Header */}
       <div className="px-4 py-4 border-b border-dark-800">
         <div className="flex items-center justify-between mb-3">

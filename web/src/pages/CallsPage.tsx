@@ -22,16 +22,16 @@ export function CallsPage() {
   };
 
   return (
-    <div className="h-screen flex overflow-hidden">
+    <div className="h-screen flex overflow-hidden pb-14 md:pb-0">
       <Sidebar isOpen onToggle={() => {}} />
 
       <div className="flex-1 flex flex-col bg-dark-950">
         {/* Header */}
-        <div className="px-6 py-4 bg-dark-900 border-b border-dark-800">
+        <div className="px-4 md:px-6 py-4 bg-dark-900 border-b border-dark-800">
           <h1 className="text-xl font-semibold text-white mb-3">{t.calls_title}</h1>
 
           {/* Filter tabs */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 overflow-x-auto">
             {(['all', 'missed', 'voice', 'video'] as const).map((f) => (
               <button
                 key={f}
@@ -45,6 +45,14 @@ export function CallsPage() {
                 {f === 'video' && t.calls_video}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* Coming soon notice */}
+        <div className="px-4 md:px-6 py-3 bg-yellow-900/20 border-b border-yellow-800/30">
+          <div className="flex items-center gap-2 text-sm text-yellow-400">
+            <span>📱</span>
+            <span>P2P encrypted calls are available on the native Android & iOS apps. Web calling coming soon.</span>
           </div>
         </div>
 
@@ -106,7 +114,7 @@ function CallLogRow({
   };
 
   return (
-    <div className="flex items-center gap-4 px-6 py-4 hover:bg-dark-900/50 transition border-b border-dark-800/30">
+    <div className="flex items-center gap-3 md:gap-4 px-4 md:px-6 py-3 md:py-4 hover:bg-dark-900/50 transition border-b border-dark-800/30">
       {/* Avatar */}
       <div className="avatar">
         {entry.displayName[0]?.toUpperCase() || '?'}
