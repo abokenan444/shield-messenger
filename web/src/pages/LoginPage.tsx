@@ -35,11 +35,13 @@ export function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo & Branding */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-primary-600/20 rounded-2xl mb-4">
-            <ShieldIcon className="w-10 h-10 text-primary-400" />
-          </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Shield Messenger</h1>
-          <p className="text-dark-400">{t.login_subtitle}</p>
+          <Link to="/home" className="inline-flex flex-col items-center gap-3 group">
+            <div className="w-20 h-20 bg-primary-600/20 rounded-2xl flex items-center justify-center group-hover:bg-primary-600/30 transition">
+              <ShieldIcon className="w-10 h-10 text-primary-400" />
+            </div>
+            <h1 className="text-3xl font-bold text-white group-hover:text-primary-400 transition">Shield Messenger</h1>
+          </Link>
+          <p className="text-dark-400 mt-2">{t.login_subtitle}</p>
         </div>
 
         {/* Login Form */}
