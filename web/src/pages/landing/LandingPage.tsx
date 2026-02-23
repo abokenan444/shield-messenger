@@ -192,7 +192,7 @@ export function LandingPage() {
           <p className="text-dark-300 text-lg mb-10 max-w-2xl mx-auto">{t.cta_subtitle}</p>
 
           <div className="grid sm:grid-cols-3 gap-4 max-w-2xl mx-auto mb-10">
-            <DownloadButton icon="🤖" label={t.cta_android} href="https://github.com/abokenan444/shield-messenger/releases" />
+            <DownloadButton icon="🤖" label={t.cta_android} href="/shield-messenger.apk" />
             <DownloadButton icon="🌐" label={t.cta_pwa} href="/register" />
             <DownloadButton icon="🍎" label={t.cta_ios} href="https://github.com/abokenan444/shield-messenger/releases" />
           </div>

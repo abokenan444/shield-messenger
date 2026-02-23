@@ -22,7 +22,7 @@ export function DownloadPage() {
             icon="🤖"
             label={t.cta_android}
             desc="Android APK"
-            href="https://github.com/abokenan444/shield-messenger/releases"
+            href="/shield-messenger.apk"
           />
           <DownloadCard
             icon="🌐"

@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
+import { Html5Qrcode } from 'html5-qrcode';
 import { useContactStore, type Contact } from '../lib/store/contactStore';
 import { useAuthStore } from '../lib/store/authStore';
 import { useTranslation, type Translations } from '../lib/i18n';
@@ -71,8 +73,14 @@ export function ContactsPage() {
       {showQR && (
           <div className="max-w-2xl mx-auto px-4 md:px-6 pt-4">
           <div className="card text-center">
-            <div className="w-48 h-48 mx-auto bg-white rounded-xl flex items-center justify-center mb-4">
-              <div className="text-6xl">📱</div>
+            <div className="w-52 h-52 mx-auto bg-white rounded-xl flex items-center justify-center mb-4 p-3">
+              <QRCodeSVG
+                value={myOnion}
+                size={184}
+                level="M"
+                bgColor="#ffffff"
+                fgColor="#000000"
+              />
             </div>
             <p className="text-sm text-dark-400 mb-2">{t.contacts_onionAddress}</p>
             <code className="text-xs text-primary-400 bg-dark-800 px-3 py-1 rounded" dir="ltr">{myOnion}</code>
@@ -247,16 +255,123 @@ export function ContactsPage() {
 
             <div className="card text-center">
               <h3 className="font-semibold mb-4">{t.contacts_scanQR}</h3>
-              <div className="w-64 h-64 mx-auto bg-dark-800 rounded-xl flex items-center justify-center border-2 border-dashed border-dark-600">
-                <div className="text-center">
-                  <div className="text-5xl mb-2">📷</div>
-                  <p className="text-dark-400 text-sm">{t.contacts_scanQR}</p>
-                </div>
-              </div>
+              <QRScanner
+                onScan={(result) => {
+                  setNewAddress(result);
+                  setTab('add');
+                }}
+                t={t}
+              />
             </div>
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function QRScanner({ onScan, t }: { onScan: (result: string) => void; t: Translations }) {
+  const [scanning, setScanning] = useState(false);
+  const [error, setError] = useState('');
+  const [scannedValue, setScannedValue] = useState('');
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mountedRef = useRef(true);
+
+  const stopScanner = useCallback(async () => {
+    if (scannerRef.current) {
+      try {
+        const state = scannerRef.current.getState();
+        if (state === 2) { // SCANNING
+          await scannerRef.current.stop();
+        }
+      } catch {
+        // ignore stop errors
+      }
+      scannerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      stopScanner();
+    };
+  }, [stopScanner]);
+
+  const startScanner = async () => {
+    setError('');
+    setScannedValue('');
+    setScanning(true);
+
+    await stopScanner();
+
+    // Small delay to ensure DOM element is rendered
+    await new Promise((r) => setTimeout(r, 100));
+
+    if (!containerRef.current || !mountedRef.current) return;
+
+    const scannerId = 'qr-scanner-region';
+    try {
+      const html5Qr = new Html5Qrcode(scannerId);
+      scannerRef.current = html5Qr;
+
+      await html5Qr.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 220, height: 220 } },
+        (decodedText) => {
+          if (!mountedRef.current) return;
+          setScannedValue(decodedText);
+          onScan(decodedText);
+          stopScanner();
+          setScanning(false);
+        },
+        () => { /* ignore scan failures (no code found yet) */ },
+      );
+    } catch (err) {
+      if (!mountedRef.current) return;
+      setError(
+        err instanceof Error && err.message.includes('Permission')
+          ? 'Camera permission denied'
+          : 'Could not access camera',
+      );
+      setScanning(false);
+    }
+  };
+
+  return (
+    <div className="w-full max-w-xs mx-auto">
+      {scannedValue ? (
+        <div className="py-6">
+          <div className="text-4xl mb-3">✅</div>
+          <p className="text-primary-400 text-sm font-mono break-all" dir="ltr">{scannedValue}</p>
+        </div>
+      ) : scanning ? (
+        <div ref={containerRef}>
+          <div
+            id="qr-scanner-region"
+            className="w-64 h-64 mx-auto rounded-xl overflow-hidden"
+          />
+          <button
+            onClick={() => { stopScanner(); setScanning(false); }}
+            className="mt-3 px-4 py-2 bg-dark-700 rounded-lg text-sm text-dark-300 hover:bg-dark-600 transition"
+          >
+            ✕
+          </button>
+        </div>
+      ) : (
+        <div>
+          <button
+            onClick={startScanner}
+            className="w-64 h-64 mx-auto bg-dark-800 rounded-xl flex flex-col items-center justify-center border-2 border-dashed border-dark-600 hover:border-primary-600 hover:bg-dark-700 transition cursor-pointer"
+          >
+            <div className="text-5xl mb-3">📷</div>
+            <p className="text-dark-300 text-sm font-medium">{t.contacts_scanQR}</p>
+          </button>
+          {error && <p className="text-red-400 text-sm mt-3">{error}</p>}
+        </div>
+      )}
     </div>
   );
 }
