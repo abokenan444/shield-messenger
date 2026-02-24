@@ -22,7 +22,7 @@
 
 > **No servers. No metadata. No compromises.**
 
-[Website](https://shieldmessenger.com) · [Whitepaper](docs/WHITEPAPER.md) · [Architecture](docs/ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
+[Website](https://shieldmessenger.com) · [Whitepaper](docs/WHITEPAPER.md) · [Architecture](docs/ARCHITECTURE.md) · [Protocol Spec](docs/protocol.md) · [Security Changelog](CHANGELOG-SECURITY.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
 </div>
 
@@ -101,7 +101,8 @@ Shield Messenger is a **privacy-first, multi-platform communication system** tha
 | **Digital Signatures** | Ed25519 | 256-bit | Message authentication & sender verification |
 | **Key Exchange** | X25519 ECDH | 256-bit | Classical ephemeral session keys |
 | **Key Derivation** | HKDF-SHA256 | 256-bit | Per-message key ratcheting |
-| **Forward Secrecy** | HMAC-based ratchet | 256-bit | Bidirectional key chains |
+| **Forward Secrecy** | HMAC-based ratchet | 256-bit | Bidirectional key chains (old keys zeroized) |
+| **Post-Compromise Security** | KEM ratchet (ML-KEM-1024) | 64-byte shared | Root key refresh via hybrid KEM steps |
 | **Voice Encryption** | XChaCha20-Poly1305 | 256-bit | Real-time audio stream encryption |
 | **Password Hashing** | Argon2id | Variable | Memory-hard PIN/password derivation |
 | **Database** | AES-256-GCM (SQLCipher) | 256-bit | Local storage encryption |
@@ -211,11 +212,16 @@ shield-messenger/
 ├── docs/                         # Documentation
 │   ├── WHITEPAPER.md            # Technical whitepaper
 │   ├── ARCHITECTURE.md          # System architecture
-│   └── VISION.md                # Vision & mission
+│   ├── VISION.md                # Vision & mission
+│   ├── protocol.md              # Protocol spec v2.0 + threat model
+│   ├── arti-migration.md        # Tor → Arti migration plan
+│   └── nix-reproducible.md      # Nix flake reproducible builds guide
 │
 ├── deploy/                       # Deployment configs (templates)
 ├── docker-compose.yml            # Docker containerization
-└── CHANGELOG.md                  # Detailed version history
+├── Dockerfile.core               # Reproducible core library build
+├── CHANGELOG.md                  # Detailed version history
+└── CHANGELOG-SECURITY.md         # Security-specific changelog
 ```
 
 ---
@@ -334,21 +340,26 @@ Shield Messenger supports **17 languages** across all platforms:
 
 ### Protected Against
 
-- ✅ Passive network surveillance (Tor + onion routing)
-- ✅ Active MITM attacks (Ed25519 signatures + Tor E2E)
-- ✅ Server compromise (no servers to compromise)
-- ✅ Metadata analysis (no centralized logs)
-- ✅ Device seizure (duress PIN → instant cryptographic wipe)
-- ✅ Traffic correlation (Tor + triple .onion)
-- ✅ Future quantum attacks (ML-KEM-1024)
-- ✅ Key extraction (hardware-backed StrongBox/TEE)
+- ✅ **Passive network surveillance** — Tor v3 onion routing, no clearnet metadata
+- ✅ **Active MITM attacks** — Ed25519 signatures on all control messages
+- ✅ **Server compromise** — No servers to compromise (fully serverless P2P)
+- ✅ **Metadata analysis** — No centralized logs; triple .onion architecture
+- ✅ **Device seizure** — Duress PIN: instant wipe + decoy database generation + stealth mode
+- ✅ **Traffic analysis** — Fixed-size padding (configurable 4096-16384), truncated-exponential delays, cover traffic on idle connections
+- ✅ **Future quantum attacks** — Hybrid X25519 + ML-KEM-1024 key agreement and KEM ratchet
+- ✅ **Post-compromise recovery** — KEM ratchet steps reset root key; old keys zeroized
+- ✅ **Timing side-channels** — Constant-time comparisons (`ct_eq!` macro) for all keys/nonces/tags
+- ✅ **Replay attacks** — Sequence numbers + LRU replay cache (10K entries) + windowed acceptance
+- ✅ **Out-of-order tolerance** — Skipped-message key cache (up to 256 ahead)
+- ✅ **Key extraction** — Hardware-backed StrongBox/TEE; all soft keys zeroized after use
+- ✅ **Forensic analysis** — SQLCipher encrypted DB; without key, data indistinguishable from random
 
 ### Not Protected Against
 
-- ❌ Hardware supply chain attacks (compromised device)
-- ❌ Endpoint malware (keyloggers, screen capture)
-- ❌ Social engineering (phishing, impersonation)
-- ❌ Physical coercion (duress PIN provides limited defense)
+- ❌ Hardware supply chain attacks (compromised device at manufacturing level)
+- ❌ Persistent endpoint malware with root access (if user does not trigger Duress PIN)
+- ❌ Social engineering (user tricked into revealing PIN)
+- ❌ Tor guard/exit correlation by global adversary (cover traffic raises the bar but does not eliminate)
 
 ---
 
@@ -372,12 +383,24 @@ Shield Messenger supports **17 languages** across all platforms:
 - [x] 306 automated tests
 - [x] Production deployment with SSL
 
+### Recently Completed (Security Hardening v1 + v2)
+
+- [x] Post-quantum Double Ratchet (ML-KEM-1024 KEM steps + HMAC chain)
+- [x] Out-of-order message handling (skipped-key cache, up to 256 ahead)
+- [x] Traffic analysis resistance (fixed-size padding, truncated-exponential delays, cover traffic)
+- [x] Configurable packet size (4096 / 8192 / 16384 bytes)
+- [x] Constant-time comparisons (`ct_eq!` macro, `subtle::ConstantTimeEq`)
+- [x] Plausible deniability (Duress PIN + decoy database generator + stealth mode)
+- [x] Memory hardening (zeroize all keys on use/drop/duress)
+- [x] Reproducible builds (Docker multi-stage + GitHub Actions CI + cargo-audit + cargo-deny)
+- [x] Protocol specification v2.0 with full threat model
+- [x] Nix reproducible builds documentation
+
 ### In Development
 
-- [ ] Post-quantum Double Ratchet
+- [ ] Arti (Rust Tor) migration — circuit isolation, ephemeral hidden services
 - [ ] File attachments (documents, videos)
 - [ ] Group messaging (multi-party E2EE)
-- [ ] Reproducible builds
 - [ ] F-Droid & Play Store release
 
 ### Planned
@@ -387,6 +410,7 @@ Shield Messenger supports **17 languages** across all platforms:
 - [ ] Mesh networking (WiFi Direct)
 - [ ] Monero (XMR) integration
 - [ ] Lightning Network payments
+- [ ] Nix flake for bit-for-bit reproducible builds
 
 ---
 
@@ -421,8 +445,9 @@ We respond within 48 hours. See [SECURITY.md](SECURITY.md) for full policy.
 
 This software is in **beta** and not production-ready for life-critical use.
 
-- Security audit pending (planned Q2 2026)
-- No reproducible builds yet
+- Independent security audit pending (planned Q2 2026)
+- Reproducible builds available via Docker; Nix flake in progress
+- CI pipeline includes `cargo-audit` and `cargo-deny` for supply chain security
 - Breaking changes may occur
 - Use testnet for Secure Pay testing
 

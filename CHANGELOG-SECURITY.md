@@ -1,116 +1,199 @@
-# سجل تحديثات الأمان — Shield Messenger (Secure Legion)
+# Security Changelog — Shield Messenger (Secure Legion)
 
-**المستودع:** https://github.com/abokenan444/shield-messenger  
-**فرع التحديثات:** `security-updates`
+**Repository:** https://github.com/abokenan444/shield-messenger  
+**Branch:** `main`
 
-لدمج هذه التحديثات في `main`: افتح Pull Request من الفرع `security-updates` إلى `main` على GitHub:  
-https://github.com/abokenan444/shield-messenger/compare/main...security-updates
-
----
-
-## إصدار التحديثات الأمنية (2025)
-
-هذا السجل يوثق التحسينات الأمنية والخصوصية المضافة وفق خريطة الطريق والخبراء.
+This changelog documents all security and privacy enhancements applied to the Secure Legion core library and protocol.
 
 ---
 
-### 1. مقاومة تحليل حركة المرور (Traffic Analysis Resistance)
+## [2.0.0] - 2026-02-24 — Security Hardening v2
 
-- **حجم حزم ثابت:** جميع رسائل البروتوكول (PING, PONG, ACK، إلخ) تُرسل بحجم ثابت **4096 بايت** مع padding عشوائي.
-- **وحدة `network/padding.rs`:**
-  - `pad_to_fixed_size()` — يضيف حقل الطول (2 بايت) ثم padding عشوائي حتى 4096 بايت.
-  - `strip_padding()` — يسترجع المحتوى الفعلي عند الاستقبال.
-  - `FIXED_PACKET_SIZE` و `MAX_PADDED_PAYLOAD` للاستخدام في البروتوكول.
-- **تأخير عشوائي:** تأخير 200–800 ms قبل إرسال PONG و ACK لتقليل الارتباط الزمني.
-- **التكامل في `network/tor.rs`:** مسار الإرسال والاستقبال يستخدم Padding تلقائياً؛ رسائل التحكم (PONG, ACK) تُرفض إذا فشل الـ padding (التزام البروتوكول).
+### Post-Quantum Double Ratchet — Out-of-Order & Forward Secrecy
 
----
+- **Out-of-order message handling:** Added skipped-message key cache (up to 256 messages ahead) in `PQRatchetState`. When a message arrives with sequence > expected, intermediate message keys are derived and cached. Cached keys are consumed on use and zeroized immediately.
+- **Duplicate rejection:** Messages with already-consumed sequence numbers are rejected to prevent replay attacks.
+- **Old root key deletion:** Every KEM ratchet step (`kem_ratchet_send` / `kem_ratchet_receive`) now zeroizes the old root key, old chain keys, and all cached skipped keys before applying the new root. This ensures post-compromise security: compromise of current state cannot recover future keys.
+- **Self-contained encrypt/decrypt:** `PQRatchetState::encrypt()` now produces wire-format output `[version:1][sequence:8][nonce:24][ciphertext+tag]`, and `decrypt()` parses and validates this format, enabling proper sequence extraction for out-of-order handling.
+- **Test vectors for security properties:**
+  - `test_kem_ratchet_post_compromise_security` — extracts compromised keys, performs KEM ratchet, verifies new keys differ and old keys are useless.
+  - `test_forward_secrecy` — verifies that old message keys are irrecoverable after chain evolution.
+  - `test_out_of_order` — sends m0, m1, m2 and decrypts in order m2, m0, m1.
+  - `test_duplicate_rejected` — verifies replay rejection.
+  - `test_too_far_ahead_rejected` — verifies skip limit enforcement.
 
-### 2. مقارنات ثابتة الزمن (Constant-Time)
-
-- **وحدة `crypto/constant_time.rs`:** دوال `eq_32`, `eq_64`, `eq_slices` باستخدام `subtle::ConstantTimeEq`.
-- استخدام `eq_32` في `network/pingpong.rs` عند التحقق من `recipient_pubkey` في Ping لتجنب تسريب التوقيت.
-
----
-
-### 3. Post-Quantum Double Ratchet (ML-KEM-1024)
-
-- **وحدة `crypto/pq_ratchet.rs`:**
-  - `PQRatchetState` — حالة الجلسة (جذر + سلاسل إرسال/استقبال + تسلسلات).
-  - `from_hybrid_secret()` — تهيئة من السر المشترك الهجين (64 بايت) X25519+ML-KEM.
-  - `encrypt()` / `decrypt()` — تشفير/فك مع تطور السلسلة (نفس المنطق الحالي).
-  - `kem_ratchet_send()` / `kem_ratchet_receive()` — خطوات KEM لإعادة المفتاح (Post-Compromise Security).
-- التكامل مع `crypto/pqc/hybrid_kem.rs` (X25519 + Kyber-1024) الموجود مسبقاً.
+**Files:** `secure-legion-core/src/crypto/pq_ratchet.rs`
 
 ---
 
-### 4. تصلّب الذاكرة (Memory Hardening)
+### Traffic Analysis Resistance — Configurable Size, Cover Traffic, Exponential Delays
 
-- **`crypto/encryption.rs`:** مفتاح الرسالة `message_key` يُصفّر فوراً بعد الاستخدام في `encrypt_message_with_evolution` و `decrypt_message_with_evolution`.
-- **Duress PIN:** استدعاء `clear_all_pending_ratchets_for_duress()` يفرغ خريطة الـ pending ratchets ويُصفّر مفاتيح السلسلة قبل الحذف.
+- **Configurable fixed packet size:** `FIXED_PACKET_SIZE` is now runtime-configurable via `set_fixed_packet_size(4096 | 8192 | 16384)`. Uses `AtomicUsize` for lock-free reads. 8192/16384 recommended for voice/video streams.
+- **Truncated exponential delay distribution:** Replaced uniform random delay (200-800 ms) with truncated exponential (lambda=0.005). This avoids flat-pattern fingerprinting that a uniform distribution exposes.
+- **Cover traffic:** Added `generate_cover_packet()` (type `0xFF`) with random nonce, padded to fixed size. `random_cover_interval_secs()` returns a random interval in [30, 90] seconds for idle connections. Receiver discards cover packets silently via `is_cover_packet()`.
+- **Receive path updated:** `tor.rs` now accepts any valid fixed size (4096/8192/16384) and silently discards cover traffic packets before any further processing.
 
----
-
-### 5. إنكار معقول و Duress PIN (Plausible Deniability)
-
-- **وحدة `storage/mod.rs`:**
-  - واجهة/عقد للتخزين القابل للإنكار (التطبيق يطبّق قاعدة البيانات).
-  - `DuressPinSpec` — مواصفة سلوك Duress PIN (عرض DB وهمية، مسار وهمي اختياري).
-  - **`on_duress_pin_entered()`** — تُستدعى عند إدخال رقم الاضطرار؛ الـ core يمسح حالة الذاكرة الحساسة (مثل pending ratchets).
-- **Android JNI:** `RustBridge.onDuressPinEntered()` — تستدعي `on_duress_pin_entered()` وترجع نجاح/فشل.
-- التطبيق مسؤول عن: مسح قاعدة البيانات الحقيقية، تصفير المفتاح، وعرض DB وهمية إن لزم.
+**Files:** `secure-legion-core/src/network/padding.rs`, `secure-legion-core/src/network/mod.rs`, `secure-legion-core/src/network/tor.rs`
 
 ---
 
-### 6. التزامات البروتوكول (Invariants)
+### Constant-Time Operations — `ct_eq!` Macro
 
-- **عدم إرسال رسالة بدون padding:** PONG و ACK يُرفضان إذا فشل `pad_to_fixed_size`؛ لا fallback غير مصفوف.
-- `debug_assert_eq!(to_send.len(), FIXED_PACKET_SIZE)` في مسار الإرسال.
-- توثيق الالتزامات في `docs/protocol.md` (القسم 9 و 10).
+- **`ct_eq!` macro:** Convenience macro for constant-time equality on any byte expression (`[u8; N]`, `&[u8]`, `Vec<u8>`). Reduces human error by providing a single entry point: `if ct_eq!(a, b) { ... }`.
+- **`eq_24()` helper:** Added constant-time equality for 24-byte arrays (nonces).
+- **Unit tests** for all `eq_*` functions and the `ct_eq!` macro.
 
----
-
-### 7. بناء قابل للتكرار والتحقق (Reproducible / Verifiable Builds)
-
-- **`Dockerfile.core`** — بناء متعدد المراحل لـ secure-legion-core مع إصدار Rust ثابت.
-- **`.github/workflows/ci.yml`:**
-  - بناء واختبارات.
-  - `cargo-audit` للثغرات.
-  - `cargo-deny` (مع `deny.toml`) للتراخيص والتبعيات.
-  - على الـ push لـ main: حساب وعرض SHA256 للمخرجات.
-- **`secure-legion-core/deny.toml`** — إعدادات cargo-deny.
+**Files:** `secure-legion-core/src/crypto/constant_time.rs`, `secure-legion-core/src/crypto/mod.rs`
 
 ---
 
-### 8. Arti (مسار الهجرة إلى Tor بلغة Rust)
+### Plausible Deniability — Decoy Database Generator & Stealth Mode
 
-- **`docs/arti-migration.md`** — وصف الانتقال من C Tor إلى Arti: دوائر معزولة، خدمات مخفية مؤقتة، حركة تغطية.
-- في **`Cargo.toml`** تعليق لـ feature اختياري `arti` مع إحالة إلى الوثيقة.
-- إحالة في `docs/protocol.md` إلى مسار الهجرة.
+- **Decoy database generator:** `generate_decoy_data(config)` produces plausible fake contacts with realistic names, fake `.onion` addresses, and randomized messages (sorted chronologically). Configurable via `DecoyConfig` (contact count, messages per contact, message length range).
+- **`StealthModeSpec`:** Optional app-layer behavior to hide the launcher icon after duress. Includes `hide_app_icon` flag and optional `launcher_alias` for Android component toggling.
+- **`DuressPinSpec` extended:** Now includes `stealth_mode` and `decoy_config` fields for comprehensive duress response.
+- **All new types exported** from `lib.rs`: `StealthModeSpec`, `DecoyConfig`, `DecoyContact`, `DecoyMessage`, `generate_decoy_data`.
 
----
-
-### 9. التوثيق
-
-- **`docs/protocol.md`** — مواصفة البروتوكول: Onion، Key Agreement، Ratchet، مقاومة تحليل الحركة، أنواع الرسائل، Ping-Pong، إنكار معقول، Duress PIN، التزامات الكود، مراجع.
-- **`docs/arti-migration.md`** — خطة الانتقال إلى Arti.
+**Files:** `secure-legion-core/src/storage/mod.rs`, `secure-legion-core/src/lib.rs`
 
 ---
 
-### الملفات المضافة/المعدّلة (ملخص)
+### Documentation — Protocol v2.0 & Threat Model
 
-| المسار | الوصف |
-|--------|--------|
-| `secure-legion-core/src/network/padding.rs` | جديد — Padding وحجم ثابت وتأخير عشوائي |
-| `secure-legion-core/src/crypto/constant_time.rs` | جديد — مقارنات ثابتة الزمن |
-| `secure-legion-core/src/crypto/pq_ratchet.rs` | جديد — Post-Quantum Double Ratchet |
-| `secure-legion-core/src/storage/mod.rs` | جديد — إنكار معقول و Duress PIN |
-| `secure-legion-core/src/crypto/encryption.rs` | معدّل — zeroize لمفتاح الرسالة، clear_all_pending_ratchets_for_duress |
-| `secure-legion-core/src/network/tor.rs` | معدّل — تكامل Padding وتأخير والتزامات |
-| `secure-legion-core/src/network/pingpong.rs` | معدّل — مقارنة ثابتة الزمن لـ recipient_pubkey |
-| `secure-legion-core/src/ffi/android.rs` | معدّل — onDuressPinEntered JNI |
-| `docs/protocol.md` | جديد — مواصفة البروتوكول |
-| `docs/arti-migration.md` | جديد — مسار Arti |
-| `.github/workflows/ci.yml` | جديد — CI و audit و checksums |
-| `Dockerfile.core` | جديد — بناء قابل للتكرار |
-| `secure-legion-core/deny.toml` | جديد — إعدادات cargo-deny |
+- **Protocol specification v2.0** (`docs/protocol.md`):
+  - Section 3.4: Out-of-order message handling (skipped-key cache).
+  - Section 4.1: Configurable fixed packet size.
+  - Section 4.2: Truncated exponential delay distribution.
+  - Section 4.3: Cover traffic (type `0xFF`, 30-90 second intervals).
+  - Section 4.4: `ct_eq!` macro for constant-time comparisons.
+  - Section 7: Duress PIN with decoy generation and stealth mode.
+  - Section 10: Updated duress PIN integration (5 steps including decoy and stealth).
+  - Section 11: **New threat model** with 8 adversary types (global passive, active, momentary compromise, persistent compromise, quantum, side-channel, forensic, metadata) and 10 security properties.
+- **Nix reproducible builds guide** (`docs/nix-reproducible.md`): Planned Nix flake for bit-for-bit reproducible builds, stronger than Docker for F-Droid/PrivacyGuides verification.
+
+**Files:** `docs/protocol.md`, `docs/nix-reproducible.md`
+
+---
+
+## [1.0.0] - 2026-02-24 — Security & Privacy Roadmap (Initial)
+
+### Post-Quantum Double Ratchet (ML-KEM-1024)
+
+- **`PQRatchetState`** — Session state with root key, sending/receiving chain keys, and sequence numbers.
+- **`from_hybrid_secret()`** — Initializes ratchet from 64-byte hybrid shared secret (X25519 + ML-KEM-1024).
+- **`encrypt()` / `decrypt()`** — Symmetric ratchet with per-message key evolution.
+- **`kem_ratchet_send()` / `kem_ratchet_receive()`** — KEM ratchet steps that refresh the root key for post-compromise security.
+- Integration with existing `crypto/pqc/hybrid_kem.rs` (X25519 + Kyber-1024).
+
+**Files:** `secure-legion-core/src/crypto/pq_ratchet.rs`
+
+---
+
+### Traffic Analysis Resistance
+
+- **Fixed 4096-byte packet size** for all protocol messages (PING, PONG, ACK, TEXT, etc.).
+- **`pad_to_fixed_size()`** — Adds 2-byte length prefix and random padding to exactly `FIXED_PACKET_SIZE`.
+- **`strip_padding()`** — Extracts original payload from padded buffer.
+- **Random delay (200-800 ms)** before sending PONG and ACK to reduce timing correlation.
+- **Protocol invariant:** Control messages (PONG, ACK) are rejected if padding fails — no unpadded fallback. `debug_assert_eq!(to_send.len(), FIXED_PACKET_SIZE)` in the send path.
+- **Receive path** in `tor.rs` automatically strips padding when incoming packet matches `FIXED_PACKET_SIZE`.
+
+**Files:** `secure-legion-core/src/network/padding.rs`, `secure-legion-core/src/network/tor.rs`
+
+---
+
+### Constant-Time Comparisons
+
+- **`eq_32()`, `eq_64()`, `eq_slices()`** using `subtle::ConstantTimeEq` for all key, nonce, and tag comparisons.
+- **`pingpong.rs`** updated to use `eq_32()` for `recipient_pubkey` verification instead of byte-by-byte comparison.
+
+**Files:** `secure-legion-core/src/crypto/constant_time.rs`, `secure-legion-core/src/network/pingpong.rs`
+
+---
+
+### Memory Hardening
+
+- **`encryption.rs`** — Message keys zeroized immediately after use in `encrypt_message_with_evolution` and `decrypt_message_with_evolution`.
+- **`clear_all_pending_ratchets_for_duress()`** — Zeroizes all pending ratchet chain keys when Duress PIN is triggered.
+- **`PQRatchetState::Drop`** — All keys (root, sending chain, receiving chain, skipped cache) are zeroized on drop.
+
+**Files:** `secure-legion-core/src/crypto/encryption.rs`, `secure-legion-core/src/crypto/pq_ratchet.rs`
+
+---
+
+### Plausible Deniability & Duress PIN
+
+- **`DeniableStorage` trait** — Contract for app-layer encrypted storage (e.g. SQLCipher).
+- **`DuressPinSpec`** — Specifies duress behavior (show fake DB, fake DB path).
+- **`on_duress_pin_entered()`** — Core entry point that clears in-memory sensitive state.
+- **Android JNI** — `RustBridge.onDuressPinEntered()` binding for Android apps.
+
+**Files:** `secure-legion-core/src/storage/mod.rs`, `secure-legion-core/src/ffi/android.rs`
+
+---
+
+### Reproducible & Verifiable Builds
+
+- **`Dockerfile.core`** — Multi-stage Docker build with pinned Rust version (1.83-bookworm). Produces SHA256 checksums of built artifacts.
+- **`.github/workflows/ci.yml`** — GitHub Actions CI pipeline:
+  - Build and test on every push/PR.
+  - `cargo-audit` for known vulnerabilities.
+  - `cargo-deny` for license compliance and dependency policy.
+  - SHA256 checksums of release artifacts on push to `main`.
+- **`deny.toml`** — `cargo-deny` configuration: allowed licenses (MIT, Apache-2.0, BSD), advisory database checks, ban on multiple dependency versions.
+
+**Files:** `Dockerfile.core`, `.github/workflows/ci.yml`, `secure-legion-core/deny.toml`
+
+---
+
+### Tor / Arti Migration Path
+
+- **`docs/arti-migration.md`** — Detailed plan for migrating from C Tor (tor-android) to Arti (Rust Tor):
+  - Ephemeral hidden services (create/destroy per session).
+  - Circuit isolation (discovery != request != messaging).
+  - Cover traffic on Tor circuits.
+- **`Cargo.toml`** — Commented-out `arti` feature flag for future integration.
+
+**Files:** `docs/arti-migration.md`, `secure-legion-core/Cargo.toml`
+
+---
+
+### Protocol Specification
+
+- **`docs/protocol.md` v1.0** — Full protocol specification covering:
+  - Onion identity and v3 address derivation.
+  - Hybrid key agreement (X25519 + ML-KEM-1024).
+  - Symmetric ratchet with HMAC chain evolution.
+  - KEM ratchet for post-compromise security.
+  - Fixed packet size and padding layout.
+  - Message type table (PING through CRDT_OPS).
+  - Ping-Pong wake protocol flow.
+  - Plausible deniability and Duress PIN integration.
+  - Code invariants and assertions.
+
+**Files:** `docs/protocol.md`
+
+---
+
+## Summary of All Security Files
+
+| Path | Status | Description |
+|------|--------|-------------|
+| `secure-legion-core/src/crypto/pq_ratchet.rs` | New | Post-quantum double ratchet with OOO support |
+| `secure-legion-core/src/crypto/constant_time.rs` | New | Constant-time comparisons + `ct_eq!` macro |
+| `secure-legion-core/src/network/padding.rs` | New | Traffic analysis resistance (padding, delays, cover traffic) |
+| `secure-legion-core/src/storage/mod.rs` | New | Deniability, Duress PIN, decoy generator, stealth mode |
+| `secure-legion-core/src/crypto/encryption.rs` | Modified | Memory hardening (zeroize), duress ratchet clearing |
+| `secure-legion-core/src/network/tor.rs` | Modified | Padding integration, cover traffic discard, configurable sizes |
+| `secure-legion-core/src/network/pingpong.rs` | Modified | Constant-time pubkey comparison |
+| `secure-legion-core/src/ffi/android.rs` | Modified | `onDuressPinEntered` JNI binding |
+| `secure-legion-core/src/crypto/mod.rs` | Modified | Re-exports for new modules |
+| `secure-legion-core/src/network/mod.rs` | Modified | Re-exports for padding, cover traffic |
+| `secure-legion-core/src/lib.rs` | Modified | Re-exports for storage types |
+| `secure-legion-core/Cargo.toml` | Modified | Feature flags, optional deps for cross-platform |
+| `docs/protocol.md` | New | Protocol specification v2.0 with threat model |
+| `docs/arti-migration.md` | New | Tor to Arti migration plan |
+| `docs/nix-reproducible.md` | New | Nix flake reproducible builds guide |
+| `.github/workflows/ci.yml` | New | CI pipeline with audit and checksums |
+| `Dockerfile.core` | New | Reproducible Docker build |
+| `secure-legion-core/deny.toml` | New | cargo-deny license/dep policy |
