@@ -38,7 +38,7 @@ class ChatViewModel: ObservableObject {
             messages[roomId] = [message]
         }
 
-        // TODO: Send via Shield Messenger Protocol (Tor P2P)
+        // TODO: Send via Secure Legion Protocol (Tor P2P)
         // Simulate delivery
         try? await Task.sleep(nanoseconds: 500_000_000)
         if let index = messages[roomId]?.firstIndex(where: { $0.id == message.id }) {

@@ -1,8 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @layer base {
   * {
@@ -102,13 +102,5 @@
   .encryption-badge {
     @apply inline-flex items-center gap-1 px-2 py-0.5 bg-primary-900/30
            text-primary-400 text-xs rounded-full border border-primary-800/50;
-  }
-
-  .mirror {
-    transform: scaleX(-1);
-  }
-
-  .safe-area-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }

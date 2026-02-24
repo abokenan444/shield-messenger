@@ -36,11 +36,10 @@ export const useAuthStore = create<AuthState>()(
         }),
     }),
     {
-      name: 'shield-messenger-auth',
-      partialize: (state) => ({
-        isAuthenticated: state.isAuthenticated,
-        userId: state.userId,
-        displayName: state.displayName,
+      name: 'secure-legion-auth',
+      partialize: () => ({
+        // Never persist keys in localStorage in production
+        // This is placeholder — real impl uses encrypted IndexedDB
       }),
     },
   ),

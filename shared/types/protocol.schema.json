@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Shield Messenger Protocol Types",
-  "description": "Shared type definitions for the Shield Messenger P2P messaging protocol",
+  "title": "Secure Legion Protocol Types",
+  "description": "Shared type definitions for the Secure Legion P2P messaging protocol",
   "definitions": {
     "MessageType": {
       "type": "string",

@@ -21,7 +21,10 @@ pub use protocol::{Message, ContactCard, SecurityMode, MessageType};
 #[cfg(not(target_arch = "wasm32"))]
 pub use network::{PingToken, PongToken, PingPongManager, TorManager};
 pub use nlx402::{PaymentQuote, create_quote, verify_payment, verify_payment_simple, extract_quote_hash_from_memo, VerificationResult};
-pub use storage::{DuressPinSpec, StorageError, on_duress_pin_entered};
+pub use storage::{
+    DuressPinSpec, StorageError, StealthModeSpec, DecoyConfig,
+    DecoyContact, DecoyMessage, generate_decoy_data, on_duress_pin_entered,
+};
 
 // Library version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

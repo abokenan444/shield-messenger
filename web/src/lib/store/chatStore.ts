@@ -10,7 +10,6 @@ export interface Message {
   type: 'text' | 'image' | 'file' | 'audio' | 'system';
   encrypted: boolean;
   status: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
-  replyToId?: string;
 }
 
 export interface Room {

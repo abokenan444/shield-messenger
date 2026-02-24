@@ -2142,9 +2142,13 @@ impl TorManager {
         let mut buf = vec![0u8; total_len];
         socket.read_exact(&mut buf).await?;
 
-        // Traffic analysis resistance: if sender used fixed-size padding, strip it
-        if total_len == FIXED_PACKET_SIZE {
+        // Traffic analysis resistance: strip padding from any valid fixed-size packet
+        if matches!(total_len, 4096 | 8192 | 16384) {
             if let Ok(stripped) = padding::strip_padding(&buf) {
+                if padding::is_cover_packet(&stripped) {
+                    log::debug!("Discarding cover traffic packet (conn {})", conn_id);
+                    return Ok(());
+                }
                 buf = stripped;
             }
         }
@@ -2898,8 +2902,11 @@ impl TorConnection {
         let mut data = vec![0u8; data_len];
         self.stream.read_exact(&mut data).await?;
 
-        if data_len == FIXED_PACKET_SIZE {
+        if matches!(data_len, 4096 | 8192 | 16384) {
             if let Ok(stripped) = padding::strip_padding(&data) {
+                if padding::is_cover_packet(&stripped) {
+                    return Err("Cover traffic (discard)".into());
+                }
                 return Ok(stripped);
             }
         }
