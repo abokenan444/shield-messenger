@@ -36,44 +36,12 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-
 
       - name: Build secure-legion-core
-        id: build
         working-directory: secure-legion-core
-        continue-on-error: true
-        run: cargo build --release 2>&1 | tee /tmp/build.log
-
-      - name: Upload build log on failure
-        if: steps.build.outcome == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-error-log
-          path: /tmp/build.log
-
-      - name: Fail if build failed
-        if: steps.build.outcome == 'failure'
-        run: |
-          echo "Build failed! Check build-error-log artifact for details."
-          tail -80 /tmp/build.log
-          exit 1
+        run: cargo build --release
 
       - name: Run tests
-        id: tests
         working-directory: secure-legion-core
-        continue-on-error: true
-        run: cargo test 2>&1 | tee /tmp/test.log
-
-      - name: Upload test log on failure
-        if: steps.tests.outcome == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-error-log
-          path: /tmp/test.log
-
-      - name: Fail if tests failed
-        if: steps.tests.outcome == 'failure'
-        run: |
-          echo "Tests failed! Check test-error-log artifact for details."
-          tail -80 /tmp/test.log
-          exit 1
+        run: cargo test
 
       - name: Clippy lint
         working-directory: secure-legion-core
@@ -125,7 +93,7 @@ jobs:
           echo "## Build Artifact Checksums" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          for f in target/release/libsecurelegion.* target/release/securelegion.* 2>/dev/null; do
-            [ -f "$f" ] && sha256sum "$f" | tee -a $GITHUB_STEP_SUMMARY
+          find target/release -maxdepth 1 \( -name 'libsecurelegion.*' -o -name 'securelegion.*' \) -type f | while read f; do
+            sha256sum "$f" | tee -a $GITHUB_STEP_SUMMARY
           done
           echo '```' >> $GITHUB_STEP_SUMMARY
