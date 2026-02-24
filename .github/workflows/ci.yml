@@ -51,7 +51,13 @@ jobs:
 
       - name: Check build result
         if: steps.build.outcome == 'failure'
-        run: exit 1
+        run: |
+          echo "::error::Build failed. Error details below:"
+          echo "--- Last 100 lines of build log ---"
+          tail -100 /tmp/build.log
+          echo "--- Error lines ---"
+          grep -i "^error" /tmp/build.log || true
+          exit 1
 
       - name: Run tests
         working-directory: secure-legion-core
