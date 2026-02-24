@@ -1,7 +1,18 @@
+pub mod padding;
 pub mod pingpong;
 pub mod tor;
 pub mod friend_request_server;
 pub mod socks5_client;
+
+pub use padding::{
+    pad_to_fixed_size,
+    strip_padding,
+    FIXED_PACKET_SIZE,
+    MAX_PADDED_PAYLOAD,
+    random_traffic_delay_ms,
+    apply_traffic_delay,
+    PaddingError,
+};
 
 pub use pingpong::{
     PingToken,

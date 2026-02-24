@@ -1,8 +1,10 @@
 /// Tor Network Manager (using Tor_Onion_Proxy_Library)
 /// Connects to Tor via SOCKS5 proxy managed by OnionProxyManager
 ///
-/// The Android OnionProxyManager handles Tor lifecycle, we just use SOCKS5
+/// The Android OnionProxyManager handles Tor lifecycle, we just use SOCKS5.
+/// Traffic analysis resistance: fixed-size padding and optional random delays (see crate::network::padding).
 
+use super::padding::{self, FIXED_PACKET_SIZE};
 use std::error::Error;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU32, AtomicU64, Ordering};
@@ -2140,6 +2142,13 @@ impl TorManager {
         let mut buf = vec![0u8; total_len];
         socket.read_exact(&mut buf).await?;
 
+        // Traffic analysis resistance: if sender used fixed-size padding, strip it
+        if total_len == FIXED_PACKET_SIZE {
+            if let Ok(stripped) = padding::strip_padding(&buf) {
+                buf = stripped;
+            }
+        }
+
         // DIAGNOSTIC: Log raw wire bytes at earliest receive point
         log::info!("EARLIEST RECEIVE POINT (connection {}) ", conn_id);
         log::info!("len: {} bytes", buf.len());
@@ -2701,6 +2710,10 @@ impl TorManager {
 
     /// Send Pong response back through pending connection and wait for message
     pub async fn send_pong_response(connection_id: u64, pong_bytes: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
+        // Traffic analysis resistance: random delay before control messages (200–800 ms)
+        let delay_ms = padding::random_traffic_delay_ms();
+        tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
+
         // Temporarily take the connection out to do async I/O (brief lock, then released)
         let mut conn = {
             let mut pending = PENDING_CONNECTIONS.lock().unwrap();
@@ -2713,12 +2726,15 @@ impl TorManager {
         wire_message.push(MSG_TYPE_PONG); // Add type byte
         wire_message.extend_from_slice(pong_bytes);
 
-        // Send length prefix (includes type byte)
-        let len = wire_message.len() as u32;
+        // Protocol invariant: PONG always fits in fixed packet and must be padded
+        let to_send = padding::pad_to_fixed_size(&wire_message).map_err(|e| {
+            log::error!("PONG padding failed (invariant): {:?}", e);
+            format!("PONG padding failed: {}", e)
+        })?;
+        debug_assert_eq!(to_send.len(), FIXED_PACKET_SIZE, "no message leaves without padding");
+        let len = to_send.len() as u32;
         conn.socket.write_all(&len.to_be_bytes()).await?;
-
-        // Send wire message (type + pong data)
-        conn.socket.write_all(&wire_message).await?;
+        conn.socket.write_all(&to_send).await?;
         conn.socket.flush().await?;
 
         log::info!("Sent Pong response: {} bytes (connection {})", pong_bytes.len(), connection_id);
@@ -2765,24 +2781,28 @@ impl TorManager {
 
     /// Send ACK on an existing connection (fire-and-forget, connection closes after sending)
     pub async fn send_ack_on_connection(connection_id: u64, ack_type: u8, ack_bytes: &[u8]) -> Result<(), Box<dyn Error>> {
-        // Take the connection out (brief lock, then released)
+        let delay_ms = padding::random_traffic_delay_ms();
+        tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
+
         let mut conn = {
             let mut pending = PENDING_CONNECTIONS.lock().unwrap();
             pending.remove(&connection_id)
                 .ok_or("Connection not found")?
         };
 
-        // Build wire message with type byte
         let mut wire_message = Vec::new();
-        wire_message.push(ack_type); // Add ACK type byte
+        wire_message.push(ack_type);
         wire_message.extend_from_slice(ack_bytes);
 
-        // Send length prefix (includes type byte)
-        let len = wire_message.len() as u32;
+        // Protocol invariant: ACK always fits in fixed packet and must be padded
+        let to_send = padding::pad_to_fixed_size(&wire_message).map_err(|e| {
+            log::error!("ACK padding failed (invariant): {:?}", e);
+            format!("ACK padding failed: {}", e)
+        })?;
+        debug_assert_eq!(to_send.len(), FIXED_PACKET_SIZE, "no message leaves without padding");
+        let len = to_send.len() as u32;
         conn.socket.write_all(&len.to_be_bytes()).await?;
-
-        // Send wire message (type + ACK data)
-        conn.socket.write_all(&wire_message).await?;
+        conn.socket.write_all(&to_send).await?;
         conn.socket.flush().await?;
 
         log::info!("Sent ACK (type={:02x}) on connection {}: {} bytes", ack_type, connection_id, ack_bytes.len());
@@ -2856,19 +2876,17 @@ pub struct TorConnection {
 
 impl TorConnection {
     pub async fn send(&mut self, data: &[u8]) -> Result<(), Box<dyn Error>> {
-        // Send length prefix
-        let len = data.len() as u32;
+        let (len, payload): (u32, &[u8]) = match padding::pad_to_fixed_size(data) {
+            Ok(padded) => (padded.len() as u32, padded.as_slice()),
+            Err(_) => (data.len() as u32, data),
+        };
         self.stream.write_all(&len.to_be_bytes()).await?;
-
-        // Send data
-        self.stream.write_all(data).await?;
+        self.stream.write_all(payload).await?;
         self.stream.flush().await?;
-
         Ok(())
     }
 
     pub async fn receive(&mut self) -> Result<Vec<u8>, Box<dyn Error>> {
-        // Read length prefix
         let mut len_buf = [0u8; 4];
         self.stream.read_exact(&mut len_buf).await?;
         let data_len = u32::from_be_bytes(len_buf) as usize;
@@ -2877,10 +2895,14 @@ impl TorConnection {
             return Err("Message too large (>10MB)".into());
         }
 
-        // Read data
         let mut data = vec![0u8; data_len];
         self.stream.read_exact(&mut data).await?;
 
+        if data_len == FIXED_PACKET_SIZE {
+            if let Ok(stripped) = padding::strip_padding(&data) {
+                return Ok(stripped);
+            }
+        }
         Ok(data)
     }
 }

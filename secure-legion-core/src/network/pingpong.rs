@@ -704,8 +704,8 @@ impl PingPongManager {
             return Err("Invalid Ping signature".into());
         }
 
-        // Check if Ping is for us
-        if ping.recipient_pubkey != self.keypair.verifying_key().to_bytes() {
+        // Check if Ping is for us (constant-time to avoid timing leakage)
+        if !crate::crypto::eq_32(&ping.recipient_pubkey, &self.keypair.verifying_key().to_bytes()) {
             return Err("Ping not for this device".into());
         }
 

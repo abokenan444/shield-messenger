@@ -333,39 +333,38 @@ pub fn encrypt_message_with_evolution(
     chain_key: &mut [u8; 32],
     sequence: u64,
 ) -> Result<EncryptionResult> {
-    // Derive message key from current chain key
-    let message_key = derive_message_key(chain_key)?;
+    // Derive message key from current chain key (zeroized after use for memory hardening)
+    let mut message_key = derive_message_key(chain_key)?;
 
     // Evolve chain key forward (provides forward secrecy)
     let new_chain_key = evolve_chain_key(chain_key)?;
     *chain_key = new_chain_key;
 
-    // Encrypt with derived message key
-    let cipher = XChaCha20Poly1305::new_from_slice(&message_key)
-        .map_err(|_| EncryptionError::InvalidKeyLength)?;
+    let result = {
+        let cipher = XChaCha20Poly1305::new_from_slice(&message_key)
+            .map_err(|_| EncryptionError::InvalidKeyLength)?;
 
-    // Generate random nonce
-    let mut nonce_bytes = [0u8; 24];
-    OsRng.fill_bytes(&mut nonce_bytes);
-    let nonce = XNonce::from_slice(&nonce_bytes);
+        let mut nonce_bytes = [0u8; 24];
+        OsRng.fill_bytes(&mut nonce_bytes);
+        let nonce = XNonce::from_slice(&nonce_bytes);
 
-    // Encrypt
-    let ciphertext = cipher
-        .encrypt(nonce, plaintext)
-        .map_err(|_| EncryptionError::EncryptionFailed)?;
+        let ciphertext = cipher
+            .encrypt(nonce, plaintext)
+            .map_err(|_| EncryptionError::EncryptionFailed)?;
 
-    // Build wire format: [version][sequence][nonce][ciphertext]
-    let mut encrypted_message = Vec::with_capacity(1 + 8 + 24 + ciphertext.len());
-    encrypted_message.push(0x01); // Version 1
-    encrypted_message.extend_from_slice(&sequence.to_be_bytes());
-    encrypted_message.extend_from_slice(&nonce_bytes);
-    encrypted_message.extend_from_slice(&ciphertext);
+        let mut encrypted_message = Vec::with_capacity(1 + 8 + 24 + ciphertext.len());
+        encrypted_message.push(0x01);
+        encrypted_message.extend_from_slice(&sequence.to_be_bytes());
+        encrypted_message.extend_from_slice(&nonce_bytes);
+        encrypted_message.extend_from_slice(&ciphertext);
 
-    // Return both encrypted message AND evolved key atomically
-    Ok(EncryptionResult {
-        ciphertext: encrypted_message,
-        evolved_chain_key: new_chain_key,
-    })
+        EncryptionResult {
+            ciphertext: encrypted_message,
+            evolved_chain_key: new_chain_key,
+        }
+    };
+    message_key.zeroize();
+    Ok(result)
 }
 
 /// Decrypt message with key evolution (for messaging)
@@ -432,23 +431,18 @@ pub fn decrypt_message_with_evolution(
     let nonce_bytes = &encrypted_data[9..33];
     let ciphertext = &encrypted_data[33..];
 
-    // Derive message key from current chain key
-    let message_key = derive_message_key(chain_key)?;
-
-    // Decrypt
+    let mut message_key = derive_message_key(chain_key)?;
     let cipher = XChaCha20Poly1305::new_from_slice(&message_key)
         .map_err(|_| EncryptionError::InvalidKeyLength)?;
-
     let nonce = XNonce::from_slice(nonce_bytes);
     let plaintext = cipher
         .decrypt(nonce, ciphertext)
         .map_err(|_| EncryptionError::DecryptionFailed)?;
+    message_key.zeroize();
 
-    // Evolve chain key forward (must match sender's evolution)
     let new_chain_key = evolve_chain_key(chain_key)?;
     *chain_key = new_chain_key;
 
-    // Return both plaintext AND evolved key atomically
     Ok(DecryptionResult {
         plaintext,
         evolved_chain_key: new_chain_key,
@@ -613,6 +607,18 @@ pub fn rollback_ratchet_advancement(contact_id: &str) -> Result<()> {
             contact_id, advancement.message_id);
     }
 
+    Ok(())
+}
+
+/// Clear all pending ratchet advancements and zeroize keys (for Duress PIN).
+/// Call this when the user enters the Duress PIN so no sensitive key material remains in memory.
+pub fn clear_all_pending_ratchets_for_duress() -> Result<()> {
+    let mut pending = PENDING_RATCHETS.lock()
+        .map_err(|_| EncryptionError::EncryptionFailed)?;
+    for (_, mut advancement) in pending.drain() {
+        advancement.next_chain_key.zeroize();
+    }
+    log::info!("Duress: cleared all pending ratchet state");
     Ok(())
 }
 

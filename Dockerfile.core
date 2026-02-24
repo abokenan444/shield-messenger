@@ -1,0 +1,20 @@
+# Multi-stage build for secure-legion-core (reproducible builds)
+# Use exact Rust version for reproducibility; pin Cargo.lock in CI for verifiable builds.
+FROM rust:1.83-bookworm AS builder
+WORKDIR /build
+
+COPY secure-legion-core/Cargo.toml /build/secure-legion-core/
+COPY secure-legion-core/src /build/secure-legion-core/src
+COPY secure-legion-core/build.rs /build/secure-legion-core/
+# Optional: add Cargo.lock for reproducible builds
+# COPY secure-legion-core/Cargo.lock /build/secure-legion-core/
+
+WORKDIR /build/secure-legion-core
+RUN cargo build --release --no-default-features
+
+# Minimal stage: output built artifacts and SHA256 for verification
+FROM debian:bookworm-slim AS runtime
+RUN mkdir -p /out
+COPY --from=builder /build/secure-legion-core/target/release/ /out/release/
+WORKDIR /out
+CMD ["sh", "-c", "find release -name 'libsecurelegion*' -o -name 'securelegion.*' 2>/dev/null | xargs -r sha256sum"]

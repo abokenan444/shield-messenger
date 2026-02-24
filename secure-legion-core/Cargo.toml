@@ -79,9 +79,8 @@ tokio = { version = "1.35", features = ["sync", "time", "macros", "rt-multi-thre
 tokio-util = { version = "0.7", features = ["codec"], optional = true }
 bytes = { version = "1.5", optional = true }
 
-# Tor integration (C Tor via subprocess + control port)
-# Note: Arti removed - using C Tor from tor-android library
-# Control port and SOCKS5 will be implemented directly
+# Tor: currently C Tor via tor-android (SOCKS5 + ControlSocket).
+# Optional Arti (Rust Tor) for future: add arti-client under feature "arti". See docs/arti-migration.md.
 
 # Networking (optional - for future Tor/P2P implementation)
 reqwest = { version = "0.11", default-features = false, features = ["blocking", "rustls-tls"], optional = true }
@@ -97,6 +96,7 @@ android = ["native", "jni", "android_logger"]
 ios = ["native"]
 wasm = ["wasm-bindgen", "console_error_panic_hook", "getrandom/js"]
 network = ["reqwest"]
+# arti = ["arti-client"]  # Future: embed Arti (Rust Tor). See docs/arti-migration.md.
 debug-logs = []  # Enable verbose logging for development builds
 
 [profile.release]
