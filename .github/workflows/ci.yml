@@ -37,7 +37,15 @@ jobs:
 
       - name: Build secure-legion-core
         working-directory: secure-legion-core
-        run: cargo build --release
+        run: |
+          cargo build --release 2>&1 | tee /tmp/build.log || true
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then
+            echo "## Build Failed" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -80 /tmp/build.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 101
+          fi
 
       - name: Run tests
         working-directory: secure-legion-core
