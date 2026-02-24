@@ -60,7 +60,7 @@ captures/
 # ── Rust ──────────────────────────────────────────
 secure-legion-core/target/
 secure-legion-core/**/*.rs.bk
-secure-legion-core/Cargo.lock
+# secure-legion-core/Cargo.lock  # Tracked for reproducible CI builds
 
 # ── Node.js ───────────────────────────────────────
 node_modules/

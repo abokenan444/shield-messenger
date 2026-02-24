@@ -35,28 +35,8 @@ jobs:
           restore-keys: ${{ runner.os }}-cargo-registry-
 
       - name: Build secure-legion-core
-        id: build
         working-directory: secure-legion-core
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          cargo build --release 2>&1 | tee /tmp/build.log
-
-      - name: Upload build log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: /tmp/build.log
-
-      - name: Check build result
-        if: steps.build.outcome == 'failure'
-        run: |
-          ERRORS=$(grep -E "^error" /tmp/build.log | head -20 || true)
-          TAIL=$(tail -40 /tmp/build.log)
-          echo "::error::BUILD ERRORS: ${ERRORS}"
-          echo "::error::BUILD TAIL: ${TAIL}"
-          exit 1
+        run: cargo build --release
 
       - name: Run tests
         working-directory: secure-legion-core

@@ -3,7 +3,7 @@ pub mod protocol;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod network;
 pub mod nlx402;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "audio-codec")]
 pub mod audio;
 pub mod ffi;
 #[cfg(not(target_arch = "wasm32"))]

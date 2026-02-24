@@ -2306,12 +2306,12 @@ impl TorManager {
                     if let Err(e) = tx_lock.send((conn_id, buf)) {
                         log::error!("Failed to send message to MESSAGE channel: {}", e);
                     } else {
-                        // Successfully accepted message
+                        #[cfg(target_os = "android")]
                         crate::ffi::android::RX_MESSAGE_ACCEPT_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     }
                 } else {
                     log::warn!("MESSAGE channel not initialized - dropping message");
-                    // Increment drop counter for stress test diagnostics
+                    #[cfg(target_os = "android")]
                     crate::ffi::android::RX_MESSAGE_TX_DROP_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 }
             }
@@ -2882,10 +2882,9 @@ pub struct TorConnection {
 
 impl TorConnection {
     pub async fn send(&mut self, data: &[u8]) -> Result<(), Box<dyn Error>> {
-        let (len, payload): (u32, &[u8]) = match padding::pad_to_fixed_size(data) {
-            Ok(padded) => (padded.len() as u32, padded.as_slice()),
-            Err(_) => (data.len() as u32, data),
-        };
+        let padded_buf = padding::pad_to_fixed_size(data).ok();
+        let payload: &[u8] = padded_buf.as_deref().unwrap_or(data);
+        let len = payload.len() as u32;
         self.stream.write_all(&len.to_be_bytes()).await?;
         self.stream.write_all(payload).await?;
         self.stream.flush().await?;
