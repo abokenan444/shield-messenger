@@ -56,8 +56,24 @@ jobs:
           exit 1
 
       - name: Run tests
+        id: tests
         working-directory: secure-legion-core
-        run: cargo test
+        continue-on-error: true
+        run: cargo test 2>&1 | tee /tmp/test.log
+
+      - name: Upload test log on failure
+        if: steps.tests.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-error-log
+          path: /tmp/test.log
+
+      - name: Fail if tests failed
+        if: steps.tests.outcome == 'failure'
+        run: |
+          echo "Tests failed! Check test-error-log artifact for details."
+          tail -80 /tmp/test.log
+          exit 1
 
       - name: Clippy lint
         working-directory: secure-legion-core
