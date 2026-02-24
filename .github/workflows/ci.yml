@@ -25,15 +25,14 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Cache cargo
+      - name: Cache cargo registry
         uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            secure-legion-core/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock', 'secure-legion-core/Cargo.toml') }}
-          restore-keys: ${{ runner.os }}-cargo-
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('secure-legion-core/Cargo.toml') }}
+          restore-keys: ${{ runner.os }}-cargo-registry-
 
       - name: Build secure-legion-core
         working-directory: secure-legion-core
@@ -76,15 +75,14 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache cargo
+      - name: Cache cargo registry
         uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            secure-legion-core/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock', 'secure-legion-core/Cargo.toml') }}
-          restore-keys: ${{ runner.os }}-cargo-
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('secure-legion-core/Cargo.toml') }}
+          restore-keys: ${{ runner.os }}-cargo-registry-
 
       - name: Build release and output SHA256
         working-directory: secure-legion-core
