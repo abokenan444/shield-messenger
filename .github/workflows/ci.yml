@@ -52,11 +52,10 @@ jobs:
       - name: Check build result
         if: steps.build.outcome == 'failure'
         run: |
-          echo "::error::Build failed. Error details below:"
-          echo "--- Last 100 lines of build log ---"
-          tail -100 /tmp/build.log
-          echo "--- Error lines ---"
-          grep -i "^error" /tmp/build.log || true
+          ERRORS=$(grep -E "^error" /tmp/build.log | head -20 || true)
+          TAIL=$(tail -40 /tmp/build.log)
+          echo "::error::BUILD ERRORS: ${ERRORS}"
+          echo "::error::BUILD TAIL: ${TAIL}"
           exit 1
 
       - name: Run tests
