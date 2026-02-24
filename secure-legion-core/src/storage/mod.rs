@@ -12,7 +12,6 @@
 use getrandom::getrandom;
 use std::fmt;
 use thiserror::Error;
-use zeroize::Zeroize;
 
 // ---------------------------------------------------------------------------
 // Errors
@@ -241,7 +240,8 @@ fn random_suffix() -> String {
 fn generate_fake_onion() -> String {
     let mut buf = [0u8; 35];
     let _ = getrandom(&mut buf);
-    let encoded = base32::encode(base32::Alphabet::Rfc4648Lower { padding: false }, &buf);
+    let encoded = base32::encode(base32::Alphabet::Rfc4648 { padding: false }, &buf)
+        .to_lowercase();
     format!("{}.onion", encoded)
 }
 

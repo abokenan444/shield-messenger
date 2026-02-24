@@ -49,7 +49,8 @@ pub fn compute_onion_address_from_ed25519_seed(ed25519_seed: &[u8; 32]) -> Strin
     onion_bytes.extend_from_slice(&checksum[..2]);
     onion_bytes.push(0x03);
 
-    let onion_addr = base32::encode(base32::Alphabet::Rfc4648Lower { padding: false }, &onion_bytes);
+    let onion_addr = base32::encode(base32::Alphabet::Rfc4648 { padding: false }, &onion_bytes)
+        .to_lowercase();
     format!("{}.onion", onion_addr)
 }
 
@@ -1725,7 +1726,8 @@ impl TorManager {
         onion_bytes.push(0x03);
 
         // Encode to base32
-        let onion_addr = base32::encode(base32::Alphabet::Rfc4648Lower { padding: false }, &onion_bytes);
+        let onion_addr = base32::encode(base32::Alphabet::Rfc4648 { padding: false }, &onion_bytes)
+            .to_lowercase();
         let full_address = format!("{}.onion", onion_addr);
 
         // Format private key for ADD_ONION command (base64 of 64-byte expanded key)

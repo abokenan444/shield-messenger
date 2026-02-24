@@ -11,7 +11,7 @@
 
 use crate::crypto::encryption::{
     derive_incoming_chain_key, derive_message_key, derive_outgoing_chain_key, derive_root_key,
-    evolve_chain_key, EncryptionError, Result as EncResult,
+    evolve_chain_key, EncryptionError,
 };
 use crate::crypto::pqc::{hybrid_decapsulate, hybrid_encapsulate, HybridCiphertext, HybridKEMKeypair};
 use chacha20poly1305::{aead::{Aead, KeyInit, OsRng}, XChaCha20Poly1305, XNonce};
