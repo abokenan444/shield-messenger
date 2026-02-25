@@ -8,6 +8,12 @@ import { config } from './config.js';
 import { logger } from './logger.js';
 import { migrate } from './db/migrate.js';
 import { errorHandler } from './middleware/audit.js';
+import {
+  authLimiter,
+  apiLimiter,
+  adminLimiter,
+  progressiveBackoff,
+} from './middleware/rateLimit.js';
 
 import { cmsRouter } from './routes/cms.js';
 import { billingRouter } from './routes/billing.js';
@@ -68,10 +74,14 @@ app.get('/api/health', (_req, res) => {
 //                                                         +---> /api/analytics/* (Analytics DB)
 //
 
-app.use('/api/cms', cmsRouter);
-app.use('/api/billing', billingRouter);
-app.use('/api/support', supportRouter);
-app.use('/api/admin', adminRouter);
+// ── Progressive back-off (before route limiters) ─────────
+app.use(progressiveBackoff);
+
+// ── Per-route rate limiters ───────────────────────────────
+app.use('/api/cms', apiLimiter, cmsRouter);
+app.use('/api/billing', apiLimiter, billingRouter);
+app.use('/api/support', apiLimiter, supportRouter);
+app.use('/api/admin', adminLimiter, adminRouter);
 
 if (config.discovery.enabled) {
   app.use('/api/discovery', discoveryRouter);

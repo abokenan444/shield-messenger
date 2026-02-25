@@ -29,8 +29,8 @@ bulletproofs = "5.0.0"  # Bulletproof range proofs for ZK transfers
 curve25519-dalek = { version = "4", features = ["rand_core"] }  # Required by bulletproofs for Scalar/Ristretto types
 merlin = "3"  # Transcript protocol for bulletproofs
 
-# Post-Quantum Cryptography (NIST FIPS 203)
-pqc_kyber = { version = "0.7", features = ["kyber1024"] }  # ML-KEM-1024 implementation
+# Post-Quantum Cryptography
+pqc_kyber = { version = "0.7", features = ["kyber1024"] }  # ML-KEM-1024 (Kyber/FIPS 203)
 rand_chacha = "0.3"  # For deterministic RNG from seed
 
 # Serialization
@@ -65,7 +65,7 @@ log = "0.4"
 android_logger = { version = "0.14", optional = true }
 
 # Time
-chrono = "0.4"
+chrono = { version = "0.4", features = ["serde"] }
 
 # UUID
 uuid = { version = "1.6", features = ["v4"] }

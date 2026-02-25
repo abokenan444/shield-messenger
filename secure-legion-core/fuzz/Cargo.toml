@@ -1,0 +1,36 @@
+[package]
+name = "securelegion-fuzz"
+version = "0.1.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.securelegion]
+path = ".."
+
+[[bin]]
+name = "fuzz_encrypt_decrypt"
+path = "fuzz_targets/fuzz_encrypt_decrypt.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_packet"
+path = "fuzz_targets/fuzz_packet.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_hybrid_kem"
+path = "fuzz_targets/fuzz_hybrid_kem.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_backup"
+path = "fuzz_targets/fuzz_backup.rs"
+doc = false
+
+[workspace]

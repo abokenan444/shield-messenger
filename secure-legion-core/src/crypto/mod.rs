@@ -6,6 +6,9 @@ pub mod pqc;
 pub mod replay_cache;
 pub mod ack_state;
 pub mod zkproofs;
+pub mod ratchet;
+pub mod backup;
+pub mod deadman;
 
 pub use encryption::{
     encrypt_message,
@@ -22,9 +25,15 @@ pub use key_exchange::{derive_shared_secret, generate_ephemeral_key};
 pub use hashing::{hash_password, hash_handle};
 pub use pqc::{
     generate_hybrid_keypair_from_seed,
+    generate_hybrid_keypair_random,
     hybrid_encapsulate,
     hybrid_decapsulate,
+    generate_safety_number,
+    verify_safety_number,
     HybridKEMKeypair,
     HybridCiphertext,
 };
+pub use ratchet::{PQDoubleRatchet, RatchetHeader, RatchetState};
+pub use backup::{create_encrypted_backup, restore_encrypted_backup, split_secret, reconstruct_secret, BackupBlob, SecretShare};
+pub use deadman::{DeadManSwitch, WipeAction, CheckInResult};
 pub use zkproofs::{generate_range_proof, verify_range_proof};

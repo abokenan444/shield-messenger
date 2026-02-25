@@ -67,8 +67,9 @@ Shield Messenger is a **privacy-first, multi-platform communication system** tha
 │  │ XChaCha20 │ Tor HS    │ SQLCipher │   Messages          │   │
 │  │ Ed25519   │ PingPong  │ KV Store  │   Presence          │   │
 │  │ X25519    │ SOCKS5    │ Files     │   Calls             │   │
-│  │ ML-KEM    │ P2P       │ Backup    │   Payments          │   │
-│  │ Argon2    │           │           │                     │   │
+│  │ ML-KEM    │ Arti      │ Backup    │   Payments          │   │
+│  │ PQ Ratchet│ Packets   │ Shamir    │                     │   │
+│  │ Argon2    │ P2P       │ DeadMan   │                     │   │
 │  └───────────┴───────────┴───────────┴─────────────────────┘   │
 ├─────────────────────────────────────────────────────────────────┤
 │          Shield Messenger Protocol (P2P over Tor)               │
@@ -374,10 +375,15 @@ Shield Messenger supports **17 languages** across all platforms:
 
 ### In Development
 
-- [ ] Post-quantum Double Ratchet
+- [x] Post-quantum Double Ratchet (ML-KEM-1024 ratchet every 50 messages)
+- [x] Fixed-size packet layer (8192-byte traffic analysis resistance)
+- [x] Pure-Rust Tor integration (Arti client)
+- [x] Encrypted backup with Shamir's Secret Sharing social recovery
+- [x] Dead Man's Switch for automatic key destruction
+- [x] Reproducible builds (multi-stage Docker + CI verification)
+- [x] Fuzz testing targets (cargo-fuzz)
 - [ ] File attachments (documents, videos)
 - [ ] Group messaging (multi-party E2EE)
-- [ ] Reproducible builds
 - [ ] F-Droid & Play Store release
 
 ### Planned

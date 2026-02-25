@@ -2,6 +2,8 @@ pub mod pingpong;
 pub mod tor;
 pub mod friend_request_server;
 pub mod socks5_client;
+pub mod packet;
+pub mod arti;
 
 pub use pingpong::{
     PingToken,
@@ -19,3 +21,5 @@ pub use pingpong::{
 pub use tor::{TorManager, PENDING_CONNECTIONS, PendingConnection, compute_onion_address_from_ed25519_seed};
 pub use friend_request_server::{ContactExchangeEndpoint, get_endpoint};
 pub use socks5_client::Socks5Client;
+pub use packet::{Packet, PacketType, PACKET_SIZE, MAX_PAYLOAD};
+pub use arti::{ArtiTorManager, ArtiConfig, IsolationToken, EphemeralOnionService};

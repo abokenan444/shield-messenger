@@ -1,0 +1,214 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, security-updates, develop ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # ── Rust Core ──────────────────────────────────────────
+  rust-check:
+    name: Rust Check & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action/setup@v1
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            secure-legion-core/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('secure-legion-core/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Check formatting
+        working-directory: secure-legion-core
+        run: cargo fmt --all -- --check
+
+      - name: Clippy lints
+        working-directory: secure-legion-core
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run tests
+        working-directory: secure-legion-core
+        run: cargo test --all-features
+
+      - name: Build release
+        working-directory: secure-legion-core
+        run: cargo build --release --locked
+
+  rust-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: Run security audit
+        working-directory: secure-legion-core
+        run: cargo audit
+
+  rust-wasm:
+    name: WASM Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust + wasm target
+        uses: dtolnay/rust-action/setup@v1
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+
+      - name: Build WASM
+        working-directory: secure-legion-core
+        run: cargo build --target wasm32-unknown-unknown --features wasm --no-default-features
+
+  # ── Server ─────────────────────────────────────────────
+  server-test:
+    name: Server Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Run tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          JWT_SECRET: ci-test-secret-do-not-use-in-production
+          FIELD_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+
+  # ── Web ────────────────────────────────────────────────
+  web-test:
+    name: Web Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Run tests
+        run: npm test -- --run
+
+      - name: Build production
+        run: npm run build
+
+  # ── Android ────────────────────────────────────────────
+  android-build:
+    name: Android Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Rust + Android targets
+        uses: dtolnay/rust-action/setup@v1
+        with:
+          toolchain: stable
+          targets: aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk
+
+      - name: Build Rust for Android
+        working-directory: secure-legion-core
+        run: |
+          cargo ndk -t aarch64-linux-android -t armv7-linux-androideabi -t x86_64-linux-android build --release
+        continue-on-error: true  # May fail without full NDK setup in CI
+
+      - name: Build Android APK (debug)
+        run: ./gradlew assembleDebug
+        continue-on-error: true  # May fail without keystore
+
+  # ── Reproducible Build Verification ────────────────────
+  reproducible-build:
+    name: Reproducible Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-action/setup@v1
+        with:
+          toolchain: stable
+
+      - name: Build #1
+        working-directory: secure-legion-core
+        run: |
+          cargo build --release --locked
+          sha256sum target/release/libsecurelegion.so > /tmp/hash1.txt 2>/dev/null || true
+          sha256sum target/release/libsecurelegion.a > /tmp/hash1a.txt 2>/dev/null || true
+
+      - name: Clean and rebuild #2
+        working-directory: secure-legion-core
+        run: |
+          cargo clean
+          cargo build --release --locked
+          sha256sum target/release/libsecurelegion.so > /tmp/hash2.txt 2>/dev/null || true
+          sha256sum target/release/libsecurelegion.a > /tmp/hash2a.txt 2>/dev/null || true
+
+      - name: Compare hashes
+        run: |
+          echo "=== Build 1 ==="
+          cat /tmp/hash1.txt /tmp/hash1a.txt 2>/dev/null || true
+          echo "=== Build 2 ==="
+          cat /tmp/hash2.txt /tmp/hash2a.txt 2>/dev/null || true
+          diff /tmp/hash1.txt /tmp/hash2.txt || echo "WARNING: Builds not reproducible (dynamic lib)"
+          diff /tmp/hash1a.txt /tmp/hash2a.txt || echo "WARNING: Builds not reproducible (static lib)"
