@@ -41,7 +41,28 @@ jobs:
 
       - name: Run tests
         working-directory: secure-legion-core
-        run: cargo test
+        run: |
+          set -o pipefail
+          cargo test --no-fail-fast -- --nocapture 2>&1 | tee /tmp/test-output.txt
+        continue-on-error: true
+        id: tests
+
+      - name: Upload test output
+        if: steps.tests.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output
+          path: /tmp/test-output.txt
+
+      - name: Fail if tests failed
+        if: steps.tests.outcome == 'failure'
+        run: |
+          echo "::error::Tests failed! Check the uploaded test-output artifact for details."
+          echo "## Test Failure Output (last 100 lines)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -100 /tmp/test-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          exit 1
 
       - name: Clippy lint
         working-directory: secure-legion-core
