@@ -41,6 +41,41 @@ pub trait DeniableStorage {
 }
 
 // ---------------------------------------------------------------------------
+// Contact trust-level persistence contract (app implements)
+// ---------------------------------------------------------------------------
+
+use crate::crypto::pqc::ContactVerificationRecord;
+
+/// Contract for persisting contact verification / trust-level state.
+///
+/// The application layer (SQLCipher on mobile, IndexedDB on web) MUST implement
+/// this trait so that trust levels survive app restarts.
+///
+/// Schema hint for SQLCipher:
+/// ```sql
+/// CREATE TABLE IF NOT EXISTS contact_trust (
+///   contact_id    TEXT PRIMARY KEY,
+///   trust_level   INTEGER NOT NULL DEFAULT 1,
+///   verified_at   INTEGER NOT NULL DEFAULT 0,
+///   safety_number TEXT NOT NULL DEFAULT ''
+/// );
+/// ```
+pub trait ContactTrustStore {
+    /// Load the verification record for a contact. Returns `None` if the
+    /// contact has never been seen (i.e. brand-new / Level 0).
+    fn load_trust(&self, contact_id: &str) -> Result<Option<ContactVerificationRecord>>;
+
+    /// Persist (insert or update) a contact's verification record.
+    fn save_trust(&mut self, record: &ContactVerificationRecord) -> Result<()>;
+
+    /// Delete the verification record (e.g. when removing a contact).
+    fn delete_trust(&mut self, contact_id: &str) -> Result<()>;
+
+    /// List all contacts that have been verified (Level 2).
+    fn list_verified(&self) -> Result<Vec<ContactVerificationRecord>>;
+}
+
+// ---------------------------------------------------------------------------
 // Duress PIN specification
 // ---------------------------------------------------------------------------
 

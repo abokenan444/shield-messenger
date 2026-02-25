@@ -13,9 +13,10 @@
 import * as wasm from './wasmBridge';
 
 const DB_NAME = 'shield-messenger-keys';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_IDENTITY = 'identity';
 const STORE_CONVERSATIONS = 'conversations';
+const STORE_CONTACT_TRUST = 'contact_trust';
 
 interface IdentityRecord {
   id: 'current';
@@ -36,6 +37,16 @@ export interface ConversationKeyState {
   rootKey: string; // base64 encrypted
 }
 
+/** Trust level mirrors Rust TrustLevel enum (0 = Untrusted, 1 = Encrypted, 2 = Verified) */
+export type TrustLevelValue = 0 | 1 | 2;
+
+export interface ContactTrustRecord {
+  contactId: string;
+  trustLevel: TrustLevelValue;
+  verifiedAt: number;   // Unix-ms, 0 if never
+  safetyNumber: string; // empty if never verified
+}
+
 // ─── Database Setup ───
 
 function openDB(): Promise<IDBDatabase> {
@@ -49,6 +60,9 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(STORE_CONVERSATIONS)) {
         db.createObjectStore(STORE_CONVERSATIONS, { keyPath: 'conversationId' });
+      }
+      if (!db.objectStoreNames.contains(STORE_CONTACT_TRUST)) {
+        db.createObjectStore(STORE_CONTACT_TRUST, { keyPath: 'contactId' });
       }
     };
 
@@ -229,8 +243,50 @@ export async function deleteConversationKeys(conversationId: string): Promise<vo
   db.close();
 }
 
+// ─── Contact Trust Level Persistence ───
+
 /**
- * Wipe all stored data (identity + conversations)
+ * Save (insert or update) a contact's trust level record.
+ * This is called after QR verification or when a new contact is added.
+ */
+export async function saveContactTrust(record: ContactTrustRecord): Promise<void> {
+  const db = await openDB();
+  await dbPut(db, STORE_CONTACT_TRUST, record);
+  db.close();
+}
+
+/**
+ * Load a contact's trust level record.
+ * Returns null if no record exists (brand-new / Level 0).
+ */
+export async function loadContactTrust(contactId: string): Promise<ContactTrustRecord | null> {
+  const db = await openDB();
+  const record = await dbGet<ContactTrustRecord>(db, STORE_CONTACT_TRUST, contactId);
+  db.close();
+  return record ?? null;
+}
+
+/**
+ * Load all stored contact trust records.
+ */
+export async function loadAllContactTrust(): Promise<ContactTrustRecord[]> {
+  const db = await openDB();
+  const records = await dbGetAll<ContactTrustRecord>(db, STORE_CONTACT_TRUST);
+  db.close();
+  return records;
+}
+
+/**
+ * Delete a contact's trust record (e.g. when removing a contact).
+ */
+export async function deleteContactTrust(contactId: string): Promise<void> {
+  const db = await openDB();
+  await dbDelete(db, STORE_CONTACT_TRUST, contactId);
+  db.close();
+}
+
+/**
+ * Wipe all stored data (identity + conversations + trust records)
  */
 export async function wipeAllData(): Promise<void> {
   return new Promise((resolve, reject) => {

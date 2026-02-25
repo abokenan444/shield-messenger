@@ -248,6 +248,102 @@ pub fn verify_safety_number(
     computed.as_bytes().ct_eq(expected.as_bytes()).into()
 }
 
+// ---------------------------------------------------------------------------
+// Trust Levels — persistent verification state for contacts
+// ---------------------------------------------------------------------------
+
+/// Three-tier trust model for contact verification.
+///
+/// - `Untrusted` (Level 0): Brand-new contact, no encryption handshake yet.
+/// - `Encrypted` (Level 1): E2EE established but identity NOT verified via QR.
+/// - `Verified`  (Level 2): Identity verified via QR fingerprint scan.
+///
+/// This value MUST be persisted in the encrypted database (SQLCipher / IndexedDB)
+/// so it survives app restarts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(u8)]
+pub enum TrustLevel {
+    /// Level 0 — new contact, no encryption negotiated yet
+    Untrusted = 0,
+    /// Level 1 — encrypted channel established, fingerprint NOT verified
+    Encrypted = 1,
+    /// Level 2 — identity verified via QR safety-number scan
+    Verified  = 2,
+}
+
+impl TrustLevel {
+    /// Deserialize from a stored integer value.
+    pub fn from_u8(v: u8) -> Self {
+        match v {
+            0 => TrustLevel::Untrusted,
+            1 => TrustLevel::Encrypted,
+            2 => TrustLevel::Verified,
+            _ => TrustLevel::Untrusted,
+        }
+    }
+
+    /// A short human-readable label (English). The UI should use i18n keys instead.
+    pub fn label(self) -> &'static str {
+        match self {
+            TrustLevel::Untrusted => "Untrusted",
+            TrustLevel::Encrypted => "Encrypted",
+            TrustLevel::Verified  => "Verified",
+        }
+    }
+
+    /// Whether sending sensitive files should trigger a warning.
+    /// Only Level 2 (Verified) is considered safe.
+    pub fn requires_file_warning(self) -> bool {
+        self < TrustLevel::Verified
+    }
+}
+
+impl std::fmt::Display for TrustLevel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Level {} ({})", *self as u8, self.label())
+    }
+}
+
+/// Record persisted per contact in the encrypted database.
+/// The application (SQLCipher on mobile, IndexedDB on web) serializes this.
+#[derive(Debug, Clone)]
+pub struct ContactVerificationRecord {
+    /// Unique contact identifier (e.g. `sl_xyz…`)
+    pub contact_id: String,
+    /// Current trust level (0 / 1 / 2)
+    pub trust_level: TrustLevel,
+    /// Unix-ms timestamp when verification was performed (0 if never)
+    pub verified_at: i64,
+    /// The safety number at the time of verification (empty if never verified)
+    pub safety_number: String,
+}
+
+impl ContactVerificationRecord {
+    /// Create a new record for a freshly-added contact (Level 1 = encrypted).
+    pub fn new_encrypted(contact_id: String) -> Self {
+        Self {
+            contact_id,
+            trust_level: TrustLevel::Encrypted,
+            verified_at: 0,
+            safety_number: String::new(),
+        }
+    }
+
+    /// Promote to Level 2 after successful QR verification.
+    pub fn mark_verified(&mut self, safety_number: String, now_ms: i64) {
+        self.trust_level = TrustLevel::Verified;
+        self.verified_at = now_ms;
+        self.safety_number = safety_number;
+    }
+
+    /// Demote back to Level 1 (e.g. when identity key changes).
+    pub fn reset_to_encrypted(&mut self) {
+        self.trust_level = TrustLevel::Encrypted;
+        self.verified_at = 0;
+        self.safety_number.clear();
+    }
+}
+
 /// Result of a QR-based fingerprint verification
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum VerificationStatus {
@@ -477,5 +573,46 @@ mod tests {
         let kp = generate_hybrid_keypair_random().unwrap();
         let result = verify_contact_fingerprint(&kp.x25519_public, "not-a-qr-code");
         assert_eq!(result, VerificationStatus::InvalidData);
+    }
+
+    // ── Trust-level tests ──────────────────────────────────────────────
+
+    #[test]
+    fn test_trust_level_ordering() {
+        assert!(TrustLevel::Untrusted < TrustLevel::Encrypted);
+        assert!(TrustLevel::Encrypted < TrustLevel::Verified);
+    }
+
+    #[test]
+    fn test_trust_level_from_u8() {
+        assert_eq!(TrustLevel::from_u8(0), TrustLevel::Untrusted);
+        assert_eq!(TrustLevel::from_u8(1), TrustLevel::Encrypted);
+        assert_eq!(TrustLevel::from_u8(2), TrustLevel::Verified);
+        assert_eq!(TrustLevel::from_u8(255), TrustLevel::Untrusted); // unknown → Untrusted
+    }
+
+    #[test]
+    fn test_trust_level_file_warning() {
+        assert!(TrustLevel::Untrusted.requires_file_warning());
+        assert!(TrustLevel::Encrypted.requires_file_warning());
+        assert!(!TrustLevel::Verified.requires_file_warning());
+    }
+
+    #[test]
+    fn test_contact_verification_record_lifecycle() {
+        let mut rec = ContactVerificationRecord::new_encrypted("sl_test123".to_string());
+        assert_eq!(rec.trust_level, TrustLevel::Encrypted);
+        assert_eq!(rec.verified_at, 0);
+        assert!(rec.safety_number.is_empty());
+
+        rec.mark_verified("12345 67890 12345 67890".to_string(), 1700000000000);
+        assert_eq!(rec.trust_level, TrustLevel::Verified);
+        assert_eq!(rec.verified_at, 1700000000000);
+        assert!(!rec.safety_number.is_empty());
+
+        rec.reset_to_encrypted();
+        assert_eq!(rec.trust_level, TrustLevel::Encrypted);
+        assert_eq!(rec.verified_at, 0);
+        assert!(rec.safety_number.is_empty());
     }
 }

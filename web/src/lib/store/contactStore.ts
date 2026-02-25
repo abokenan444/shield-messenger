@@ -1,4 +1,11 @@
 import { create } from 'zustand';
+import {
+  saveContactTrust,
+  loadAllContactTrust,
+  deleteContactTrust,
+  type TrustLevelValue,
+  type ContactTrustRecord,
+} from '../cryptoStore';
 
 export interface Contact {
   id: string;
@@ -7,9 +14,12 @@ export interface Contact {
   publicKey: string;
   avatar: string | null;
   status: 'online' | 'offline';
+  /** @deprecated Use trustLevel instead. Kept for backward compatibility. */
   verified: boolean;
   blocked: boolean;
   addedAt: number;
+  /** Trust level: 0 = Untrusted, 1 = Encrypted, 2 = Verified */
+  trustLevel: TrustLevelValue;
 }
 
 export interface FriendRequest {
@@ -31,7 +41,9 @@ interface ContactState {
   blockContact: (id: string) => void;
   unblockContact: (id: string) => void;
   verifyContact: (id: string) => void;
+  setContactTrustLevel: (id: string, level: TrustLevelValue) => void;
   setContacts: (contacts: Contact[]) => void;
+  hydrateTrustLevels: () => Promise<void>;
 
   addFriendRequest: (request: FriendRequest) => void;
   acceptFriendRequest: (id: string) => void;
@@ -52,6 +64,7 @@ export const useContactStore = create<ContactState>()((set) => ({
       verified: true,
       blocked: false,
       addedAt: Date.now() - 86400000 * 7,
+      trustLevel: 2,
     },
     {
       id: 'sl_sarah',
@@ -63,6 +76,7 @@ export const useContactStore = create<ContactState>()((set) => ({
       verified: true,
       blocked: false,
       addedAt: Date.now() - 86400000 * 3,
+      trustLevel: 2,
     },
     {
       id: 'sl_dev1',
@@ -74,6 +88,7 @@ export const useContactStore = create<ContactState>()((set) => ({
       verified: false,
       blocked: false,
       addedAt: Date.now() - 86400000,
+      trustLevel: 1,
     },
   ],
   friendRequests: [
@@ -91,8 +106,10 @@ export const useContactStore = create<ContactState>()((set) => ({
   addContact: (contact) =>
     set((state) => ({ contacts: [...state.contacts, contact] })),
 
-  removeContact: (id) =>
-    set((state) => ({ contacts: state.contacts.filter((c) => c.id !== id) })),
+  removeContact: (id) => {
+    deleteContactTrust(id).catch(() => {});
+    set((state) => ({ contacts: state.contacts.filter((c) => c.id !== id) }));
+  },
 
   blockContact: (id) =>
     set((state) => ({
@@ -108,14 +125,51 @@ export const useContactStore = create<ContactState>()((set) => ({
       ),
     })),
 
-  verifyContact: (id) =>
+  verifyContact: (id) => {
+    const record: ContactTrustRecord = {
+      contactId: id,
+      trustLevel: 2,
+      verifiedAt: Date.now(),
+      safetyNumber: '',
+    };
+    saveContactTrust(record).catch(() => {});
     set((state) => ({
       contacts: state.contacts.map((c) =>
-        c.id === id ? { ...c, verified: true } : c,
+        c.id === id ? { ...c, verified: true, trustLevel: 2 as TrustLevelValue } : c,
       ),
-    })),
+    }));
+  },
+
+  setContactTrustLevel: (id, level) => {
+    const record: ContactTrustRecord = {
+      contactId: id,
+      trustLevel: level,
+      verifiedAt: level === 2 ? Date.now() : 0,
+      safetyNumber: '',
+    };
+    saveContactTrust(record).catch(() => {});
+    set((state) => ({
+      contacts: state.contacts.map((c) =>
+        c.id === id ? { ...c, trustLevel: level, verified: level === 2 } : c,
+      ),
+    }));
+  },
 
   setContacts: (contacts) => set({ contacts }),
+
+  hydrateTrustLevels: async () => {
+    const records = await loadAllContactTrust();
+    const trustMap = new Map(records.map((r) => [r.contactId, r]));
+    set((state) => ({
+      contacts: state.contacts.map((c) => {
+        const rec = trustMap.get(c.id);
+        if (rec) {
+          return { ...c, trustLevel: rec.trustLevel, verified: rec.trustLevel === 2 };
+        }
+        return c;
+      }),
+    }));
+  },
 
   addFriendRequest: (request) =>
     set((state) => ({ friendRequests: [...state.friendRequests, request] })),

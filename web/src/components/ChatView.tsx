@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, type FormEvent } from 'react';
 import { useChatStore, type Message } from '../lib/store/chatStore';
 import { useAuthStore } from '../lib/store/authStore';
+import { useContactStore } from '../lib/store/contactStore';
+import { useTranslation } from '../lib/i18n';
 import { ShieldIcon } from './icons/ShieldIcon';
 
 interface ChatViewProps {
@@ -12,8 +14,18 @@ export function ChatView({ roomId }: ChatViewProps) {
   const messages = useChatStore((s) => s.messages[roomId] || []);
   const addMessage = useChatStore((s) => s.addMessage);
   const userId = useAuthStore((s) => s.userId);
+  const contacts = useContactStore((s) => s.contacts);
+  const { t } = useTranslation();
   const [input, setInput] = useState('');
+  const [showTrustWarning, setShowTrustWarning] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Resolve the contact for this direct room to check trust level
+  const peerContact = room?.isDirect
+    ? contacts.find((c) => room.members.some((m) => m === c.id && m !== userId))
+    : null;
+
+  const peerTrustLevel = peerContact?.trustLevel ?? 1;
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -115,12 +127,27 @@ export function ChatView({ roomId }: ChatViewProps) {
               {room.encrypted && (
                 <span className="encryption-badge">
                   <ShieldIcon className="w-3 h-3" />
-                  مشفّر
+                  {t.chat_encryptedE2E}
+                </span>
+              )}
+              {room.isDirect && peerContact && (
+                <span className={`text-xs px-1.5 py-0.5 rounded ${
+                  peerTrustLevel === 2
+                    ? 'bg-green-900/40 text-green-400'
+                    : peerTrustLevel === 1
+                      ? 'bg-yellow-900/40 text-yellow-400'
+                      : 'bg-red-900/40 text-red-400'
+                }`}>
+                  {peerTrustLevel === 2
+                    ? t.trust_verified
+                    : peerTrustLevel === 1
+                      ? t.trust_encrypted
+                      : t.trust_untrusted}
                 </span>
               )}
               {!room.isDirect && (
                 <span className="text-xs text-dark-500">
-                  {room.members.length} أعضاء
+                  {room.members.length} {t.chat_members}
                 </span>
               )}
             </div>
@@ -177,19 +204,30 @@ export function ChatView({ roomId }: ChatViewProps) {
       {/* Message Input */}
       <div className="px-6 py-4 bg-dark-900 border-t border-dark-800">
         <form onSubmit={handleSend} className="flex items-center gap-3">
-          <button type="button" className="p-2 hover:bg-dark-800 rounded-lg transition" title="إرفاق ملف">
+          <button
+            type="button"
+            className="p-2 hover:bg-dark-800 rounded-lg transition"
+            title={t.chat_attachFile}
+            onClick={() => {
+              if (room?.isDirect && peerTrustLevel < 2) {
+                setShowTrustWarning(true);
+              } else {
+                // TODO: open file picker
+              }
+            }}
+          >
             📎
           </button>
 
           <input
             type="text"
             className="input-field flex-1"
-            placeholder="اكتب رسالة مشفرة..."
+            placeholder={t.chat_messagePlaceholder}
             value={input}
             onChange={(e) => setInput(e.target.value)}
           />
 
-          <button type="button" className="p-2 hover:bg-dark-800 rounded-lg transition" title="رسالة صوتية">
+          <button type="button" className="p-2 hover:bg-dark-800 rounded-lg transition" title={t.chat_voiceMessage}>
             🎤
           </button>
 
@@ -198,10 +236,46 @@ export function ChatView({ roomId }: ChatViewProps) {
             className="btn-primary px-4 py-2.5"
             disabled={!input.trim()}
           >
-            إرسال
+            {t.chat_send}
           </button>
         </form>
       </div>
+
+      {/* Trust Warning Modal — shown when attaching files to unverified contacts */}
+      {showTrustWarning && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => setShowTrustWarning(false)}>
+          <div
+            className="bg-dark-900 rounded-2xl max-w-sm w-full border border-dark-700 p-6 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-14 h-14 mx-auto bg-yellow-500/20 rounded-full flex items-center justify-center mb-4">
+              <span className="text-2xl">⚠️</span>
+            </div>
+            <h3 className="font-semibold text-lg text-yellow-400 mb-2">{t.trust_fileWarningTitle}</h3>
+            <p className="text-dark-300 text-sm mb-1">{t.trust_fileWarningDesc}</p>
+            <p className="text-dark-500 text-xs mb-5">
+              {peerTrustLevel === 0 ? t.trust_untrusted : t.trust_encrypted} — {t.trust_level} {peerTrustLevel}
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => setShowTrustWarning(false)}
+                className="px-4 py-2 bg-dark-700 rounded-lg text-sm text-dark-300 hover:bg-dark-600 transition"
+              >
+                {t.chat_cancel}
+              </button>
+              <button
+                onClick={() => {
+                  setShowTrustWarning(false);
+                  // TODO: proceed with file picker despite warning
+                }}
+                className="px-4 py-2 bg-yellow-600 rounded-lg text-sm text-white hover:bg-yellow-700 transition"
+              >
+                {t.trust_sendAnyway}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

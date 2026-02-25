@@ -473,8 +473,19 @@ function ContactCard({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="font-medium truncate">{contact.displayName}</span>
-          {contact.verified && (
-            <ShieldIcon className="w-4 h-4 text-primary-400 shrink-0" />
+          {contact.trustLevel === 2 ? (
+            <span className="inline-flex items-center gap-1 text-xs bg-green-900/30 text-green-400 px-1.5 py-0.5 rounded shrink-0">
+              <ShieldIcon className="w-3 h-3" />
+              {t.trust_verified}
+            </span>
+          ) : contact.trustLevel === 1 ? (
+            <span className="text-xs bg-yellow-900/30 text-yellow-400 px-1.5 py-0.5 rounded shrink-0">
+              {t.trust_encrypted}
+            </span>
+          ) : (
+            <span className="text-xs bg-red-900/30 text-red-400 px-1.5 py-0.5 rounded shrink-0">
+              {t.trust_untrusted}
+            </span>
           )}
         </div>
         <p className="text-xs text-dark-500 truncate" dir="ltr">{contact.onionAddress}</p>
@@ -491,7 +502,7 @@ function ContactCard({
         </button>
         {showMenu && (
           <div className="absolute end-0 top-6 bg-dark-800 border border-dark-700 rounded-lg py-1 min-w-32 z-10 shadow-xl">
-            {!contact.verified && (
+            {contact.trustLevel < 2 && (
               <button
                 onClick={() => { onVerify(); setShowMenu(false); }}
                 className="w-full px-3 py-1.5 text-start text-sm text-primary-400 hover:bg-dark-700"
