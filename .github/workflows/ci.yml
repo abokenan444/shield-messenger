@@ -57,11 +57,19 @@ jobs:
       - name: Fail if tests failed
         if: steps.tests.outcome == 'failure'
         run: |
-          echo "::error::Tests failed! Check the uploaded test-output artifact for details."
-          echo "## Test Failure Output (last 100 lines)" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Failure Output" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          tail -100 /tmp/test-output.txt >> $GITHUB_STEP_SUMMARY
+          cat /tmp/test-output.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+          echo ""
+          echo "=== FULL TEST OUTPUT ==="
+          cat /tmp/test-output.txt
+          echo "=== END TEST OUTPUT ==="
+          echo ""
+          # Extract just the failure lines for annotations
+          grep -E "(FAILED|panicked|error\[|test result:)" /tmp/test-output.txt | head -20 | while IFS= read -r line; do
+            echo "::error::$line"
+          done
           exit 1
 
       - name: Clippy lint
