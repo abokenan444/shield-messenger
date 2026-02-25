@@ -325,7 +325,7 @@ mod tests {
 
     #[test]
     fn test_check_in() {
-        let mut switch = DeadManSwitch::new(24, 0).unwrap();
+        let mut switch = DeadManSwitch::new(48, 0).unwrap();
         switch.check_in().unwrap();
         assert!(!switch.is_triggered());
 

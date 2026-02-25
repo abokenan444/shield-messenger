@@ -216,8 +216,11 @@ pub fn generate_safety_number(our_identity: &[u8], their_identity: &[u8]) -> Str
             digits.push(' ');
         }
         let offset = (i * 5) % 32;
-        let chunk = &hash_bytes[offset..offset + 4];
-        let num = u32::from_be_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]) % 100_000;
+        let b0 = hash_bytes[offset];
+        let b1 = hash_bytes[(offset + 1) % 32];
+        let b2 = hash_bytes[(offset + 2) % 32];
+        let b3 = hash_bytes[(offset + 3) % 32];
+        let num = u32::from_be_bytes([b0, b1, b2, b3]) % 100_000;
         digits.push_str(&format!("{:05}", num));
     }
     digits

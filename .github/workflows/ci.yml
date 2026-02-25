@@ -41,36 +41,7 @@ jobs:
 
       - name: Run tests
         working-directory: secure-legion-core
-        run: |
-          set -o pipefail
-          cargo test --no-fail-fast -- --nocapture 2>&1 | tee /tmp/test-output.txt
-        continue-on-error: true
-        id: tests
-
-      - name: Upload test output
-        if: steps.tests.outcome == 'failure'
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-output
-          path: /tmp/test-output.txt
-
-      - name: Fail if tests failed
-        if: steps.tests.outcome == 'failure'
-        run: |
-          echo "## Test Failure Output" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/test-output.txt >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo ""
-          echo "=== FULL TEST OUTPUT ==="
-          cat /tmp/test-output.txt
-          echo "=== END TEST OUTPUT ==="
-          echo ""
-          # Extract just the failure lines for annotations
-          grep -E "(FAILED|panicked|error\[|test result:)" /tmp/test-output.txt | head -20 | while IFS= read -r line; do
-            echo "::error::$line"
-          done
-          exit 1
+        run: cargo test
 
       - name: Clippy lint
         working-directory: secure-legion-core
