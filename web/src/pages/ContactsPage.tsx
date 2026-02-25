@@ -320,7 +320,7 @@ function QRScanner({ onScan, t }: { onScan: (result: string) => void; t: Transla
       await html5Qr.start(
         { facingMode: 'environment' },
         { fps: 10, qrbox: { width: 220, height: 220 } },
-        (decodedText) => {
+        (decodedText: string) => {
           if (!mountedRef.current) return;
           setScannedValue(decodedText);
           onScan(decodedText);

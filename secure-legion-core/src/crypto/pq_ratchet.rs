@@ -212,10 +212,10 @@ impl PQRatchetState {
         peer_x25519_public: &[u8; 32],
         peer_kyber_public: &[u8; 1568],
     ) -> Result<HybridCiphertext, PQRatchetError> {
-        let (new_shared_secret, ciphertext) = hybrid_encapsulate(peer_x25519_public, peer_kyber_public)
+        let ciphertext = hybrid_encapsulate(peer_x25519_public, peer_kyber_public)
             .map_err(|_| PQRatchetError::Kem)?;
 
-        self.apply_new_root(&new_shared_secret)?;
+        self.apply_new_root(&ciphertext.shared_secret)?;
         self.kem_ratchet_count += 1;
         Ok(ciphertext)
     }
@@ -227,9 +227,10 @@ impl PQRatchetState {
         ciphertext: &HybridCiphertext,
     ) -> Result<(), PQRatchetError> {
         let new_shared_secret = hybrid_decapsulate(
+            &ciphertext.x25519_ephemeral_public,
+            &ciphertext.kyber_ciphertext,
             &our_keypair.x25519_secret,
             &our_keypair.kyber_secret,
-            ciphertext,
         ).map_err(|_| PQRatchetError::Kem)?;
 
         self.apply_new_root(&new_shared_secret)?;
@@ -238,7 +239,7 @@ impl PQRatchetState {
     }
 
     /// Derive new root from KEM shared secret, zeroize old root and chains, reset sequences.
-    fn apply_new_root(&mut self, new_shared_secret: &[u8; 64]) -> Result<(), PQRatchetError> {
+    fn apply_new_root(&mut self, new_shared_secret: &[u8]) -> Result<(), PQRatchetError> {
         let new_root = derive_root_key(new_shared_secret, KEM_REKEY_INFO)?;
         let outgoing = derive_outgoing_chain_key(&new_root)?;
         let incoming = derive_incoming_chain_key(&new_root)?;
