@@ -41,7 +41,7 @@ jobs:
 
       - name: Run tests
         working-directory: secure-legion-core
-        run: cargo test 2>&1 || true
+        run: cargo test
 
       - name: Clippy lint
         working-directory: secure-legion-core
