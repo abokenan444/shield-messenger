@@ -92,6 +92,9 @@ export function LandingPage() {
             <FeatureCard icon="🆔" title={t.feat_identifiers} desc={t.feat_identifiers_desc} />
             <FeatureCard icon="💰" title={t.feat_wallet} desc={t.feat_wallet_desc} />
             <FeatureCard icon="📱" title={t.feat_pwa} desc={t.feat_pwa_desc} />
+            <FeatureCard icon="📷" title={t.feat_qr_verify} desc={t.feat_qr_verify_desc} />
+            <FeatureCard icon="🛡️" title={t.feat_trust_levels} desc={t.feat_trust_levels_desc} />
+            <FeatureCard icon="📎" title={t.feat_file_restriction} desc={t.feat_file_restriction_desc} />
           </div>
         </div>
       </section>

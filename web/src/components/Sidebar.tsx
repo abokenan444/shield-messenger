@@ -21,13 +21,13 @@ export function Sidebar({ isOpen }: SidebarProps) {
       </div>
 
       {/* Chat */}
-      <SidebarButton icon="💬" tooltip="المحادثات" active onClick={() => navigate('/')} />
+      <SidebarButton icon="💬" tooltip="المحادثات" active onClick={() => navigate('/chat')} />
 
       {/* Calls */}
-      <SidebarButton icon="📞" tooltip="المكالمات" />
+      <SidebarButton icon="📞" tooltip="المكالمات" onClick={() => navigate('/calls')} />
 
       {/* Contacts */}
-      <SidebarButton icon="👥" tooltip="جهات الاتصال" />
+      <SidebarButton icon="👥" tooltip="جهات الاتصال" onClick={() => navigate('/contacts')} />
 
       <div className="flex-1" />
 

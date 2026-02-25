@@ -20,8 +20,8 @@ export function PublicNav() {
   };
 
   const navLinks = [
-    { to: '/', label: lt.nav_home, hash: '' },
-    { to: '/#features', label: lt.nav_features, hash: 'features' },
+    { to: '/home', label: lt.nav_home, hash: '' },
+    { to: '/home#features', label: lt.nav_features, hash: 'features' },
     { to: '/pricing', label: lt.nav_pricing, hash: '' },
     { to: '/faq', label: lt.nav_faq, hash: '' },
     { to: '/blog', label: lt.nav_blog, hash: '' },
@@ -32,7 +32,7 @@ export function PublicNav() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 group">
+          <Link to="/home" className="flex items-center gap-3 group">
             <div className="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center group-hover:bg-primary-500 transition-colors">
               <ShieldIcon className="w-5 h-5 text-white" />
             </div>
@@ -46,10 +46,10 @@ export function PublicNav() {
                 key={link.to}
                 to={link.to}
                 onClick={(e) => {
-                  if (link.hash && location.pathname === '/') {
+                  if (link.hash && location.pathname === '/home') {
                     e.preventDefault();
                     scrollToHash(link.hash);
-                    window.history.replaceState(null, '', `/#${link.hash}`);
+                    window.history.replaceState(null, '', `/home#${link.hash}`);
                   }
                 }}
                 className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -122,10 +122,10 @@ export function PublicNav() {
                 to={link.to}
                 onClick={(e) => {
                   setMenuOpen(false);
-                  if (link.hash && location.pathname === '/') {
+                  if (link.hash && location.pathname === '/home') {
                     e.preventDefault();
                     scrollToHash(link.hash);
-                    window.history.replaceState(null, '', `/#${link.hash}`);
+                    window.history.replaceState(null, '', `/home#${link.hash}`);
                   }
                 }}
                 className="block px-3 py-2 rounded-lg text-sm text-dark-300 hover:text-white hover:bg-dark-800"

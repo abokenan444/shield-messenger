@@ -49,6 +49,12 @@ export interface LandingT {
   feat_wallet_desc: string;
   feat_pwa: string;
   feat_pwa_desc: string;
+  feat_qr_verify: string;
+  feat_qr_verify_desc: string;
+  feat_trust_levels: string;
+  feat_trust_levels_desc: string;
+  feat_file_restriction: string;
+  feat_file_restriction_desc: string;
 
   // Privacy guarantee
   priv_title: string;
@@ -210,6 +216,12 @@ const ar: LandingT = {
   feat_wallet_desc: 'محفظة مدمجة لإرسال واستقبال Zcash (معاملات محمية) و Solana مباشرة داخل المحادثات بأمان تام.',
   feat_pwa: 'PWA كخيار احتياطي',
   feat_pwa_desc: 'تطبيق ويب تقدمي يعمل على جميع المتصفحات مع دعم Tor عبر WebAssembly. رابط مباشر لضمان الاستمرارية إذا حُظر التطبيق من المتاجر.',
+  feat_qr_verify: 'التحقق عبر QR',
+  feat_qr_verify_desc: 'تحقق من هوية جهات الاتصال عبر مسح رمز QR الذي يحتوي على بصمة المفتاح العام. بروتوكول SM-VERIFY:1 يضمن أنك تتحدث مع الشخص الصحيح.',
+  feat_trust_levels: 'مستويات الثقة',
+  feat_trust_levels_desc: 'ثلاث مستويات ثقة (L0 غير موثوق، L1 مشفر، L2 موثّق) تُخزن محلياً عبر SQLCipher. كل مستوى يحدد صلاحيات مختلفة للتفاعل.',
+  feat_file_restriction: 'حماية الملفات الذكية',
+  feat_file_restriction_desc: 'لا يمكن إرسال أو استقبال الملفات إلا مع جهات الاتصال الموثّقة (المستوى L2). تحذير تلقائي عند محاولة مشاركة ملفات مع جهات غير موثّقة.',
 
   priv_title: 'كيف نضمن الخصوصية؟',
   priv_no_data: 'لا نجمع أي بيانات شخصية — لا اسم، لا بريد إلكتروني، لا رقم هاتف، لا موقع جغرافي.',
@@ -362,6 +374,12 @@ const en: LandingT = {
   feat_wallet_desc: 'Built-in wallet for sending and receiving Zcash (shielded transactions) and Solana directly within conversations with full security.',
   feat_pwa: 'PWA as Backup',
   feat_pwa_desc: 'A progressive web app that works on all modern browsers with Tor support via WebAssembly. A direct link to ensure continuity if the app is banned from stores.',
+  feat_qr_verify: 'QR Fingerprint Verification',
+  feat_qr_verify_desc: 'Verify contact identities by scanning a QR code containing their public key fingerprint. The SM-VERIFY:1 protocol ensures you are talking to the right person.',
+  feat_trust_levels: 'Trust Levels',
+  feat_trust_levels_desc: 'Three trust levels (L0 Untrusted, L1 Encrypted, L2 Verified) stored locally via SQLCipher. Each level defines different interaction permissions.',
+  feat_file_restriction: 'Smart File Protection',
+  feat_file_restriction_desc: 'Files can only be sent or received with verified contacts (Level L2). Automatic warning when attempting to share files with unverified contacts.',
 
   priv_title: 'How Do We Guarantee Privacy?',
   priv_no_data: 'We collect zero personal data — no name, no email, no phone number, no location.',
@@ -514,6 +532,12 @@ const fr: LandingT = {
   feat_wallet_desc: 'Portefeuille intégré pour envoyer et recevoir Zcash et Solana dans les conversations.',
   feat_pwa: 'PWA en secours',
   feat_pwa_desc: 'Application web progressive fonctionnant sur tous les navigateurs modernes avec support Tor via WebAssembly.',
+  feat_qr_verify: 'Vérification par QR',
+  feat_qr_verify_desc: 'Vérifiez l\'identité de vos contacts en scannant un code QR contenant l\'empreinte de leur clé publique. Le protocole SM-VERIFY:1 garantit que vous parlez à la bonne personne.',
+  feat_trust_levels: 'Niveaux de confiance',
+  feat_trust_levels_desc: 'Trois niveaux de confiance (L0 Non fiable, L1 Chiffré, L2 Vérifié) stockés localement via SQLCipher. Chaque niveau définit des permissions d\'interaction différentes.',
+  feat_file_restriction: 'Protection intelligente des fichiers',
+  feat_file_restriction_desc: 'Les fichiers ne peuvent être envoyés ou reçus qu\'avec les contacts vérifiés (Niveau L2). Avertissement automatique lors de tentatives de partage avec des contacts non vérifiés.',
 
   priv_title: 'Comment garantissons-nous la confidentialité ?',
   priv_no_data: 'Nous ne collectons aucune donnée personnelle — ni nom, ni email, ni téléphone, ni localisation.',
@@ -853,6 +877,12 @@ const nl: LandingT = {
   feat_wallet_desc: 'Ingebouwde portemonnee voor het verzenden en ontvangen van Zcash (afgeschermde transacties) en Solana rechtstreeks in gesprekken met volledige beveiliging.',
   feat_pwa: 'PWA als back-up',
   feat_pwa_desc: 'Een progressieve webapp die werkt op alle moderne browsers met Tor-ondersteuning via WebAssembly. Een directe link om continuïteit te garanderen als de app uit de stores wordt verbannen.',
+  feat_qr_verify: 'QR-vingerafdrukverificatie',
+  feat_qr_verify_desc: 'Verifieer de identiteit van contacten door een QR-code te scannen die hun publieke sleutelvingerafdruk bevat. Het SM-VERIFY:1 protocol garandeert dat je met de juiste persoon praat.',
+  feat_trust_levels: 'Vertrouwensniveaus',
+  feat_trust_levels_desc: 'Drie vertrouwensniveaus (L0 Niet vertrouwd, L1 Versleuteld, L2 Geverifieerd) lokaal opgeslagen via SQLCipher. Elk niveau definieert verschillende interactiepermissies.',
+  feat_file_restriction: 'Slimme bestandsbeveiliging',
+  feat_file_restriction_desc: 'Bestanden kunnen alleen worden verzonden of ontvangen met geverifieerde contacten (Niveau L2). Automatische waarschuwing bij pogingen om bestanden te delen met niet-geverifieerde contacten.',
   priv_title: 'Hoe garanderen wij privacy?',
   priv_no_data: 'Wij verzamelen geen persoonlijke gegevens — geen naam, geen e-mail, geen telefoonnummer, geen locatie.',
   priv_no_decrypt: 'Wij kunnen je berichten niet ontsleutelen — de sleutels bestaan alleen op jouw apparaat.',
