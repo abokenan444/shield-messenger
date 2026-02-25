@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../lib/store/authStore';
-import { useTranslation } from '../lib/i18n';
 import { login } from '../lib/protocolClient';
 import { ShieldIcon } from '../components/icons/ShieldIcon';
 
@@ -12,7 +11,6 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { t } = useTranslation();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -24,7 +22,7 @@ export function LoginPage() {
       storeLogin(result.userId, result.displayName, result.publicKey);
       navigate('/');
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.login_failed);
+      setError(err instanceof Error ? err.message : 'فشل تسجيل الدخول');
     } finally {
       setLoading(false);
     }
@@ -35,19 +33,17 @@ export function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo & Branding */}
         <div className="text-center mb-8">
-          <Link to="/home" className="inline-flex flex-col items-center gap-3 group">
-            <div className="w-20 h-20 bg-primary-600/20 rounded-2xl flex items-center justify-center group-hover:bg-primary-600/30 transition">
-              <ShieldIcon className="w-10 h-10 text-primary-400" />
-            </div>
-            <h1 className="text-3xl font-bold text-white group-hover:text-primary-400 transition">Shield Messenger</h1>
-          </Link>
-          <p className="text-dark-400 mt-2">{t.login_subtitle}</p>
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-primary-600/20 rounded-2xl mb-4">
+            <ShieldIcon className="w-10 h-10 text-primary-400" />
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-2">Secure Legion</h1>
+          <p className="text-dark-400">منصة المراسلة الخاصة والمشفرة</p>
         </div>
 
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="card space-y-5">
           <div>
-            <label className="block text-sm text-dark-300 mb-1.5">{t.login_username}</label>
+            <label className="block text-sm text-dark-300 mb-1.5">اسم المستخدم</label>
             <input
               type="text"
               className="input-field"
@@ -61,7 +57,7 @@ export function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm text-dark-300 mb-1.5">{t.login_password}</label>
+            <label className="block text-sm text-dark-300 mb-1.5">كلمة المرور</label>
             <input
               type="password"
               className="input-field"
@@ -81,12 +77,12 @@ export function LoginPage() {
           )}
 
           <button type="submit" className="btn-primary w-full" disabled={loading}>
-            {loading ? t.login_loggingIn : t.login_login}
+            {loading ? 'جاري الدخول...' : 'تسجيل الدخول'}
           </button>
 
           <div className="text-center">
             <Link to="/register" className="text-primary-400 hover:text-primary-300 text-sm transition">
-              {t.login_noAccount}
+              ليس لديك حساب؟ سجّل الآن
             </Link>
           </div>
         </form>
@@ -95,7 +91,7 @@ export function LoginPage() {
         <div className="mt-6 text-center">
           <div className="encryption-badge mx-auto">
             <ShieldIcon className="w-3 h-3" />
-            <span>{t.login_e2eNotice}</span>
+            <span>تشفير تام بين الطرفين • E2EE</span>
           </div>
         </div>
       </div>

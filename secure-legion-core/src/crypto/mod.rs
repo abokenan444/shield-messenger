@@ -1,14 +1,19 @@
+pub mod constant_time;
 pub mod encryption;
 pub mod signing;
 pub mod key_exchange;
 pub mod hashing;
 pub mod pqc;
+pub mod pq_ratchet;
 pub mod replay_cache;
 pub mod ack_state;
 pub mod zkproofs;
 pub mod ratchet;
 pub mod backup;
 pub mod deadman;
+
+pub use constant_time::{eq_32, eq_64, eq_24, eq_slices};
+pub use pq_ratchet::{PQRatchetState, PQRatchetError, ChainDirection};
 
 pub use encryption::{
     encrypt_message,

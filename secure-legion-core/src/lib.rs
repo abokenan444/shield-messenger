@@ -3,11 +3,12 @@ pub mod protocol;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod network;
 pub mod nlx402;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "audio-codec")]
 pub mod audio;
 pub mod ffi;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod crdt;
+pub mod storage;
 
 // Re-export main types
 pub use crypto::{
@@ -20,6 +21,10 @@ pub use protocol::{Message, ContactCard, SecurityMode, MessageType};
 #[cfg(not(target_arch = "wasm32"))]
 pub use network::{PingToken, PongToken, PingPongManager, TorManager};
 pub use nlx402::{PaymentQuote, create_quote, verify_payment, verify_payment_simple, extract_quote_hash_from_memo, VerificationResult};
+pub use storage::{
+    DuressPinSpec, StorageError, StealthModeSpec, DecoyConfig,
+    DecoyContact, DecoyMessage, generate_decoy_data, on_duress_pin_entered,
+};
 
 // Library version
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

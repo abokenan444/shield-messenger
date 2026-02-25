@@ -2,356 +2,231 @@
 
 **Privacy-focused cryptography and messaging core for Shield Messenger**
 
-This is the Rust core library that powers Shield Messenger's cryptographic operations, networking, and blockchain integration. It provides native JNI bindings for Android.
+This is the Rust core library that powers Shield Messenger's cryptographic operations, networking, and blockchain integration. It provides native bindings for Android (JNI), iOS (C FFI), and Web (WASM).
 
-## 🏗️ Architecture
+## Architecture
 
 ### Modules
 
 1. **crypto/** - Cryptographic operations
-   - `encryption.rs` - XChaCha20-Poly1305 encryption
+   - `encryption.rs` - XChaCha20-Poly1305 encryption with ratchet key evolution
    - `signing.rs` - Ed25519 signatures
    - `key_exchange.rs` - X25519 Diffie-Hellman
    - `hashing.rs` - Argon2id password hashing
+   - `pqc.rs` - Post-quantum cryptography (ML-KEM-1024 / Kyber)
+   - `pq_ratchet.rs` - Post-quantum double ratchet (hybrid KEM + HMAC chains)
+   - `constant_time.rs` - Constant-time comparisons (`ct_eq!` macro)
+   - `replay_cache.rs` - LRU replay attack cache
+   - `ack_state.rs` - Two-phase commit for ratchet advancement
+   - `zkproofs.rs` - Bulletproof range proofs for ZK transfers
 
-2. **protocol/** - Data structures
+2. **network/** - Networking and protocol
+   - `tor.rs` - Tor hidden service management and P2P messaging
+   - `pingpong.rs` - Ping-Pong wake protocol
+   - `padding.rs` - Traffic analysis resistance (fixed-size padding, cover traffic, delays)
+
+3. **storage/** - Plausible deniability and Duress PIN
+   - `mod.rs` - Deniable storage contract, Duress PIN, decoy database generator, stealth mode
+
+4. **protocol/** - Data structures
    - `message.rs` - Message format and Ping-Pong tokens
    - `contact.rs` - Contact card format
    - `security_mode.rs` - Security modes and tiers
 
-3. **ffi/** - Foreign Function Interface
-   - `android.rs` - JNI bindings for Android
+5. **securepay/** - Payment protocol
+   - Zcash shielded transactions, Solana SPL tokens
 
-## 🚀 Building for Android
+6. **ffi/** - Foreign Function Interface
+   - `android.rs` - JNI bindings for Android (Kotlin)
+   - `ios.rs` - C FFI bindings for iOS (Swift)
+   - `wasm.rs` - WASM bindings for Web (TypeScript)
 
-### Prerequisites
+## Security Features
 
-1. **Rust toolchain**
+| Feature | Module | Status |
+|---------|--------|--------|
+| **Post-Quantum Key Agreement** | `crypto/pqc.rs` | Implemented (X25519 + ML-KEM-1024) |
+| **PQ Double Ratchet** | `crypto/pq_ratchet.rs` | Implemented (KEM steps + HMAC chains) |
+| **Out-of-Order Messages** | `crypto/pq_ratchet.rs` | Implemented (skipped-key cache, 256 ahead) |
+| **Post-Compromise Security** | `crypto/pq_ratchet.rs` | Implemented (KEM ratchet resets root) |
+| **Forward Secrecy** | `crypto/encryption.rs` | Implemented (chain evolution + zeroize) |
+| **Traffic Analysis Resistance** | `network/padding.rs` | Implemented (fixed size, delays, cover traffic) |
+| **Constant-Time Comparisons** | `crypto/constant_time.rs` | Implemented (`ct_eq!` macro) |
+| **Memory Hardening** | `crypto/encryption.rs` | Implemented (zeroize all keys after use) |
+| **Duress PIN** | `storage/mod.rs` | Implemented (wipe + decoy DB + stealth) |
+| **Replay Protection** | `crypto/replay_cache.rs` | Implemented (LRU 10K entries) |
+
+## Building
+
+### For Android
+
 ```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-```
-
-2. **Android targets**
-```bash
-rustup target add aarch64-linux-android
-rustup target add armv7-linux-androideabi
-rustup target add i686-linux-android
-rustup target add x86_64-linux-android
-```
-
-3. **cargo-ndk** (for easy Android cross-compilation)
-```bash
+rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
 cargo install cargo-ndk
-```
-
-4. **Android NDK**
-   - Download from: https://developer.android.com/ndk
-   - Or install via Android Studio: Tools → SDK Manager → SDK Tools → NDK
-   - Set environment variable:
-     ```bash
-     export ANDROID_NDK_HOME=/path/to/ndk
-     ```
-     On Windows:
-     ```cmd
-     set ANDROID_NDK_HOME=C:\Users\YourName\AppData\Local\Android\Sdk\ndk\26.1.10909125
-     ```
-
-### Build Commands
-
-#### Build for all Android architectures:
-
-```bash
-# ARM64 (most modern devices)
-cargo ndk --target aarch64-linux-android --platform 26 build --release
-
-# ARMv7 (older devices)
-cargo ndk --target armv7-linux-androideabi --platform 26 build --release
-
-# x86_64 (emulators)
-cargo ndk --target x86_64-linux-android --platform 26 build --release
-
-# x86 (older emulators)
-cargo ndk --target i686-linux-android --platform 26 build --release
-```
-
-#### Or build all at once:
-
-```bash
-# On Unix/Linux/macOS
 ./build_android.sh
-
-# On Windows
-build_android.bat
 ```
 
-### Copy to Android Project
-
-After building, copy the libraries to your Android project:
+### For iOS
 
 ```bash
-# ARM64
-cp target/aarch64-linux-android/release/libsecurelegion.so \
-   ../shield-messenger-android/app/src/main/jniLibs/arm64-v8a/
-
-# ARMv7
-cp target/armv7-linux-androideabi/release/libsecurelegion.so \
-   ../shield-messenger-android/app/src/main/jniLibs/armeabi-v7a/
+rustup target add aarch64-apple-ios aarch64-apple-ios-sim
+./build_ios.sh
 ```
 
-On Windows:
-```cmd
-copy target\aarch64-linux-android\release\libsecurelegion.so ^
-     ..\shield-messenger-android\app\src\main\jniLibs\arm64-v8a\
-
-copy target\armv7-linux-androideabi\release\libsecurelegion.so ^
-     ..\shield-messenger-android\app\src\main\jniLibs\armeabi-v7a\
-```
-
-## 🧪 Testing
-
-### Run unit tests:
+### For Web (WASM)
 
 ```bash
-cargo test
+rustup target add wasm32-unknown-unknown
+cargo install wasm-pack
+./build_wasm.sh
 ```
 
-### Run specific test:
+### Run Tests
 
 ```bash
-cargo test test_encrypt_decrypt
+cargo test                          # All tests
+cargo test test_pq_ratchet          # PQ ratchet tests
+cargo test test_pad_strip           # Padding tests
+cargo test -- --nocapture           # With output
 ```
 
-### Run tests with output:
+## Feature Flags
 
-```bash
-cargo test -- --nocapture
-```
+| Feature | Description | Default |
+|---------|-------------|---------|
+| `std` | Standard library support | Yes |
+| `native` | Tokio + Opus + CBOR (desktop/mobile) | Yes |
+| `android` | JNI bindings + Android logger | Via `native` |
+| `ios` | C FFI bindings | Via `native` |
+| `wasm` | WASM bindings + JS getrandom | No |
+| `network` | HTTP client (reqwest) | No |
+| `debug-logs` | Verbose logging | No |
 
-## 📦 Dependencies
+## Cryptographic Primitives
 
-### Core Cryptography
-- **chacha20poly1305** - XChaCha20-Poly1305 AEAD encryption
-- **ed25519-dalek** - Ed25519 signatures
-- **x25519-dalek** - Curve25519 key exchange
-- **argon2** - Argon2id password hashing
+| Component | Algorithm | Key Size |
+|-----------|-----------|----------|
+| **Message Encryption** | XChaCha20-Poly1305 | 256-bit |
+| **Signatures** | Ed25519 | 256-bit |
+| **Key Exchange** | X25519 ECDH | 256-bit |
+| **Post-Quantum KEM** | ML-KEM-1024 (Kyber) | 1568-byte public |
+| **Hybrid KEM** | X25519 + ML-KEM-1024 | 64-byte shared |
+| **Key Derivation** | HKDF-SHA256 | 256-bit |
+| **Chain Ratchet** | HMAC-SHA256 | 256-bit |
+| **Password Hashing** | Argon2id | Variable |
+| **Replay Cache** | BLAKE3 + LRU | 10K entries |
 
-### Serialization
-- **serde** - Serialization framework
-- **serde_json** - JSON support
-- **bincode** - Binary encoding
+## Code Examples
 
-### Platform
-- **jni** - Java Native Interface for Android
-
-## 🔐 Cryptographic Operations
-
-### Encryption (XChaCha20-Poly1305)
+### Post-Quantum Ratchet
 
 ```rust
-use securelegion::crypto::encrypt_message;
+use securelegion::crypto::pq_ratchet::PQRatchetState;
+use securelegion::crypto::pqc::{generate_hybrid_keypair_from_seed, hybrid_encapsulate, hybrid_decapsulate};
 
-let key = [0u8; 32]; // 32-byte key
-let plaintext = b"Hello, Shield Messenger!";
+// Initial key agreement (both sides)
+let (shared_secret, ciphertext) = hybrid_encapsulate(&peer_x25519_pub, &peer_kyber_pub)?;
+let mut ratchet = PQRatchetState::from_hybrid_secret(&shared_secret, "our.onion", "peer.onion")?;
 
-let encrypted = encrypt_message(plaintext, &key)?;
-// Returns: [24-byte nonce][ciphertext][16-byte tag]
+// Encrypt (advances sending chain)
+let encrypted = ratchet.encrypt(b"Hello, post-quantum world!")?;
+
+// KEM ratchet step (post-compromise security)
+let kem_ct = ratchet.kem_ratchet_send(&peer_x25519_pub, &peer_kyber_pub)?;
 ```
 
-### Signing (Ed25519)
+### Traffic Analysis Resistance
 
 ```rust
-use securelegion::crypto::{generate_keypair, sign_data, verify_signature};
+use securelegion::network::padding::*;
 
-let (public_key, private_key) = generate_keypair();
-let data = b"Message to sign";
+// Configure packet size for voice/video
+set_fixed_packet_size(8192);
 
-let signature = sign_data(data, &private_key)?;
-let valid = verify_signature(data, &signature, &public_key)?;
+// Pad message to fixed size
+let padded = pad_to_fixed_size(b"short message")?;
+assert_eq!(padded.len(), 8192);
+
+// Generate cover traffic packet
+let cover = generate_cover_packet()?;
+
+// Random delay before sending
+let delay = random_traffic_delay_ms(); // Truncated exponential 200-800ms
 ```
 
-### Key Exchange (X25519)
+### Duress PIN
 
 ```rust
-use securelegion::crypto::derive_shared_secret;
+use securelegion::storage::{on_duress_pin_entered, generate_decoy_data, DecoyConfig};
 
-// User1's keypair
-let user1_private = [/* 32 bytes */];
-let user1_public = [/* 32 bytes */];
+// On duress: clear core state
+on_duress_pin_entered()?;
 
-// User2's public key
-let user2_public = [/* 32 bytes */];
-
-// Derive shared secret
-let shared_secret = derive_shared_secret(&user1_private, &user2_public)?;
+// Generate decoy data for the fake DB
+let config = DecoyConfig { contact_count: 5, messages_per_contact: 20, ..Default::default() };
+let decoy_contacts = generate_decoy_data(&config);
+// App inserts decoy_contacts into new DB...
 ```
 
-### Password Hashing (Argon2id)
-
-```rust
-use securelegion::crypto::hash_password;
-
-let password = "my_secure_password";
-let hash = hash_password(password)?;
-
-// Verify
-let valid = verify_password(password, &hash)?;
-```
-
-## 🌐 JNI Interface
-
-The library exposes functions to Android via JNI. All functions are prefixed with:
-```
-Java_com_securelegion_crypto_RustBridge_
-```
-
-### Implemented Functions
-
-#### Cryptography
-- ✅ `encryptMessage` - Encrypt plaintext
-- ✅ `decryptMessage` - Decrypt ciphertext
-- ✅ `signData` - Create Ed25519 signature
-- ✅ `verifySignature` - Verify Ed25519 signature
-- ✅ `generateKeypair` - Generate Ed25519 keypair
-- ✅ `hashPassword` - Hash password with Argon2id
-
-#### Network (Stubs)
-- 🚧 `initializeTor` - Initialize Tor daemon
-- 🚧 `sendPing` - Send Ping token
-- 🚧 `waitForPong` - Wait for Pong response
-- 🚧 `respondToPing` - Respond with Pong
-- 🚧 `sendDirectMessage` - Send direct message
-
-#### Relay (Stubs)
-- 🚧 `uploadToRelay` - Upload to relay network
-- 🚧 `checkRelay` - Check for messages
-- 🚧 `downloadFromRelay` - Download from relay
-- 🚧 `deleteFromRelay` - Delete from relay
-
-#### Blockchain (Stubs)
-- 🚧 `initializeSolanaWallet` - Initialize Solana wallet
-- 🚧 `getSolanaBalance` - Get SOL balance
-- 🚧 `sendSolanaTransaction` - Send SOL
-- 🚧 `publishContactCard` - Publish to blockchain
-- 🚧 `fetchContactCard` - Fetch from blockchain
-
-#### IPFS (Stubs)
-- 🚧 `uploadToIPFS` - Upload to IPFS
-- 🚧 `downloadFromIPFS` - Download from IPFS
-
-#### Utility
-- ✅ `getVersion` - Get library version
-
-## 🔧 Development
-
-### Project Structure
+## Project Structure
 
 ```
-shield-messenger-core/
+secure-legion-core/
 ├── src/
-│   ├── lib.rs                    # Main library entry
+│   ├── lib.rs                    # Main library entry + re-exports
 │   ├── crypto/
 │   │   ├── mod.rs
-│   │   ├── encryption.rs         # XChaCha20-Poly1305
+│   │   ├── encryption.rs         # XChaCha20-Poly1305 + ratchet
 │   │   ├── signing.rs            # Ed25519
 │   │   ├── key_exchange.rs       # X25519
-│   │   └── hashing.rs            # Argon2id
-│   ├── protocol/
+│   │   ├── hashing.rs            # Argon2id
+│   │   ├── pqc.rs                # ML-KEM-1024 (Kyber)
+│   │   ├── pq_ratchet.rs         # PQ double ratchet + OOO
+│   │   ├── constant_time.rs      # ct_eq! macro
+│   │   ├── replay_cache.rs       # LRU replay cache
+│   │   ├── ack_state.rs          # Two-phase commit
+│   │   └── zkproofs.rs           # Bulletproof ZK proofs
+│   ├── network/
 │   │   ├── mod.rs
-│   │   ├── message.rs            # Message structures
-│   │   ├── contact.rs            # Contact card
-│   │   └── security_mode.rs      # Security enums
+│   │   ├── tor.rs                # Tor hidden services
+│   │   ├── pingpong.rs           # Wake protocol
+│   │   └── padding.rs            # Padding + cover traffic + delays
+│   ├── storage/
+│   │   └── mod.rs                # Deniability + Duress + decoy
+│   ├── protocol/
+│   │   ├── message.rs            # Message format
+│   │   ├── contact.rs            # Contact cards
+│   │   └── security_mode.rs      # Security tiers
+│   ├── securepay/                # Payment protocol
 │   └── ffi/
 │       ├── mod.rs
-│       └── android.rs            # JNI bindings
-├── .cargo/
-│   └── config.toml               # Android NDK config
-├── Cargo.toml                    # Dependencies
-├── build.rs                      # Build script
-└── README.md                     # This file
+│       ├── android.rs            # JNI (Android)
+│       ├── ios.rs                # C FFI (iOS)
+│       └── wasm.rs               # WASM (Web)
+├── deny.toml                     # cargo-deny config
+├── Cargo.toml                    # Dependencies + features
+├── build_android.sh              # Android build script
+├── build_ios.sh                  # iOS build script
+└── build_wasm.sh                 # WASM build script
 ```
 
-### Adding New JNI Functions
+## CI / Supply Chain Security
 
-1. Define the function in `src/ffi/android.rs`:
-```rust
-#[no_mangle]
-pub extern "C" fn Java_com_securelegion_crypto_RustBridge_myFunction(
-    mut env: JNIEnv,
-    _class: JClass,
-    param: JString,
-) -> jstring {
-    // Implementation
-}
-```
+- **`cargo-audit`** — Checks for known vulnerabilities in dependencies.
+- **`cargo-deny`** — Enforces license policy (MIT/Apache-2.0/BSD only) and dependency hygiene.
+- **Docker** — `Dockerfile.core` for reproducible builds with pinned Rust version.
+- **SHA256** — Release artifacts include checksums for verification.
 
-2. Add corresponding method in Kotlin `RustBridge.kt`:
-```kotlin
-external fun myFunction(param: String): String
-```
+See `.github/workflows/ci.yml` and `docs/nix-reproducible.md` for details.
 
-3. Rebuild library and test
+## License
 
-## 📊 Performance
+PolyForm Noncommercial License 1.0.0. See main project LICENSE for full terms.
 
-### Benchmarks (Release build on ARM64)
+## Contributing
 
-- **Encryption**: ~50ms per message
-- **Decryption**: ~50ms per message
-- **Signing**: ~20ms per signature
-- **Verification**: ~25ms per signature
-- **Key Generation**: ~10ms per keypair
-
-## 🐛 Debugging
-
-### Enable logging:
-
-```rust
-env_logger::init();
-log::debug!("Debug message");
-```
-
-### View logs on Android:
-
-```bash
-adb logcat | grep RustPanic
-```
-
-### Common issues:
-
-1. **Library not found**
-   - Ensure `.so` files are in correct `jniLibs/` folders
-   - Check ABI matches device architecture
-
-2. **JNI signature mismatch**
-   - Verify function names match exactly
-   - Check parameter types (JString, JByteArray, etc.)
-
-3. **Rust panic**
-   - Check logcat for panic messages
-   - Use `catch_panic!` macro in JNI functions
-
-## 🚧 Future Implementation
-
-### Network Layer
-- [ ] Tor client integration (using `arti` crate)
-- [ ] Ping-Pong protocol implementation
-- [ ] Relay network client
-- [ ] NAT traversal for P2P
-
-### Blockchain Layer
-- [ ] Solana wallet integration
-- [ ] IPFS client for contact cards
-- [ ] Transaction signing
-- [ ] Contact discovery
-
-## 📄 License
-
-TBD - See main project for license information.
-
-## 🤝 Contributing
-
-This is part of the Shield Messenger project. See main repository for contribution guidelines.
+See main repository [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
 
 ---
 
-**Security Notice**: This library handles cryptographic operations. Always audit code before production use.
+**Security Notice**: This library handles cryptographic operations. All code should be audited before production use. See [CHANGELOG-SECURITY.md](../CHANGELOG-SECURITY.md) for the full security changelog.

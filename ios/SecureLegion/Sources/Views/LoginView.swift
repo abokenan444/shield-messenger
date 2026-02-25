@@ -1,9 +1,8 @@
 import SwiftUI
 
-/// Login screen with Shield Messenger identity authentication
+/// Login screen with Secure Legion identity authentication
 struct LoginView: View {
     @EnvironmentObject var authVM: AuthViewModel
-    @EnvironmentObject var l10n: LocalizationManager
     @State private var username = ""
     @State private var password = ""
     @State private var showRegister = false
@@ -21,10 +20,10 @@ struct LoginView: View {
                             .background(.green.opacity(0.15))
                             .clipShape(RoundedRectangle(cornerRadius: 20))
 
-                        Text("Shield Messenger")
+                        Text("Secure Legion")
                             .font(.largeTitle.bold())
 
-                        Text(l10n.t["login_subtitle"] ?? "Private & Encrypted Messaging Platform")
+                        Text("منصة المراسلة الخاصة والمشفرة")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -32,12 +31,12 @@ struct LoginView: View {
 
                     // Form
                     VStack(spacing: 16) {
-                        TextField(l10n.t["login_username"] ?? "Username", text: $username)
+                        TextField("اسم المستخدم", text: $username)
                             .textFieldStyle(.roundedBorder)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
 
-                        SecureField(l10n.t["login_password"] ?? "Password", text: $password)
+                        SecureField("كلمة المرور", text: $password)
                             .textFieldStyle(.roundedBorder)
 
                         if let error = authVM.errorMessage {
@@ -57,7 +56,7 @@ struct LoginView: View {
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
                             } else {
-                                Text(l10n.t["login_button"] ?? "Sign In")
+                                Text("تسجيل الدخول")
                                     .fontWeight(.semibold)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
@@ -67,7 +66,7 @@ struct LoginView: View {
                         .tint(.green)
                         .disabled(username.isEmpty || password.isEmpty || authVM.isLoading)
 
-                        Button(l10n.t["login_no_account"] ?? "Don't have an account? Register now") {
+                        Button("ليس لديك حساب؟ سجّل الآن") {
                             showRegister = true
                         }
                         .font(.footnote)
@@ -79,7 +78,7 @@ struct LoginView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "lock.shield")
                             .font(.caption2)
-                        Text(l10n.t["login_e2ee"] ?? "End-to-End Encryption \u2022 E2EE")
+                        Text("تشفير تام بين الطرفين • E2EE")
                             .font(.caption2)
                     }
                     .foregroundStyle(.green.opacity(0.7))
@@ -101,7 +100,6 @@ struct LoginView: View {
 /// Registration screen
 struct RegisterView: View {
     @EnvironmentObject var authVM: AuthViewModel
-    @EnvironmentObject var l10n: LocalizationManager
     @Environment(\.dismiss) var dismiss
     @State private var username = ""
     @State private var password = ""
@@ -116,22 +114,22 @@ struct RegisterView: View {
                         .foregroundStyle(.green)
                         .padding(.top, 32)
 
-                    Text(l10n.t["register_title"] ?? "Create New Account")
+                    Text("إنشاء حساب جديد")
                         .font(.title2.bold())
 
-                    Text(l10n.t["register_no_email"] ?? "No email or phone number required")
+                    Text("لا نطلب بريداً إلكترونياً أو رقم هاتف")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
                     VStack(spacing: 16) {
-                        TextField(l10n.t["login_username"] ?? "Username", text: $username)
+                        TextField("اسم المستخدم", text: $username)
                             .textFieldStyle(.roundedBorder)
                             .textInputAutocapitalization(.never)
 
-                        SecureField(l10n.t["register_password_hint"] ?? "Password (at least 8 characters)", text: $password)
+                        SecureField("كلمة المرور (8 أحرف على الأقل)", text: $password)
                             .textFieldStyle(.roundedBorder)
 
-                        SecureField(l10n.t["register_confirm"] ?? "Confirm Password", text: $confirmPassword)
+                        SecureField("تأكيد كلمة المرور", text: $confirmPassword)
                             .textFieldStyle(.roundedBorder)
 
                         if let error = authVM.errorMessage {
@@ -142,7 +140,7 @@ struct RegisterView: View {
 
                         Button {
                             guard password == confirmPassword else {
-                                authVM.errorMessage = l10n.t["register_mismatch"] ?? "Passwords do not match"
+                                authVM.errorMessage = "كلمتا المرور غير متطابقتين"
                                 return
                             }
                             Task {
@@ -155,7 +153,7 @@ struct RegisterView: View {
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
                             } else {
-                                Text(l10n.t["register_button"] ?? "Create Account")
+                                Text("إنشاء حساب")
                                     .fontWeight(.semibold)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
@@ -168,11 +166,11 @@ struct RegisterView: View {
                     .padding(.horizontal, 24)
                 }
             }
-            .navigationTitle(l10n.t["register_nav"] ?? "Register")
+            .navigationTitle("تسجيل")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(l10n.t["register_cancel"] ?? "Cancel") { dismiss() }
+                    Button("إلغاء") { dismiss() }
                 }
             }
         }

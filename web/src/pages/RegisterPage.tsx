@@ -1,7 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../lib/store/authStore';
-import { useTranslation } from '../lib/i18n';
 import { createIdentity } from '../lib/protocolClient';
 import { ShieldIcon } from '../components/icons/ShieldIcon';
 
@@ -13,19 +12,18 @@ export function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { t } = useTranslation();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
 
     if (password !== confirmPassword) {
-      setError(t.register_passwordMismatch);
+      setError('كلمتا المرور غير متطابقتين');
       return;
     }
 
     if (password.length < 8) {
-      setError(t.register_passwordMinLength);
+      setError('كلمة المرور يجب أن تكون 8 أحرف على الأقل');
       return;
     }
 
@@ -36,7 +34,7 @@ export function RegisterPage() {
       login(result.userId, result.displayName, result.publicKey);
       navigate('/');
     } catch (err) {
-      setError(err instanceof Error ? err.message : t.register_failed);
+      setError(err instanceof Error ? err.message : 'فشل إنشاء الحساب');
     } finally {
       setLoading(false);
     }
@@ -47,23 +45,20 @@ export function RegisterPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link to="/home" className="inline-flex flex-col items-center gap-3 group">
-            <div className="w-20 h-20 bg-primary-600/20 rounded-2xl flex items-center justify-center group-hover:bg-primary-600/30 transition">
-              <ShieldIcon className="w-10 h-10 text-primary-400" />
-            </div>
-            <h1 className="text-3xl font-bold text-white group-hover:text-primary-400 transition">Shield Messenger</h1>
-          </Link>
-          <p className="text-dark-400 mt-2">{t.register_subtitle}</p>
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-primary-600/20 rounded-2xl mb-4">
+            <ShieldIcon className="w-10 h-10 text-primary-400" />
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-2">إنشاء حساب</h1>
+          <p className="text-dark-400">انضم إلى Secure Legion — لا نطلب بريداً أو رقم هاتف</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card space-y-5">
-          <h2 className="text-xl font-semibold text-white text-center">{t.register_title}</h2>
           <div>
-            <label className="block text-sm text-dark-300 mb-1.5">{t.register_username}</label>
+            <label className="block text-sm text-dark-300 mb-1.5">اسم المستخدم</label>
             <input
               type="text"
               className="input-field"
-              placeholder={t.register_usernamePlaceholder}
+              placeholder="اختر اسم مستخدم"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
@@ -73,11 +68,11 @@ export function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm text-dark-300 mb-1.5">{t.register_password}</label>
+            <label className="block text-sm text-dark-300 mb-1.5">كلمة المرور</label>
             <input
               type="password"
               className="input-field"
-              placeholder={t.register_passwordPlaceholder}
+              placeholder="8 أحرف على الأقل"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -88,11 +83,11 @@ export function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm text-dark-300 mb-1.5">{t.register_confirmPassword}</label>
+            <label className="block text-sm text-dark-300 mb-1.5">تأكيد كلمة المرور</label>
             <input
               type="password"
               className="input-field"
-              placeholder={t.register_confirmPlaceholder}
+              placeholder="أعد إدخال كلمة المرور"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
@@ -108,12 +103,12 @@ export function RegisterPage() {
           )}
 
           <button type="submit" className="btn-primary w-full" disabled={loading}>
-            {loading ? t.register_creating : t.register_create}
+            {loading ? 'جاري إنشاء الحساب...' : 'إنشاء حساب'}
           </button>
 
           <div className="text-center">
             <Link to="/login" className="text-primary-400 hover:text-primary-300 text-sm transition">
-              {t.register_hasAccount}
+              لديك حساب بالفعل؟ سجّل الدخول
             </Link>
           </div>
         </form>
@@ -121,10 +116,10 @@ export function RegisterPage() {
         <div className="mt-6 text-center space-y-2">
           <div className="encryption-badge mx-auto">
             <ShieldIcon className="w-3 h-3" />
-            <span>{t.register_noDataCollection}</span>
+            <span>لا نجمع أي بيانات شخصية</span>
           </div>
           <p className="text-xs text-dark-500">
-            {t.register_openSource}
+            مفتوحة المصدر بالكامل • بروتوكول Secure Legion P2P
           </p>
         </div>
       </div>

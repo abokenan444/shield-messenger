@@ -1,9 +1,30 @@
+pub mod padding;
 pub mod pingpong;
 pub mod tor;
 pub mod friend_request_server;
 pub mod socks5_client;
 pub mod packet;
 pub mod arti;
+
+pub use padding::{
+    pad_to_fixed_size,
+    strip_padding,
+    fixed_packet_size,
+    set_fixed_packet_size,
+    max_padded_payload,
+    FIXED_PACKET_SIZE,
+    MAX_PADDED_PAYLOAD,
+    DEFAULT_PACKET_SIZE,
+    random_traffic_delay_ms,
+    apply_traffic_delay,
+    generate_cover_packet,
+    is_cover_packet,
+    random_cover_interval_secs,
+    COVER_INTERVAL_MIN_SECS,
+    COVER_INTERVAL_MAX_SECS,
+    MSG_TYPE_COVER,
+    PaddingError,
+};
 
 pub use pingpong::{
     PingToken,

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### Security Hardening v2 (2026-02-24)
+- **Post-Quantum Ratchet — Out-of-Order Support**: Skipped-message key cache (up to 256 ahead) for reliable decryption of messages delivered out of order. Duplicate messages rejected. Keys zeroized after use.
+- **Configurable Fixed Packet Size**: `set_fixed_packet_size(4096 | 8192 | 16384)` for runtime configuration. 8192/16384 recommended for voice/video.
+- **Truncated Exponential Delays**: Replaced uniform random delay with truncated exponential distribution (lambda=0.005) for timing analysis resistance.
+- **Cover Traffic**: `generate_cover_packet()` (type `0xFF`) sent every 30-90 seconds on idle connections. Receiver discards silently.
+- **`ct_eq!` Macro**: Convenience constant-time equality macro for any byte expression. Added `eq_24()` for nonce comparisons.
+- **Decoy Database Generator**: `generate_decoy_data(config)` produces plausible fake contacts, messages, and `.onion` addresses for Duress PIN scenarios.
+- **Stealth Mode Spec**: `StealthModeSpec` for hiding app icon after duress (Android launcher alias toggle).
+- **Protocol Spec v2.0**: Full threat model (8 adversary types), security properties table, out-of-order handling, cover traffic, configurable sizes.
+- **Nix Reproducible Builds Guide**: `docs/nix-reproducible.md` with planned flake.nix for F-Droid-grade reproducibility.
+- **Post-Compromise Security Tests**: Test vectors verifying that KEM ratchet invalidates old keys.
+- **Forward Secrecy Tests**: Test vectors verifying old message keys are irrecoverable.
+
+#### Security Hardening v1 (2026-02-24)
+- **Post-Quantum Double Ratchet** (`crypto/pq_ratchet.rs`): `PQRatchetState` with hybrid X25519+ML-KEM-1024 initialization, symmetric chain ratchet, and KEM rekey steps for post-compromise security.
+- **Traffic Analysis Resistance** (`network/padding.rs`): Fixed 4096-byte packet size, random padding, `pad_to_fixed_size()` / `strip_padding()`, random 200-800ms delays.
+- **Constant-Time Comparisons** (`crypto/constant_time.rs`): `eq_32()`, `eq_64()`, `eq_slices()` using `subtle::ConstantTimeEq`.
+- **Memory Hardening**: Message keys zeroized immediately after use. `clear_all_pending_ratchets_for_duress()` for Duress PIN.
+- **Plausible Deniability** (`storage/mod.rs`): `DeniableStorage` trait, `DuressPinSpec`, `on_duress_pin_entered()` core entry point.
+- **Duress PIN JNI** (`ffi/android.rs`): `RustBridge.onDuressPinEntered()` for Android.
+- **Reproducible Builds**: `Dockerfile.core` (multi-stage, pinned Rust 1.83), `.github/workflows/ci.yml` (cargo-audit, cargo-deny, SHA256), `deny.toml`.
+- **Tor Migration Docs**: `docs/arti-migration.md` for C Tor to Arti transition.
+- **Protocol Spec v1.0**: `docs/protocol.md` covering onion identity, key agreement, ratchet, padding, message types, Ping-Pong, deniability, invariants.
+
 ### Fixed
 
 #### Ghost Ping/Message Issue - ACK Listener JNI Binding

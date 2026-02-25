@@ -1,6 +1,5 @@
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../lib/store/authStore';
-import { useTranslation } from '../lib/i18n';
 import { ShieldIcon } from './icons/ShieldIcon';
 
 interface SidebarProps {
@@ -10,43 +9,30 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen }: SidebarProps) {
   const navigate = useNavigate();
-  const location = useLocation();
   const { displayName } = useAuthStore();
-  const { t } = useTranslation();
 
   if (!isOpen) return null;
 
-  const isActive = (path: string) => {
-    if (path === '/chat') return location.pathname === '/chat' || location.pathname.startsWith('/chat/');
-    return location.pathname.startsWith(path);
-  };
-
   return (
-    <div className="hidden md:flex w-16 bg-dark-900 border-l border-dark-800 flex-col items-center py-4 gap-2">
+    <div className="w-16 bg-dark-900 border-l border-dark-800 flex flex-col items-center py-4 gap-2">
       {/* Logo */}
       <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center mb-4">
         <ShieldIcon className="w-6 h-6 text-white" />
       </div>
 
       {/* Chat */}
-      <SidebarButton icon="💬" tooltip={t.sidebar_chats} active={isActive('/chat')} onClick={() => navigate('/chat')} />
+      <SidebarButton icon="💬" tooltip="المحادثات" active onClick={() => navigate('/')} />
 
       {/* Calls */}
-      <SidebarButton icon="📞" tooltip={t.sidebar_calls} active={isActive('/calls')} onClick={() => navigate('/calls')} />
+      <SidebarButton icon="📞" tooltip="المكالمات" />
 
       {/* Contacts */}
-      <SidebarButton icon="👥" tooltip={t.sidebar_contacts} active={isActive('/contacts')} onClick={() => navigate('/contacts')} />
-
-      {/* Wallet */}
-      <SidebarButton icon="💰" tooltip={t.wallet_title} active={isActive('/wallet')} onClick={() => navigate('/wallet')} />
-
-      {/* Security */}
-      <SidebarButton icon="🔒" tooltip={t.security_lock} active={isActive('/security')} onClick={() => navigate('/security')} />
+      <SidebarButton icon="👥" tooltip="جهات الاتصال" />
 
       <div className="flex-1" />
 
       {/* Settings */}
-      <SidebarButton icon="⚙️" tooltip={t.sidebar_settings} active={isActive('/settings')} onClick={() => navigate('/settings')} />
+      <SidebarButton icon="⚙️" tooltip="الإعدادات" onClick={() => navigate('/settings')} />
 
       {/* Profile */}
       <div className="avatar-sm cursor-pointer" title={displayName || ''}>

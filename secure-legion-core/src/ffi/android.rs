@@ -961,6 +961,29 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_clearAllEphemeralServi
     }, -1)
 }
 
+/// Call when the user has entered the Duress PIN. Clears in-memory sensitive state
+/// (e.g. pending ratchet keys). The app must then wipe the database and optionally
+/// present a plausible fake DB. Returns true on success.
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_onDuressPinEntered(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jboolean {
+    catch_panic!(env, {
+        match crate::storage::on_duress_pin_entered() {
+            Ok(()) => {
+                log::info!("Duress PIN: core state cleared; app must wipe DB and optionally show fake");
+                JNI_TRUE
+            }
+            Err(e) => {
+                log::error!("Duress PIN clear failed: {}", e);
+                let _ = env.throw_new("java/lang/RuntimeException", e.to_string());
+                JNI_FALSE
+            }
+        }
+    }, JNI_FALSE)
+}
+
 /// Create voice hidden service for voice calling (v2.0)
 /// Uses seed-derived voice service Ed25519 key from KeyManager
 /// Returns the .onion address (port 9152)
