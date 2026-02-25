@@ -197,6 +197,10 @@ pub fn hybrid_decapsulate(
 ///
 /// Creates a human-readable fingerprint from both parties' identity keys.
 /// Displayed as 12 groups of 5 digits for easy comparison.
+///
+/// Uses `hash_bytes.get(offset..offset+4)` — idiomatic Rust that returns
+/// `Option<&[u8]>`, falling back to wrapped byte extraction when the slice
+/// crosses the hash boundary.
 pub fn generate_safety_number(our_identity: &[u8], their_identity: &[u8]) -> String {
     let (first, second) = if our_identity <= their_identity {
         (our_identity, their_identity)
@@ -208,7 +212,7 @@ pub fn generate_safety_number(our_identity: &[u8], their_identity: &[u8]) -> Str
     hasher.update(first);
     hasher.update(second);
     let hash = hasher.finalize();
-    let hash_bytes = hash.as_bytes();
+    let hash_bytes = hash.as_bytes(); // 32 bytes
 
     let mut digits = String::with_capacity(71);
     for i in 0..12 {
@@ -216,17 +220,24 @@ pub fn generate_safety_number(our_identity: &[u8], their_identity: &[u8]) -> Str
             digits.push(' ');
         }
         let offset = (i * 5) % 32;
-        let b0 = hash_bytes[offset];
-        let b1 = hash_bytes[(offset + 1) % 32];
-        let b2 = hash_bytes[(offset + 2) % 32];
-        let b3 = hash_bytes[(offset + 3) % 32];
-        let num = u32::from_be_bytes([b0, b1, b2, b3]) % 100_000;
+        let chunk = if let Some(slice) = hash_bytes.get(offset..offset + 4) {
+            [slice[0], slice[1], slice[2], slice[3]]
+        } else {
+            // Offset near end of hash — wrap individual bytes
+            [
+                hash_bytes[offset % 32],
+                hash_bytes[(offset + 1) % 32],
+                hash_bytes[(offset + 2) % 32],
+                hash_bytes[(offset + 3) % 32],
+            ]
+        };
+        let num = u32::from_be_bytes(chunk) % 100_000;
         digits.push_str(&format!("{:05}", num));
     }
     digits
 }
 
-/// Verify a safety number matches expected value
+/// Verify a safety number matches expected value (constant-time comparison)
 pub fn verify_safety_number(
     our_identity: &[u8],
     their_identity: &[u8],
@@ -235,6 +246,79 @@ pub fn verify_safety_number(
     let computed = generate_safety_number(our_identity, their_identity);
     use subtle::ConstantTimeEq;
     computed.as_bytes().ct_eq(expected.as_bytes()).into()
+}
+
+/// Result of a QR-based fingerprint verification
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum VerificationStatus {
+    /// Fingerprints match — contact is verified
+    Verified,
+    /// Fingerprints do NOT match — possible MITM
+    Mismatch,
+    /// Scanned data is malformed / unparseable
+    InvalidData,
+}
+
+/// Data encoded in the verification QR code
+#[derive(Debug, Clone)]
+pub struct FingerprintQrPayload {
+    /// The identity public key (base64)
+    pub identity_key: Vec<u8>,
+    /// The pre-computed safety number
+    pub safety_number: String,
+}
+
+impl FingerprintQrPayload {
+    /// Serialize to a QR-encodable string: `SM-VERIFY:1:<base64-identity>:<safety-number>`
+    pub fn encode(&self) -> String {
+        use base64::Engine;
+        let id_b64 = base64::engine::general_purpose::STANDARD.encode(&self.identity_key);
+        format!("SM-VERIFY:1:{}:{}", id_b64, self.safety_number)
+    }
+
+    /// Parse a QR-scanned string back into a payload
+    pub fn decode(qr_data: &str) -> Option<Self> {
+        let parts: Vec<&str> = qr_data.splitn(4, ':').collect();
+        if parts.len() != 4 || parts[0] != "SM-VERIFY" || parts[1] != "1" {
+            return None;
+        }
+        use base64::Engine;
+        let identity_key = base64::engine::general_purpose::STANDARD
+            .decode(parts[2])
+            .ok()?;
+        let safety_number = parts[3].to_string();
+        Some(Self {
+            identity_key,
+            safety_number,
+        })
+    }
+}
+
+/// Verify a contact's identity by comparing a scanned QR fingerprint
+/// against our locally-computed safety number.
+///
+/// # Flow
+/// 1. Device A shows QR code containing `FingerprintQrPayload::encode()`
+/// 2. Device B scans QR → calls this function with the scanned data
+/// 3. Returns `Verified` only if the safety number in the QR matches
+///    what we compute locally from both identity keys.
+pub fn verify_contact_fingerprint(
+    our_identity: &[u8],
+    scanned_qr_data: &str,
+) -> VerificationStatus {
+    let payload = match FingerprintQrPayload::decode(scanned_qr_data) {
+        Some(p) => p,
+        None => return VerificationStatus::InvalidData,
+    };
+
+    let computed = generate_safety_number(our_identity, &payload.identity_key);
+
+    use subtle::ConstantTimeEq;
+    if computed.as_bytes().ct_eq(payload.safety_number.as_bytes()).into() {
+        VerificationStatus::Verified
+    } else {
+        VerificationStatus::Mismatch
+    }
 }
 
 #[cfg(test)]
@@ -326,5 +410,72 @@ mod tests {
 
         let result = hybrid_encapsulate(&[0u8; 32], &short_key);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_fingerprint_qr_encode_decode_roundtrip() {
+        let kp = generate_hybrid_keypair_random().unwrap();
+        let sn = generate_safety_number(&kp.x25519_public, &[99u8; 32]);
+
+        let payload = FingerprintQrPayload {
+            identity_key: kp.x25519_public.to_vec(),
+            safety_number: sn.clone(),
+        };
+        let encoded = payload.encode();
+        assert!(encoded.starts_with("SM-VERIFY:1:"));
+
+        let decoded = FingerprintQrPayload::decode(&encoded).unwrap();
+        assert_eq!(decoded.identity_key, kp.x25519_public.to_vec());
+        assert_eq!(decoded.safety_number, sn);
+    }
+
+    #[test]
+    fn test_fingerprint_qr_decode_invalid() {
+        assert!(FingerprintQrPayload::decode("garbage").is_none());
+        assert!(FingerprintQrPayload::decode("SM-VERIFY:2:abc:123").is_none());
+        assert!(FingerprintQrPayload::decode("OTHER:1:abc:123").is_none());
+    }
+
+    #[test]
+    fn test_verify_contact_fingerprint_match() {
+        let kp1 = generate_hybrid_keypair_random().unwrap();
+        let kp2 = generate_hybrid_keypair_random().unwrap();
+
+        let sn = generate_safety_number(&kp1.x25519_public, &kp2.x25519_public);
+
+        // kp2 encodes QR for kp1 to scan
+        let payload = FingerprintQrPayload {
+            identity_key: kp2.x25519_public.to_vec(),
+            safety_number: sn,
+        };
+        let qr_data = payload.encode();
+
+        let result = verify_contact_fingerprint(&kp1.x25519_public, &qr_data);
+        assert_eq!(result, VerificationStatus::Verified);
+    }
+
+    #[test]
+    fn test_verify_contact_fingerprint_mismatch() {
+        let kp1 = generate_hybrid_keypair_random().unwrap();
+        let kp2 = generate_hybrid_keypair_random().unwrap();
+        let kp3 = generate_hybrid_keypair_random().unwrap();
+
+        // kp3 pretends to be kp2 — MITM scenario
+        let fake_sn = generate_safety_number(&kp1.x25519_public, &kp3.x25519_public);
+        let payload = FingerprintQrPayload {
+            identity_key: kp2.x25519_public.to_vec(),
+            safety_number: fake_sn,
+        };
+        let qr_data = payload.encode();
+
+        let result = verify_contact_fingerprint(&kp1.x25519_public, &qr_data);
+        assert_eq!(result, VerificationStatus::Mismatch);
+    }
+
+    #[test]
+    fn test_verify_contact_fingerprint_invalid_data() {
+        let kp = generate_hybrid_keypair_random().unwrap();
+        let result = verify_contact_fingerprint(&kp.x25519_public, "not-a-qr-code");
+        assert_eq!(result, VerificationStatus::InvalidData);
     }
 }

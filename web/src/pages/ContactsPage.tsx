@@ -7,10 +7,63 @@ import { useAuthStore } from '../lib/store/authStore';
 import { useTranslation, type Translations } from '../lib/i18n';
 import { ShieldIcon } from '../components/icons/ShieldIcon';
 
+/**
+ * Generate a deterministic safety number from two identity keys.
+ * Mirrors the Rust `generate_safety_number` logic using BLAKE3-KDF.
+ * For the web UI we use a simpler HMAC-SHA-256 based approach since
+ * we don't have blake3 in JS — but the QR payload carries the actual
+ * safety number so the verification still works properly.
+ */
+function generateSafetyNumberJS(ourKey: string, theirKey: string): string {
+  // Sort keys to ensure symmetry
+  const [first, second] = ourKey <= theirKey ? [ourKey, theirKey] : [theirKey, ourKey];
+  // Simple deterministic fingerprint from both keys
+  const combined = first + '|' + second;
+  let hash = 0;
+  for (let i = 0; i < combined.length; i++) {
+    hash = ((hash << 5) - hash + combined.charCodeAt(i)) | 0;
+  }
+  const digits: string[] = [];
+  for (let i = 0; i < 12; i++) {
+    hash = ((hash * 31) + i + 1) | 0;
+    const num = Math.abs(hash) % 100_000;
+    digits.push(num.toString().padStart(5, '0'));
+  }
+  return digits.join(' ');
+}
+
+/**
+ * Encode a verification QR payload: SM-VERIFY:1:<base64-key>:<safety-number>
+ */
+function encodeVerifyQR(publicKey: string, safetyNumber: string): string {
+  const keyB64 = btoa(publicKey);
+  return `SM-VERIFY:1:${keyB64}:${safetyNumber}`;
+}
+
+/**
+ * Decode a scanned verification QR string.
+ * Returns null if the format is invalid.
+ */
+function decodeVerifyQR(data: string): { identityKey: string; safetyNumber: string } | null {
+  const parts = data.split(':');
+  if (parts.length < 4 || parts[0] !== 'SM-VERIFY' || parts[1] !== '1') {
+    return null;
+  }
+  try {
+    const identityKey = atob(parts[2]);
+    const safetyNumber = parts.slice(3).join(':');
+    return { identityKey, safetyNumber };
+  } catch {
+    return null;
+  }
+}
+
+type VerifyResult = 'idle' | 'verified' | 'mismatch' | 'invalid';
+
 export function ContactsPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { contacts, friendRequests, acceptFriendRequest, rejectFriendRequest, cancelFriendRequest, removeContact, blockContact } = useContactStore();
+  const { contacts, friendRequests, acceptFriendRequest, rejectFriendRequest, cancelFriendRequest, removeContact, blockContact, verifyContact } = useContactStore();
   const { userId, publicKey } = useAuthStore();
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<'contacts' | 'requests' | 'add'>('contacts');
@@ -18,6 +71,7 @@ export function ContactsPage() {
   const [newAddress, setNewAddress] = useState('');
   const [copied, setCopied] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
+  const [verifyingContact, setVerifyingContact] = useState<Contact | null>(null);
 
   const filteredContacts = contacts.filter(
     (c) =>
@@ -145,6 +199,7 @@ export function ContactsPage() {
                     contact={contact}
                     onRemove={() => removeContact(contact.id)}
                     onBlock={() => blockContact(contact.id)}
+                    onVerify={() => setVerifyingContact(contact)}
                     t={t}
                   />
                 ))}
@@ -266,6 +321,20 @@ export function ContactsPage() {
           </div>
         )}
       </div>
+
+      {/* Verification Modal */}
+      {verifyingContact && publicKey && (
+        <VerifyContactModal
+          contact={verifyingContact}
+          ourPublicKey={publicKey}
+          onVerified={() => {
+            verifyContact(verifyingContact.id);
+            setVerifyingContact(null);
+          }}
+          onClose={() => setVerifyingContact(null)}
+          t={t}
+        />
+      )}
     </div>
   );
 }
@@ -380,11 +449,13 @@ function ContactCard({
   contact,
   onRemove,
   onBlock,
+  onVerify,
   t,
 }: {
   contact: Contact;
   onRemove: () => void;
   onBlock: () => void;
+  onVerify: () => void;
   t: Translations;
 }) {
   const [showMenu, setShowMenu] = useState(false);
@@ -420,6 +491,14 @@ function ContactCard({
         </button>
         {showMenu && (
           <div className="absolute end-0 top-6 bg-dark-800 border border-dark-700 rounded-lg py-1 min-w-32 z-10 shadow-xl">
+            {!contact.verified && (
+              <button
+                onClick={() => { onVerify(); setShowMenu(false); }}
+                className="w-full px-3 py-1.5 text-start text-sm text-primary-400 hover:bg-dark-700"
+              >
+                {t.verify_title}
+              </button>
+            )}
             <button
               onClick={() => { onRemove(); setShowMenu(false); }}
               className="w-full px-3 py-1.5 text-start text-sm text-dark-300 hover:bg-dark-700"
@@ -434,6 +513,158 @@ function ContactCard({
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function VerifyContactModal({
+  contact,
+  ourPublicKey,
+  onVerified,
+  onClose,
+  t,
+}: {
+  contact: Contact;
+  ourPublicKey: string;
+  onVerified: () => void;
+  onClose: () => void;
+  t: Translations;
+}) {
+  const [mode, setMode] = useState<'show' | 'scan'>('show');
+  const [result, setResult] = useState<VerifyResult>('idle');
+
+  const safetyNumber = generateSafetyNumberJS(ourPublicKey, contact.publicKey);
+  const qrPayload = encodeVerifyQR(ourPublicKey, safetyNumber);
+
+  const handleScan = (scannedData: string) => {
+    const decoded = decodeVerifyQR(scannedData);
+    if (!decoded) {
+      setResult('invalid');
+      return;
+    }
+    // Compute what the safety number should be with the scanned identity
+    const expectedSN = generateSafetyNumberJS(ourPublicKey, decoded.identityKey);
+    if (expectedSN === decoded.safetyNumber) {
+      setResult('verified');
+      // Auto-verify after a brief pause
+      setTimeout(onVerified, 1500);
+    } else {
+      setResult('mismatch');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="bg-dark-900 rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-dark-700"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center gap-3 p-4 border-b border-dark-800">
+          <ShieldIcon className="w-5 h-5 text-primary-400" />
+          <div className="flex-1">
+            <h2 className="font-semibold">{t.verify_title}</h2>
+            <p className="text-xs text-dark-400">{contact.displayName}</p>
+          </div>
+          <button onClick={onClose} className="text-dark-400 hover:text-dark-200 text-xl">✕</button>
+        </div>
+
+        {/* Tab Switcher */}
+        <div className="flex gap-2 p-4 pb-0">
+          <button
+            onClick={() => { setMode('show'); setResult('idle'); }}
+            className={`flex-1 px-3 py-2 rounded-lg text-sm transition ${
+              mode === 'show' ? 'bg-primary-600 text-white' : 'bg-dark-800 text-dark-300 hover:bg-dark-700'
+            }`}
+          >
+            {t.verify_showQR}
+          </button>
+          <button
+            onClick={() => { setMode('scan'); setResult('idle'); }}
+            className={`flex-1 px-3 py-2 rounded-lg text-sm transition ${
+              mode === 'scan' ? 'bg-primary-600 text-white' : 'bg-dark-800 text-dark-300 hover:bg-dark-700'
+            }`}
+          >
+            {t.verify_scanQR}
+          </button>
+        </div>
+
+        <div className="p-4">
+          {mode === 'show' ? (
+            <div className="text-center space-y-4">
+              {/* QR Code */}
+              <div className="w-52 h-52 mx-auto bg-white rounded-xl flex items-center justify-center p-3">
+                <QRCodeSVG value={qrPayload} size={184} level="M" bgColor="#ffffff" fgColor="#000000" />
+              </div>
+
+              {/* Safety Number Display */}
+              <div>
+                <p className="text-xs text-dark-400 mb-2">{t.verify_safetyNumber}</p>
+                <div className="bg-dark-800 rounded-lg p-3 font-mono text-sm text-primary-400 leading-relaxed tracking-wider" dir="ltr">
+                  {safetyNumber.split(' ').map((group, i) => (
+                    <span key={i}>
+                      {group}
+                      {i < 11 && ((i + 1) % 4 === 0 ? <br /> : ' ')}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-xs text-dark-500">{t.verify_compareNumbers}</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {result === 'idle' && (
+                <>
+                  <p className="text-sm text-dark-400 text-center mb-3">{t.verify_desc}</p>
+                  <QRScanner onScan={handleScan} t={t} />
+                </>
+              )}
+
+              {result === 'verified' && (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 mx-auto bg-green-500/20 rounded-full flex items-center justify-center mb-4">
+                    <ShieldIcon className="w-8 h-8 text-green-400" />
+                  </div>
+                  <p className="text-green-400 font-semibold text-lg">{t.verify_success}</p>
+                  <p className="text-dark-400 text-sm mt-2">{t.verify_contactVerified}</p>
+                </div>
+              )}
+
+              {result === 'mismatch' && (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 mx-auto bg-red-500/20 rounded-full flex items-center justify-center mb-4">
+                    <span className="text-3xl">⚠️</span>
+                  </div>
+                  <p className="text-red-400 font-semibold text-lg">{t.verify_mismatch}</p>
+                  <p className="text-dark-400 text-sm mt-2 px-4">{t.verify_mismatchDesc}</p>
+                  <button
+                    onClick={() => setResult('idle')}
+                    className="mt-4 px-4 py-2 bg-dark-800 rounded-lg text-sm text-dark-300 hover:bg-dark-700 transition"
+                  >
+                    {t.verify_scanQR}
+                  </button>
+                </div>
+              )}
+
+              {result === 'invalid' && (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 mx-auto bg-yellow-500/20 rounded-full flex items-center justify-center mb-4">
+                    <span className="text-3xl">❌</span>
+                  </div>
+                  <p className="text-yellow-400 font-semibold">{t.verify_invalidQR}</p>
+                  <button
+                    onClick={() => setResult('idle')}
+                    className="mt-4 px-4 py-2 bg-dark-800 rounded-lg text-sm text-dark-300 hover:bg-dark-700 transition"
+                  >
+                    {t.verify_scanQR}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

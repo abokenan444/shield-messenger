@@ -30,6 +30,7 @@ interface ContactState {
   removeContact: (id: string) => void;
   blockContact: (id: string) => void;
   unblockContact: (id: string) => void;
+  verifyContact: (id: string) => void;
   setContacts: (contacts: Contact[]) => void;
 
   addFriendRequest: (request: FriendRequest) => void;
@@ -104,6 +105,13 @@ export const useContactStore = create<ContactState>()((set) => ({
     set((state) => ({
       contacts: state.contacts.map((c) =>
         c.id === id ? { ...c, blocked: false } : c,
+      ),
+    })),
+
+  verifyContact: (id) =>
+    set((state) => ({
+      contacts: state.contacts.map((c) =>
+        c.id === id ? { ...c, verified: true } : c,
       ),
     })),
 
