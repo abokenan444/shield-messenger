@@ -89,7 +89,7 @@ impl Drop for PQRatchetState {
 impl PQRatchetState {
     /// Create ratchet state from hybrid KEM shared secret (64 bytes) and direction.
     pub fn from_hybrid_secret(
-        hybrid_shared_secret: &[u8; 64],
+        hybrid_shared_secret: &[u8],
         our_onion: &str,
         their_onion: &str,
     ) -> Result<Self, PQRatchetError> {
@@ -301,10 +301,10 @@ mod tests {
         let mut seed2 = [0u8; 32];
         OsRng.fill_bytes(&mut seed2);
         let bob_kp = generate_hybrid_keypair_from_seed(&seed2).unwrap();
-        let (shared, ct) = hybrid_encapsulate(&bob_kp.x25519_public, &bob_kp.kyber_public).unwrap();
-        let bob_shared = hybrid_decapsulate(&bob_kp.x25519_secret, &bob_kp.kyber_secret, &ct).unwrap();
-        assert_eq!(shared, bob_shared);
-        let alice = PQRatchetState::from_hybrid_secret(&shared, "alice.onion", "bob.onion").unwrap();
+        let ct = hybrid_encapsulate(&bob_kp.x25519_public, &bob_kp.kyber_public).unwrap();
+        let bob_shared = hybrid_decapsulate(&ct.x25519_ephemeral_public, &ct.kyber_ciphertext, &bob_kp.x25519_secret, &bob_kp.kyber_secret).unwrap();
+        assert_eq!(ct.shared_secret, bob_shared);
+        let alice = PQRatchetState::from_hybrid_secret(&ct.shared_secret, "alice.onion", "bob.onion").unwrap();
         let bob = PQRatchetState::from_hybrid_secret(&bob_shared, "bob.onion", "alice.onion").unwrap();
         (alice, bob)
     }
@@ -388,7 +388,8 @@ mod tests {
         let mut seed = [0u8; 32];
         OsRng.fill_bytes(&mut seed);
         let bob_new_kp = generate_hybrid_keypair_from_seed(&seed).unwrap();
-        let kem_ct = alice.kem_ratchet_send(&bob_new_kp.x25519_public, &bob_new_kp.kyber_public).unwrap();
+        let kyber_pub: &[u8; 1568] = bob_new_kp.kyber_public.as_slice().try_into().unwrap();
+        let kem_ct = alice.kem_ratchet_send(&bob_new_kp.x25519_public, kyber_pub).unwrap();
         bob.kem_ratchet_receive(&bob_new_kp, &kem_ct).unwrap();
 
         // Compromised keys must differ from new state (post-compromise security)
