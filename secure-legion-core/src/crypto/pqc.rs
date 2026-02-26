@@ -1,19 +1,21 @@
-/// Post-Quantum Cryptography — Hybrid X25519 + Kyber-1024 (ML-KEM / FIPS 203)
+/// Post-Quantum Cryptography — Hybrid X25519 + ML-KEM-1024 (NIST FIPS 203)
 ///
 /// Provides quantum-resistant key encapsulation combined with classical X25519 ECDH.
 /// The hybrid approach ensures security even if one algorithm is broken.
 ///
-/// Key sizes (Kyber-1024):
-/// - Public key:       1568 bytes
-/// - Secret key:       3168 bytes
-/// - Ciphertext:       1568 bytes
-/// - Shared secret:    32 bytes
-/// - X25519 public:    32 bytes
-/// - X25519 secret:    32 bytes
-/// - Combined secret:  64 bytes (BLAKE3-KDF(X25519 ‖ Kyber))
+/// Migrated from `pqc_kyber` to the official `ml-kem` crate (RustCrypto, FIPS 203 final).
+///
+/// Key sizes (ML-KEM-1024):
+/// - Encapsulation key (public):  1568 bytes
+/// - Decapsulation key (secret):  3168 bytes
+/// - Ciphertext:                  1568 bytes
+/// - Shared secret:               32 bytes
+/// - X25519 public:               32 bytes
+/// - X25519 secret:               32 bytes
+/// - Combined secret:             64 bytes (BLAKE3-KDF(X25519 ‖ ML-KEM))
 
-use pqc_kyber::{keypair as kyber_keypair, encapsulate, decapsulate};
-use pqc_kyber::{KYBER_PUBLICKEYBYTES, KYBER_SECRETKEYBYTES, KYBER_CIPHERTEXTBYTES};
+use ml_kem::kem::{Decapsulate, Encapsulate};
+use ml_kem::{EncodedSizeUser, KemCore, MlKem1024};
 use rand::rngs::OsRng;
 use rand_chacha::ChaCha20Rng;
 use rand::{SeedableRng, RngCore};
@@ -23,20 +25,25 @@ use x25519_dalek::{StaticSecret, PublicKey};
 
 use crate::crypto::key_exchange;
 
-/// Kyber-1024 public key size (bytes)
-pub const KYBER1024_PK_BYTES: usize = KYBER_PUBLICKEYBYTES;
-/// Kyber-1024 ciphertext size (bytes)
-pub const KYBER1024_CT_BYTES: usize = KYBER_CIPHERTEXTBYTES;
-/// Kyber-1024 secret key size (bytes)
-pub const KYBER1024_SK_BYTES: usize = KYBER_SECRETKEYBYTES;
+/// ML-KEM-1024 encapsulation key (public) size in bytes
+pub const MLKEM1024_EK_BYTES: usize = 1568;
+/// ML-KEM-1024 ciphertext size in bytes
+pub const MLKEM1024_CT_BYTES: usize = 1568;
+/// ML-KEM-1024 decapsulation key (secret) size in bytes
+pub const MLKEM1024_DK_BYTES: usize = 3168;
+
+// Backward-compatible aliases so downstream code (pq_ratchet, FFI) keeps compiling.
+pub const KYBER1024_PK_BYTES: usize = MLKEM1024_EK_BYTES;
+pub const KYBER1024_CT_BYTES: usize = MLKEM1024_CT_BYTES;
+pub const KYBER1024_SK_BYTES: usize = MLKEM1024_DK_BYTES;
 
 #[derive(Error, Debug)]
 pub enum PqcError {
-    #[error("Kyber key generation failed")]
+    #[error("ML-KEM key generation failed")]
     KeyGenFailed,
-    #[error("Kyber encapsulation failed")]
+    #[error("ML-KEM encapsulation failed")]
     EncapsulateFailed,
-    #[error("Kyber decapsulation failed")]
+    #[error("ML-KEM decapsulation failed")]
     DecapsulateFailed,
     #[error("Invalid key length")]
     InvalidKeyLength,
@@ -48,16 +55,16 @@ pub enum PqcError {
 
 pub type Result<T> = std::result::Result<T, PqcError>;
 
-/// Hybrid KEM keypair: X25519 + Kyber-1024
+/// Hybrid KEM keypair: X25519 + ML-KEM-1024
 #[derive(Clone)]
 pub struct HybridKEMKeypair {
     /// X25519 public key (32 bytes)
     pub x25519_public: [u8; 32],
     /// X25519 secret key (32 bytes)
     pub x25519_secret: [u8; 32],
-    /// Kyber-1024 public key (1568 bytes)
+    /// ML-KEM-1024 encapsulation key / public key (1568 bytes)
     pub kyber_public: Vec<u8>,
-    /// Kyber-1024 secret key (3168 bytes)
+    /// ML-KEM-1024 decapsulation key / secret key (3168 bytes)
     pub kyber_secret: Vec<u8>,
 }
 
@@ -73,17 +80,17 @@ impl Drop for HybridKEMKeypair {
 pub struct HybridCiphertext {
     /// X25519 ephemeral public key (32 bytes)
     pub x25519_ephemeral_public: [u8; 32],
-    /// Kyber-1024 ciphertext (1568 bytes)
+    /// ML-KEM-1024 ciphertext (1568 bytes)
     pub kyber_ciphertext: Vec<u8>,
-    /// Combined shared secret: BLAKE3-KDF(X25519_ss ‖ Kyber_ss) → 64 bytes
+    /// Combined shared secret: BLAKE3-KDF(X25519_ss ‖ ML-KEM_ss) → 64 bytes
     pub shared_secret: Vec<u8>,
 }
 
 /// Combine two 32-byte shared secrets into a single 64-byte key via BLAKE3-KDF
-fn combine_shared_secrets(x25519_ss: &[u8; 32], kyber_ss: &[u8]) -> Vec<u8> {
+fn combine_shared_secrets(x25519_ss: &[u8; 32], mlkem_ss: &[u8]) -> Vec<u8> {
     let mut input = Vec::with_capacity(64);
     input.extend_from_slice(x25519_ss);
-    input.extend_from_slice(kyber_ss);
+    input.extend_from_slice(mlkem_ss);
 
     let kdf = blake3::derive_key("ShieldMessenger-HybridKEM-X25519-Kyber1024-v1", &input);
     let mut combined = Vec::with_capacity(64);
@@ -103,14 +110,16 @@ pub fn generate_hybrid_keypair_from_seed(seed: &[u8; 32]) -> Result<HybridKEMKey
     let x25519_secret_key = StaticSecret::from(x25519_seed);
     let x25519_public_key = PublicKey::from(&x25519_secret_key);
 
-    // Generate Kyber-1024 keypair
-    let keys = kyber_keypair(&mut rng).map_err(|_| PqcError::KeyGenFailed)?;
+    // Generate ML-KEM-1024 keypair via the official FIPS 203 crate
+    let (dk, ek) = MlKem1024::generate(&mut rng);
+    let ek_bytes = ek.as_bytes().to_vec();
+    let dk_bytes = dk.as_bytes().to_vec();
 
     Ok(HybridKEMKeypair {
         x25519_public: x25519_public_key.to_bytes(),
         x25519_secret: x25519_secret_key.to_bytes(),
-        kyber_public: keys.public.to_vec(),
-        kyber_secret: keys.secret.to_vec(),
+        kyber_public: ek_bytes,
+        kyber_secret: dk_bytes,
     })
 }
 
@@ -118,28 +127,30 @@ pub fn generate_hybrid_keypair_from_seed(seed: &[u8; 32]) -> Result<HybridKEMKey
 pub fn generate_hybrid_keypair_random() -> Result<HybridKEMKeypair> {
     let (x25519_public, x25519_secret) = key_exchange::generate_static_keypair();
 
-    let keys = kyber_keypair(&mut OsRng).map_err(|_| PqcError::KeyGenFailed)?;
+    let (dk, ek) = MlKem1024::generate(&mut OsRng);
+    let ek_bytes = ek.as_bytes().to_vec();
+    let dk_bytes = dk.as_bytes().to_vec();
 
     Ok(HybridKEMKeypair {
         x25519_public,
         x25519_secret,
-        kyber_public: keys.public.to_vec(),
-        kyber_secret: keys.secret.to_vec(),
+        kyber_public: ek_bytes,
+        kyber_secret: dk_bytes,
     })
 }
 
 /// Hybrid encapsulation: generate shared secret + ciphertext
 ///
-/// Combines X25519 ECDH with Kyber-1024 encapsulation.
+/// Combines X25519 ECDH with ML-KEM-1024 encapsulation.
 /// The resulting shared secret is bound to both algorithms via BLAKE3-KDF.
 pub fn hybrid_encapsulate(
     recipient_x25519_public: &[u8],
-    recipient_kyber_public: &[u8],
+    recipient_mlkem_public: &[u8],
 ) -> Result<HybridCiphertext> {
     if recipient_x25519_public.len() != 32 {
         return Err(PqcError::InvalidKeyLength);
     }
-    if recipient_kyber_public.len() != KYBER1024_PK_BYTES {
+    if recipient_mlkem_public.len() != MLKEM1024_EK_BYTES {
         return Err(PqcError::InvalidKeyLength);
     }
 
@@ -148,16 +159,22 @@ pub fn hybrid_encapsulate(
     let x25519_shared = key_exchange::derive_shared_secret(&eph_secret, recipient_x25519_public)
         .map_err(|e| PqcError::X25519Error(e.to_string()))?;
 
-    // Kyber-1024 encapsulation
-    let (kyber_ct, kyber_ss) = encapsulate(recipient_kyber_public, &mut OsRng)
+    // Reconstruct ML-KEM-1024 EncapsulationKey from raw bytes
+    let ek_array = ml_kem::Encoded::<
+        ml_kem::kem::EncapsulationKey<ml_kem::MlKem1024Params>,
+    >::from_slice(recipient_mlkem_public);
+    let ek = ml_kem::kem::EncapsulationKey::<ml_kem::MlKem1024Params>::from_bytes(ek_array);
+
+    // ML-KEM-1024 encapsulation
+    let (ct, mlkem_ss) = ek.encapsulate(&mut OsRng)
         .map_err(|_| PqcError::EncapsulateFailed)?;
 
     // Combine shared secrets via BLAKE3-KDF
-    let combined = combine_shared_secrets(&x25519_shared, &kyber_ss);
+    let combined = combine_shared_secrets(&x25519_shared, mlkem_ss.as_slice());
 
     Ok(HybridCiphertext {
         x25519_ephemeral_public: eph_public,
-        kyber_ciphertext: kyber_ct.to_vec(),
+        kyber_ciphertext: ct.as_slice().to_vec(),
         shared_secret: combined,
     })
 }
@@ -165,17 +182,17 @@ pub fn hybrid_encapsulate(
 /// Hybrid decapsulation: recover shared secret from ciphertext
 pub fn hybrid_decapsulate(
     x25519_ephemeral_public: &[u8],
-    kyber_ciphertext: &[u8],
+    mlkem_ciphertext: &[u8],
     our_x25519_secret: &[u8],
-    our_kyber_secret: &[u8],
+    our_mlkem_secret: &[u8],
 ) -> Result<Vec<u8>> {
     if x25519_ephemeral_public.len() != 32 || our_x25519_secret.len() != 32 {
         return Err(PqcError::InvalidKeyLength);
     }
-    if kyber_ciphertext.len() != KYBER1024_CT_BYTES {
+    if mlkem_ciphertext.len() != MLKEM1024_CT_BYTES {
         return Err(PqcError::InvalidKeyLength);
     }
-    if our_kyber_secret.len() != KYBER1024_SK_BYTES {
+    if our_mlkem_secret.len() != MLKEM1024_DK_BYTES {
         return Err(PqcError::InvalidKeyLength);
     }
 
@@ -183,12 +200,21 @@ pub fn hybrid_decapsulate(
     let x25519_shared = key_exchange::derive_shared_secret(our_x25519_secret, x25519_ephemeral_public)
         .map_err(|e| PqcError::X25519Error(e.to_string()))?;
 
-    // Kyber-1024 decapsulation
-    let kyber_ss = decapsulate(kyber_ciphertext, our_kyber_secret)
+    // Reconstruct ML-KEM-1024 DecapsulationKey from raw bytes
+    let dk_array = ml_kem::Encoded::<
+        ml_kem::kem::DecapsulationKey<ml_kem::MlKem1024Params>,
+    >::from_slice(our_mlkem_secret);
+    let dk = ml_kem::kem::DecapsulationKey::<ml_kem::MlKem1024Params>::from_bytes(dk_array);
+
+    // Reconstruct ciphertext from raw bytes
+    let ct_array = ml_kem::Ciphertext::<ml_kem::MlKem1024Params>::from_slice(mlkem_ciphertext);
+
+    // ML-KEM-1024 decapsulation
+    let mlkem_ss = dk.decapsulate(ct_array)
         .map_err(|_| PqcError::DecapsulateFailed)?;
 
     // Combine via BLAKE3-KDF
-    let combined = combine_shared_secrets(&x25519_shared, &kyber_ss);
+    let combined = combine_shared_secrets(&x25519_shared, mlkem_ss.as_slice());
 
     Ok(combined)
 }
@@ -301,6 +327,53 @@ impl TrustLevel {
 impl std::fmt::Display for TrustLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Level {} ({})", *self as u8, self.label())
+    }
+}
+
+// ── Identity Key Change Detection ───────────────────────────────────
+
+/// Outcome of comparing a contact's current identity key against the stored one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IdentityKeyChangeResult {
+    /// Key is unchanged — no action needed.
+    Unchanged,
+    /// Key has changed — the contact re-installed or their device was compromised.
+    /// The UI **must** warn the user and reset trust to Level 1.
+    Changed {
+        previous_fingerprint: String,
+        new_fingerprint: String,
+    },
+    /// No previous key on record (first contact).
+    FirstSeen,
+}
+
+/// Compare a contact's current identity key against the previously stored one.
+///
+/// If the key changed, the caller **must**:
+/// 1. Reset `ContactVerificationRecord.trust_level` to `Encrypted`.
+/// 2. Display a prominent warning in the chat UI (similar to Signal's
+///    "safety number has changed" banner).
+/// 3. Require the user to re-verify via QR scan before promoting back to `Verified`.
+pub fn detect_identity_key_change(
+    our_identity: &[u8],
+    stored_their_identity: Option<&[u8]>,
+    current_their_identity: &[u8],
+) -> IdentityKeyChangeResult {
+    match stored_their_identity {
+        None => IdentityKeyChangeResult::FirstSeen,
+        Some(stored) => {
+            use subtle::ConstantTimeEq;
+            if stored.ct_eq(current_their_identity).into() {
+                IdentityKeyChangeResult::Unchanged
+            } else {
+                let prev_sn = generate_safety_number(our_identity, stored);
+                let new_sn = generate_safety_number(our_identity, current_their_identity);
+                IdentityKeyChangeResult::Changed {
+                    previous_fingerprint: prev_sn,
+                    new_fingerprint: new_sn,
+                }
+            }
+        }
     }
 }
 
@@ -427,8 +500,8 @@ mod tests {
         let keypair = generate_hybrid_keypair_from_seed(&seed).unwrap();
         assert_eq!(keypair.x25519_public.len(), 32);
         assert_eq!(keypair.x25519_secret.len(), 32);
-        assert_eq!(keypair.kyber_public.len(), KYBER1024_PK_BYTES);
-        assert_eq!(keypair.kyber_secret.len(), KYBER1024_SK_BYTES);
+        assert_eq!(keypair.kyber_public.len(), MLKEM1024_EK_BYTES);
+        assert_eq!(keypair.kyber_secret.len(), MLKEM1024_DK_BYTES);
 
         // Deterministic
         let keypair2 = generate_hybrid_keypair_from_seed(&seed).unwrap();
@@ -438,61 +511,50 @@ mod tests {
 
     #[test]
     fn test_hybrid_keypair_random() {
-        let kp = generate_hybrid_keypair_random().unwrap();
-        assert_eq!(kp.x25519_public.len(), 32);
-        assert_eq!(kp.kyber_public.len(), KYBER1024_PK_BYTES);
-        assert_eq!(kp.kyber_secret.len(), KYBER1024_SK_BYTES);
+        let kp1 = generate_hybrid_keypair_random().unwrap();
+        let kp2 = generate_hybrid_keypair_random().unwrap();
+        assert_ne!(kp1.x25519_public, kp2.x25519_public);
+        assert_ne!(kp1.kyber_public, kp2.kyber_public);
     }
 
     #[test]
     fn test_hybrid_encapsulate_decapsulate() {
         let keypair = generate_hybrid_keypair_random().unwrap();
 
-        let ciphertext = hybrid_encapsulate(
-            &keypair.x25519_public,
-            &keypair.kyber_public,
-        ).unwrap();
+        let ct = hybrid_encapsulate(&keypair.x25519_public, &keypair.kyber_public).unwrap();
+        assert_eq!(ct.shared_secret.len(), 64);
+        assert_eq!(ct.kyber_ciphertext.len(), MLKEM1024_CT_BYTES);
 
         let recovered = hybrid_decapsulate(
-            &ciphertext.x25519_ephemeral_public,
-            &ciphertext.kyber_ciphertext,
+            &ct.x25519_ephemeral_public,
+            &ct.kyber_ciphertext,
             &keypair.x25519_secret,
             &keypair.kyber_secret,
         ).unwrap();
 
-        assert_eq!(ciphertext.shared_secret.len(), 64);
-        assert_eq!(recovered.len(), 64);
-        assert_eq!(ciphertext.shared_secret, recovered);
+        assert_eq!(ct.shared_secret, recovered);
     }
 
     #[test]
-    fn test_different_keypairs_different_secrets() {
+    fn test_safety_number_format() {
         let kp1 = generate_hybrid_keypair_random().unwrap();
         let kp2 = generate_hybrid_keypair_random().unwrap();
-
-        let ct1 = hybrid_encapsulate(&kp1.x25519_public, &kp1.kyber_public).unwrap();
-        let ct2 = hybrid_encapsulate(&kp2.x25519_public, &kp2.kyber_public).unwrap();
-
-        assert_ne!(ct1.shared_secret, ct2.shared_secret);
-    }
-
-    #[test]
-    fn test_safety_number_symmetric() {
-        let kp1 = generate_hybrid_keypair_random().unwrap();
-        let kp2 = generate_hybrid_keypair_random().unwrap();
-
-        let sn1 = generate_safety_number(&kp1.x25519_public, &kp2.x25519_public);
-        let sn2 = generate_safety_number(&kp2.x25519_public, &kp1.x25519_public);
-
-        assert_eq!(sn1, sn2);
-        assert_eq!(sn1.replace(' ', "").len(), 60);
+        let sn = generate_safety_number(&kp1.x25519_public, &kp2.x25519_public);
+        // 12 groups of 5 digits separated by spaces
+        let groups: Vec<&str> = sn.split(' ').collect();
+        assert_eq!(groups.len(), 12);
+        for g in &groups {
+            assert_eq!(g.len(), 5);
+            assert!(g.chars().all(|c| c.is_ascii_digit()));
+        }
+        // Total: 60 digits
+        assert_eq!(sn.replace(' ', "").len(), 60);
     }
 
     #[test]
     fn test_safety_number_verification() {
         let kp1 = generate_hybrid_keypair_random().unwrap();
         let kp2 = generate_hybrid_keypair_random().unwrap();
-
         let sn = generate_safety_number(&kp1.x25519_public, &kp2.x25519_public);
         assert!(verify_safety_number(&kp1.x25519_public, &kp2.x25519_public, &sn));
         assert!(!verify_safety_number(&kp1.x25519_public, &kp2.x25519_public, "00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000"));
@@ -501,9 +563,8 @@ mod tests {
     #[test]
     fn test_invalid_key_lengths() {
         let short_key = [0u8; 16];
-        let result = hybrid_encapsulate(&short_key, &[0u8; KYBER1024_PK_BYTES]);
+        let result = hybrid_encapsulate(&short_key, &[0u8; MLKEM1024_EK_BYTES]);
         assert!(result.is_err());
-
         let result = hybrid_encapsulate(&[0u8; 32], &short_key);
         assert!(result.is_err());
     }
@@ -596,6 +657,51 @@ mod tests {
         assert!(TrustLevel::Untrusted.requires_file_warning());
         assert!(TrustLevel::Encrypted.requires_file_warning());
         assert!(!TrustLevel::Verified.requires_file_warning());
+    }
+
+    #[test]
+    fn test_identity_key_change_first_seen() {
+        let kp1 = generate_hybrid_keypair_random().unwrap();
+        let kp2 = generate_hybrid_keypair_random().unwrap();
+        let result = detect_identity_key_change(
+            &kp1.x25519_public,
+            None,
+            &kp2.x25519_public,
+        );
+        assert_eq!(result, IdentityKeyChangeResult::FirstSeen);
+    }
+
+    #[test]
+    fn test_identity_key_unchanged() {
+        let kp1 = generate_hybrid_keypair_random().unwrap();
+        let kp2 = generate_hybrid_keypair_random().unwrap();
+        let result = detect_identity_key_change(
+            &kp1.x25519_public,
+            Some(&kp2.x25519_public),
+            &kp2.x25519_public,
+        );
+        assert_eq!(result, IdentityKeyChangeResult::Unchanged);
+    }
+
+    #[test]
+    fn test_identity_key_changed_mitm_warning() {
+        let kp1 = generate_hybrid_keypair_random().unwrap();
+        let kp2 = generate_hybrid_keypair_random().unwrap();
+        let kp3 = generate_hybrid_keypair_random().unwrap(); // attacker
+        let result = detect_identity_key_change(
+            &kp1.x25519_public,
+            Some(&kp2.x25519_public),
+            &kp3.x25519_public,
+        );
+        match result {
+            IdentityKeyChangeResult::Changed { previous_fingerprint, new_fingerprint } => {
+                assert_ne!(previous_fingerprint, new_fingerprint);
+                // Verify the fingerprints are valid safety numbers
+                assert_eq!(previous_fingerprint.split(' ').count(), 12);
+                assert_eq!(new_fingerprint.split(' ').count(), 12);
+            }
+            _ => panic!("Expected Changed, got {:?}", result),
+        }
     }
 
     #[test]

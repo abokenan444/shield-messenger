@@ -20,7 +20,14 @@
   <img src="https://img.shields.io/badge/Zcash-Shielded-F4B728?style=flat-square&logo=zcash&logoColor=black" alt="Zcash" />
 </p>
 
-> **No servers. No metadata. No compromises.**
+> **No message servers. No metadata. No compromises.**
+>
+> **Clarification on "Serverless":** Shield Messenger is serverless in the messaging layer — all
+> chat messages, voice calls, and file transfers flow directly between peers over Tor hidden
+> services without passing through any central server. The project does include a lightweight
+> Express/TypeScript server, but its role is strictly limited to the **public website** (landing
+> page, blog CMS, billing dashboard, and admin panel). This server **never** touches, routes,
+> stores, or has access to any user messages, keys, or metadata.
 
 [Website](https://shieldmessenger.com) · [Whitepaper](docs/WHITEPAPER.md) · [Architecture](docs/ARCHITECTURE.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md)
 
@@ -30,7 +37,7 @@
 
 ## What is Shield Messenger?
 
-Shield Messenger is a **privacy-first, multi-platform communication system** that combines truly serverless peer-to-peer messaging, post-quantum cryptography, and integrated cryptocurrency payments. Unlike conventional encrypted messengers, Shield Messenger eliminates ALL central infrastructure — no servers exist to log metadata, and no company can hand over data that was never collected.
+Shield Messenger is a **privacy-first, multi-platform communication system** that combines truly serverless peer-to-peer messaging, post-quantum cryptography, and integrated cryptocurrency payments. Unlike conventional encrypted messengers, Shield Messenger eliminates ALL central infrastructure from the messaging path — no servers exist to route, store, or log messages or metadata, and no company can hand over data that was never collected. A separate public-facing web server exists solely for the project website and billing; it has zero access to the messaging layer.
 
 ### Why Shield Messenger?
 
@@ -88,7 +95,7 @@ Shield Messenger is a **privacy-first, multi-platform communication system** tha
 | **Android** | Kotlin + JNI | Native Android app (153 files, Material 3) |
 | **Web** | React 19 + TypeScript + Vite 6 | Browser application with 17-language i18n |
 | **iOS** | Swift + SwiftUI + C FFI | iOS application (16 languages) |
-| **Server** | Express 4 + TypeScript + SQLite | Landing page API, CMS, billing, admin |
+| **Server** | Express 4 + TypeScript + SQLite | Public website API, CMS, billing, admin (**not** involved in messaging) |
 | **Deployment** | Nginx + PM2 + Let's Encrypt | Production hosting |
 
 ---
@@ -389,7 +396,7 @@ Shield Messenger supports **17 languages** across all platforms:
 ### Planned
 
 - [ ] Desktop client (Tauri + Rust)
-- [ ] Contact verification safety numbers
+- [x] Contact verification safety numbers (QR-based fingerprint scan)
 - [ ] Mesh networking (WiFi Direct)
 - [ ] Monero (XMR) integration
 - [ ] Lightning Network payments

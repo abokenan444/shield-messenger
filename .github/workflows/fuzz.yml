@@ -1,0 +1,106 @@
+name: Fuzz Testing
+
+on:
+  # Run on pushes to main (nightly-equivalent)
+  push:
+    branches: [main, master]
+    paths:
+      - 'secure-legion-core/src/crypto/**'
+      - 'secure-legion-core/src/network/**'
+      - 'secure-legion-core/fuzz/**'
+  # Run weekly on Saturday at 03:00 UTC
+  schedule:
+    - cron: '0 3 * * 6'
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      fuzz_duration:
+        description: 'Fuzzing duration per target (seconds)'
+        required: false
+        default: '300'
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+  # Default to 120s per target for scheduled/push runs, override via workflow_dispatch
+  FUZZ_SECONDS: ${{ github.event.inputs.fuzz_duration || '120' }}
+
+jobs:
+  fuzz-crypto:
+    name: Fuzz crypto primitives
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - fuzz_hybrid_kem
+          - fuzz_encrypt_decrypt
+          - fuzz_safety_number
+          - fuzz_contact_verification
+          - fuzz_key_exchange
+          - fuzz_packet
+          - fuzz_backup
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libopus-dev pkg-config
+
+      - name: Install Rust nightly (required by cargo-fuzz)
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-fuzz-${{ hashFiles('secure-legion-core/Cargo.toml') }}
+          restore-keys: ${{ runner.os }}-fuzz-
+
+      - name: Restore fuzz corpus
+        uses: actions/cache@v4
+        with:
+          path: secure-legion-core/fuzz/corpus/${{ matrix.target }}
+          key: fuzz-corpus-${{ matrix.target }}-${{ github.sha }}
+          restore-keys: fuzz-corpus-${{ matrix.target }}-
+
+      - name: Run fuzzer — ${{ matrix.target }}
+        working-directory: secure-legion-core
+        run: |
+          echo "Fuzzing ${{ matrix.target }} for ${FUZZ_SECONDS}s..."
+          cargo +nightly fuzz run ${{ matrix.target }} -- \
+            -max_total_time=${FUZZ_SECONDS} \
+            -max_len=4096 \
+            -print_final_stats=1 \
+            2>&1 | tee /tmp/fuzz-${{ matrix.target }}.log
+        continue-on-error: false
+
+      - name: Upload crash artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-crash-${{ matrix.target }}
+          path: |
+            secure-legion-core/fuzz/artifacts/${{ matrix.target }}/
+          retention-days: 30
+
+      - name: Summarize results
+        if: always()
+        run: |
+          echo "## Fuzz: ${{ matrix.target }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f /tmp/fuzz-${{ matrix.target }}.log ]; then
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -20 /tmp/fuzz-${{ matrix.target }}.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+          CORPUS_DIR="secure-legion-core/fuzz/corpus/${{ matrix.target }}"
+          if [ -d "$CORPUS_DIR" ]; then
+            echo "Corpus size: $(find $CORPUS_DIR -type f | wc -l) inputs" >> $GITHUB_STEP_SUMMARY
+          fi

@@ -9,9 +9,13 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
 
 [dependencies.securelegion]
 path = ".."
+features = ["std"]
+
+# ── Existing fuzz targets ─────────────────────────────────────────────
 
 [[bin]]
 name = "fuzz_encrypt_decrypt"
@@ -33,4 +37,22 @@ name = "fuzz_backup"
 path = "fuzz_targets/fuzz_backup.rs"
 doc = false
 
+# ── New fuzz targets (crypto primitives) ──────────────────────────────
+
+[[bin]]
+name = "fuzz_safety_number"
+path = "fuzz_targets/fuzz_safety_number.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_contact_verification"
+path = "fuzz_targets/fuzz_contact_verification.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_key_exchange"
+path = "fuzz_targets/fuzz_key_exchange.rs"
+doc = false
+
 [workspace]
+members = ["."]

@@ -35,8 +35,15 @@ pub use pqc::{
     hybrid_decapsulate,
     generate_safety_number,
     verify_safety_number,
+    verify_contact_fingerprint,
+    detect_identity_key_change,
     HybridKEMKeypair,
     HybridCiphertext,
+    FingerprintQrPayload,
+    VerificationStatus,
+    IdentityKeyChangeResult,
+    TrustLevel,
+    ContactVerificationRecord,
 };
 pub use ratchet::{PQDoubleRatchet, RatchetHeader, RatchetState};
 pub use backup::{create_encrypted_backup, restore_encrypted_backup, split_secret, reconstruct_secret, BackupBlob, SecretShare};
