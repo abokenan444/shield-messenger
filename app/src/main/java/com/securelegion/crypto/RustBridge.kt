@@ -1597,4 +1597,17 @@ object RustBridge {
             byteArrayOf(expectedType) + wireBytes
         }
     }
+
+
+    // ===== Safety Numbers & Contact Verification (ML-KEM) =====
+
+    external fun generateSafetyNumber(ourIdentity: ByteArray, theirIdentity: ByteArray): String
+    external fun verifySafetyNumber(ourIdentity: ByteArray, theirIdentity: ByteArray, safetyNumber: String): Boolean
+    external fun encodeFingerprintQr(identityKey: ByteArray, safetyNumber: String): String
+    external fun verifyContactFingerprint(ourIdentity: ByteArray, scannedQr: String): String
+    external fun detectIdentityKeyChange(
+        ourIdentity: ByteArray,
+        storedTheirIdentity: ByteArray,
+        currentTheirIdentity: ByteArray
+    ): String
 }

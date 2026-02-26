@@ -9,6 +9,18 @@
 // TODO: Import from compiled WASM package once build pipeline is ready
 // import init, { generate_keypair, encrypt_message, decrypt_message, sign_message, verify_signature } from 'secure-legion-core';
 
+import {
+  notifyNewMessage,
+  notifyIncomingCall,
+  notifyFriendRequest,
+  notifyIdentityKeyChange,
+} from './notificationService';
+import {
+  generateSafetyNumber,
+  detectIdentityKeyChange,
+  type IdentityKeyChangeResult,
+} from './wasmBridge';
+
 export interface AuthResult {
   userId: string;
   displayName: string;
@@ -152,14 +164,105 @@ export async function createGroup(
 
 /**
  * Register a callback for incoming messages.
+ * Automatically triggers local notifications when the app is in the background.
  */
 export function onMessage(
-  _callback: (conversationId: string, message: { id: string; senderId: string; content: string; timestamp: number }) => void,
+  callback: (conversationId: string, message: { id: string; senderId: string; content: string; timestamp: number }) => void,
 ): () => void {
   // TODO: Register listener on Rust WASM core's message event channel
+  // When a message arrives:
+  //   1. Decrypt using the evolved chain key
+  //   2. Invoke the callback for UI update
+  //   3. If the document is hidden (app in background), show a notification
+
+  const internalHandler = (conversationId: string, message: { id: string; senderId: string; content: string; timestamp: number }) => {
+    callback(conversationId, message);
+
+    // Show notification if the app is not focused
+    if (document.hidden) {
+      notifyNewMessage(
+        message.senderId, // TODO: resolve to display name
+        message.content.substring(0, 100),
+        conversationId,
+      );
+    }
+  };
+
+  // TODO: Register internalHandler on Rust WASM core's message event channel
+  void internalHandler; // suppress unused warning until wired
 
   // Return unsubscribe function
   return () => {};
+}
+
+/**
+ * Register a callback for incoming calls.
+ * Triggers a high-priority notification for incoming calls.
+ */
+export function onIncomingCall(
+  callback: (callId: string, callerName: string) => void,
+): () => void {
+  // TODO: Register listener on Rust WASM core's call signaling channel
+
+  const internalHandler = (callId: string, callerName: string) => {
+    callback(callId, callerName);
+    notifyIncomingCall(callerName, callId);
+  };
+
+  void internalHandler;
+  return () => {};
+}
+
+/**
+ * Register a callback for incoming friend requests.
+ */
+export function onFriendRequest(
+  callback: (requestId: string, senderName: string) => void,
+): () => void {
+  // TODO: Register listener on Rust WASM core's friend request channel
+
+  const internalHandler = (requestId: string, senderName: string) => {
+    callback(requestId, senderName);
+    notifyFriendRequest(senderName, requestId);
+  };
+
+  void internalHandler;
+  return () => {};
+}
+
+/**
+ * Check a contact's identity key for changes (MITM detection).
+ * Should be called when establishing a new session with a contact.
+ */
+export async function checkContactIdentityKey(
+  ourIdentityB64: string,
+  storedTheirIdentityB64: string,
+  currentTheirIdentityB64: string,
+  contactName: string,
+  contactId: string,
+): Promise<IdentityKeyChangeResult> {
+  const result = detectIdentityKeyChange(
+    ourIdentityB64,
+    storedTheirIdentityB64,
+    currentTheirIdentityB64,
+  );
+
+  if (result.result === 'Changed') {
+    // Trigger a security alert notification
+    await notifyIdentityKeyChange(contactName, contactId);
+  }
+
+  return result;
+}
+
+/**
+ * Generate a safety number for verifying a contact's identity.
+ */
+export function getContactSafetyNumber(
+  ourIdentityB64: string,
+  theirIdentityB64: string,
+): string {
+  return generateSafetyNumber(ourIdentityB64, theirIdentityB64);
 }
 
 /**

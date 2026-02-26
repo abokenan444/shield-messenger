@@ -58,6 +58,13 @@ interface SecureLegionWasm {
   serialize_message(msgJson: string): string;
   deserialize_message(dataB64: string): string;
 
+  // Safety Numbers & Contact Verification
+  generate_safety_number(ourIdentityB64: string, theirIdentityB64: string): string;
+  verify_safety_number(ourIdentityB64: string, theirIdentityB64: string, safetyNumber: string): boolean;
+  encode_fingerprint_qr(identityKeyB64: string, safetyNumber: string): string;
+  verify_contact_fingerprint(ourIdentityB64: string, scannedQrData: string): string;
+  detect_identity_key_change(ourIdentityB64: string, storedTheirIdentityB64: string, currentTheirIdentityB64: string): string;
+
   // Utility
   get_version(): string;
 }
@@ -268,6 +275,67 @@ export function serializeMessage(msgJson: string): string {
 
 export function deserializeMessage(dataB64: string): string {
   return getWasm().deserialize_message(dataB64);
+}
+
+// ─── Safety Numbers & Contact Verification ───
+
+export type VerificationStatus = 'Verified' | 'Mismatch' | 'InvalidData';
+export type IdentityKeyChangeResult =
+  | { result: 'FirstSeen' }
+  | { result: 'Unchanged' }
+  | { result: 'Changed'; previousFingerprint: string; newFingerprint: string };
+
+/**
+ * Generate a 60-digit safety number from two identity public keys.
+ * Returns 12 groups of 5 digits separated by spaces.
+ * The result is commutative: generate(A, B) === generate(B, A).
+ */
+export function generateSafetyNumber(ourIdentityB64: string, theirIdentityB64: string): string {
+  return getWasm().generate_safety_number(ourIdentityB64, theirIdentityB64);
+}
+
+/**
+ * Verify a safety number matches two identity keys.
+ */
+export function verifySafetyNumber(
+  ourIdentityB64: string,
+  theirIdentityB64: string,
+  safetyNumber: string,
+): boolean {
+  return getWasm().verify_safety_number(ourIdentityB64, theirIdentityB64, safetyNumber);
+}
+
+/**
+ * Encode identity key + safety number into a QR-scannable payload.
+ * Format: "SM-VERIFY:1:<base64-identity>:<safety-number>"
+ */
+export function encodeFingerprintQr(identityKeyB64: string, safetyNumber: string): string {
+  return getWasm().encode_fingerprint_qr(identityKeyB64, safetyNumber);
+}
+
+/**
+ * Verify a scanned QR code against our identity key.
+ * Returns { status: 'Verified' | 'Mismatch' | 'InvalidData' }
+ */
+export function verifyContactFingerprint(
+  ourIdentityB64: string,
+  scannedQrData: string,
+): { status: VerificationStatus } {
+  return JSON.parse(getWasm().verify_contact_fingerprint(ourIdentityB64, scannedQrData));
+}
+
+/**
+ * Detect if a contact's identity key has changed (possible MITM attack).
+ * Pass empty string for storedTheirIdentityB64 if this is the first time seeing the contact.
+ */
+export function detectIdentityKeyChange(
+  ourIdentityB64: string,
+  storedTheirIdentityB64: string,
+  currentTheirIdentityB64: string,
+): IdentityKeyChangeResult {
+  return JSON.parse(
+    getWasm().detect_identity_key_change(ourIdentityB64, storedTheirIdentityB64, currentTheirIdentityB64),
+  );
 }
 
 // ─── Version ───

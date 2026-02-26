@@ -475,3 +475,164 @@ pub unsafe extern "C" fn sl_generate_keypair(
 
     0
 }
+
+
+// ==================== SAFETY NUMBERS & CONTACT VERIFICATION ====================
+
+/// Generate a 60-digit safety number from two identity public keys.
+/// Returns a C string that must be freed with sl_free_string().
+///
+/// # Safety
+/// Both pointers must be valid identity public key byte arrays.
+#[no_mangle]
+pub unsafe extern "C" fn sl_generate_safety_number(
+    our_identity: *const u8,
+    our_identity_len: usize,
+    their_identity: *const u8,
+    their_identity_len: usize,
+) -> *mut c_char {
+    if our_identity.is_null() || their_identity.is_null() {
+        return ptr::null_mut();
+    }
+    let our_id = slice::from_raw_parts(our_identity, our_identity_len);
+    let their_id = slice::from_raw_parts(their_identity, their_identity_len);
+    let safety_number = pqc::generate_safety_number(our_id, their_id);
+    match CString::new(safety_number) {
+        Ok(cs) => cs.into_raw(),
+        Err(_) => ptr::null_mut(),
+    }
+}
+
+/// Verify a safety number against two identity keys.
+/// Returns 1 if valid, 0 if invalid, -1 on error.
+///
+/// # Safety
+/// All pointers must be valid. safety_number must be a null-terminated C string.
+#[no_mangle]
+pub unsafe extern "C" fn sl_verify_safety_number(
+    our_identity: *const u8,
+    our_identity_len: usize,
+    their_identity: *const u8,
+    their_identity_len: usize,
+    safety_number: *const c_char,
+) -> i32 {
+    if our_identity.is_null() || their_identity.is_null() || safety_number.is_null() {
+        return -1;
+    }
+    let our_id = slice::from_raw_parts(our_identity, our_identity_len);
+    let their_id = slice::from_raw_parts(their_identity, their_identity_len);
+    let sn = match CStr::from_ptr(safety_number).to_str() {
+        Ok(s) => s,
+        Err(_) => return -1,
+    };
+    if pqc::verify_safety_number(our_id, their_id, sn) { 1 } else { 0 }
+}
+
+/// Encode identity key + safety number into a QR-scannable payload string.
+/// Returns a C string that must be freed with sl_free_string().
+///
+/// # Safety
+/// identity_key must be a valid byte array. safety_number must be null-terminated.
+#[no_mangle]
+pub unsafe extern "C" fn sl_encode_fingerprint_qr(
+    identity_key: *const u8,
+    identity_key_len: usize,
+    safety_number: *const c_char,
+) -> *mut c_char {
+    if identity_key.is_null() || safety_number.is_null() {
+        return ptr::null_mut();
+    }
+    let id_key = slice::from_raw_parts(identity_key, identity_key_len).to_vec();
+    let sn = match CStr::from_ptr(safety_number).to_str() {
+        Ok(s) => s.to_string(),
+        Err(_) => return ptr::null_mut(),
+    };
+    let payload = pqc::FingerprintQrPayload {
+        identity_key: id_key,
+        safety_number: sn,
+    };
+    match CString::new(payload.encode()) {
+        Ok(cs) => cs.into_raw(),
+        Err(_) => ptr::null_mut(),
+    }
+}
+
+/// Verify a scanned QR fingerprint against our identity key.
+/// Returns a JSON C string: { "status": "Verified" | "Mismatch" | "InvalidData" }
+/// Must be freed with sl_free_string().
+///
+/// # Safety
+/// our_identity must be a valid byte array. scanned_qr must be null-terminated.
+#[no_mangle]
+pub unsafe extern "C" fn sl_verify_contact_fingerprint(
+    our_identity: *const u8,
+    our_identity_len: usize,
+    scanned_qr: *const c_char,
+) -> *mut c_char {
+    if our_identity.is_null() || scanned_qr.is_null() {
+        return ptr::null_mut();
+    }
+    let our_id = slice::from_raw_parts(our_identity, our_identity_len);
+    let qr_data = match CStr::from_ptr(scanned_qr).to_str() {
+        Ok(s) => s,
+        Err(_) => return ptr::null_mut(),
+    };
+    let result = pqc::verify_contact_fingerprint(our_id, qr_data);
+    let status = match result {
+        pqc::VerificationStatus::Verified => "Verified",
+        pqc::VerificationStatus::Mismatch => "Mismatch",
+        pqc::VerificationStatus::InvalidData => "InvalidData",
+    };
+    let json = format!("{{\"status\": \"{}\"}}", status);
+    match CString::new(json) {
+        Ok(cs) => cs.into_raw(),
+        Err(_) => ptr::null_mut(),
+    }
+}
+
+/// Detect if a contact's identity key has changed (possible MITM).
+/// stored_their_identity can be null for first-seen contacts.
+/// Returns a JSON C string that must be freed with sl_free_string().
+///
+/// # Safety
+/// our_identity and current_their_identity must be valid byte arrays.
+/// stored_their_identity can be null (first contact).
+#[no_mangle]
+pub unsafe extern "C" fn sl_detect_identity_key_change(
+    our_identity: *const u8,
+    our_identity_len: usize,
+    stored_their_identity: *const u8,
+    stored_their_identity_len: usize,
+    current_their_identity: *const u8,
+    current_their_identity_len: usize,
+) -> *mut c_char {
+    if our_identity.is_null() || current_their_identity.is_null() {
+        return ptr::null_mut();
+    }
+    let our_id = slice::from_raw_parts(our_identity, our_identity_len);
+    let current_id = slice::from_raw_parts(current_their_identity, current_their_identity_len);
+    let stored = if stored_their_identity.is_null() || stored_their_identity_len == 0 {
+        None
+    } else {
+        Some(slice::from_raw_parts(stored_their_identity, stored_their_identity_len))
+    };
+    let result = pqc::detect_identity_key_change(our_id, stored, current_id);
+    let json = match result {
+        pqc::IdentityKeyChangeResult::FirstSeen => {
+            "{\"result\": \"FirstSeen\"}".to_string()
+        }
+        pqc::IdentityKeyChangeResult::Unchanged => {
+            "{\"result\": \"Unchanged\"}".to_string()
+        }
+        pqc::IdentityKeyChangeResult::Changed { previous_fingerprint, new_fingerprint } => {
+            format!(
+                "{{\"result\": \"Changed\", \"previousFingerprint\": \"{}\", \"newFingerprint\": \"{}\"}}",
+                previous_fingerprint, new_fingerprint
+            )
+        }
+    };
+    match CString::new(json) {
+        Ok(cs) => cs.into_raw(),
+        Err(_) => ptr::null_mut(),
+    }
+}

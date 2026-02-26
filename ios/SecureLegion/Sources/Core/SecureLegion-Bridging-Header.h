@@ -84,6 +84,21 @@ SLBuffer sl_generate_hybrid_keypair(void);
 
 int32_t sl_generate_keypair(uint8_t *out_public_key, uint8_t *out_private_key);
 
+// ─── Safety Numbers & Contact Verification ───
+
+char *sl_generate_safety_number(const uint8_t *our_identity, size_t our_identity_len,
+                                 const uint8_t *their_identity, size_t their_identity_len);
+int32_t sl_verify_safety_number(const uint8_t *our_identity, size_t our_identity_len,
+                                 const uint8_t *their_identity, size_t their_identity_len,
+                                 const char *safety_number);
+char *sl_encode_fingerprint_qr(const uint8_t *identity_key, size_t identity_key_len,
+                                const char *safety_number);
+char *sl_verify_contact_fingerprint(const uint8_t *our_identity, size_t our_identity_len,
+                                     const char *scanned_qr);
+char *sl_detect_identity_key_change(const uint8_t *our_identity, size_t our_identity_len,
+                                     const uint8_t *stored_their_identity, size_t stored_their_identity_len,
+                                     const uint8_t *current_their_identity, size_t current_their_identity_len);
+
 // ─── Memory Management ───
 
 void sl_free_string(char *s);

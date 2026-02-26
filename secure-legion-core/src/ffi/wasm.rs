@@ -475,6 +475,133 @@ pub fn deserialize_message(data_b64: &str) -> Result<String, JsValue> {
         .map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
+// ─────────────────── Safety Numbers & Contact Verification ───────────────────
+
+/// Generate a 60-digit safety number from two identity public keys.
+/// Returns a string of 12 groups of 5 digits separated by spaces.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn generate_safety_number(
+    our_identity_b64: &str,
+    their_identity_b64: &str,
+) -> Result<String, JsValue> {
+    let our_id = base64::engine::general_purpose::STANDARD
+        .decode(our_identity_b64)
+        .map_err(|e| JsValue::from_str(&format!("Invalid base64 (our): {}", e)))?;
+    let their_id = base64::engine::general_purpose::STANDARD
+        .decode(their_identity_b64)
+        .map_err(|e| JsValue::from_str(&format!("Invalid base64 (their): {}", e)))?;
+    Ok(pqc::generate_safety_number(&our_id, &their_id))
+}
+
+/// Verify a safety number against two identity keys.
+/// Returns true if the safety number matches.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn verify_safety_number(
+    our_identity_b64: &str,
+    their_identity_b64: &str,
+    safety_number: &str,
+) -> Result<bool, JsValue> {
+    let our_id = base64::engine::general_purpose::STANDARD
+        .decode(our_identity_b64)
+        .map_err(|e| JsValue::from_str(&format!("Invalid base64 (our): {}", e)))?;
+    let their_id = base64::engine::general_purpose::STANDARD
+        .decode(their_identity_b64)
+        .map_err(|e| JsValue::from_str(&format!("Invalid base64 (their): {}", e)))?;
+    Ok(pqc::verify_safety_number(&our_id, &their_id, safety_number))
+}
+
+/// Encode a FingerprintQrPayload for display as a QR code.
+/// Returns a string like "SM-VERIFY:1:<base64-identity>:<safety-number>"
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn encode_fingerprint_qr(
+    identity_key_b64: &str,
+    safety_number: &str,
+) -> Result<String, JsValue> {
+    let identity_key = base64::engine::general_purpose::STANDARD
+        .decode(identity_key_b64)
+        .map_err(|e| JsValue::from_str(&format!("Invalid base64: {}", e)))?;
+    let payload = pqc::FingerprintQrPayload {
+        identity_key,
+        safety_number: safety_number.to_string(),
+    };
+    Ok(payload.encode())
+}
+
+/// Verify a scanned QR fingerprint against our identity key.
+/// Returns JSON: { "status": "Verified" | "Mismatch" | "InvalidData" }
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn verify_contact_fingerprint(
+    our_identity_b64: &str,
+    scanned_qr_data: &str,
+) -> Result<String, JsValue> {
+    let our_id = base64::engine::general_purpose::STANDARD
+        .decode(our_identity_b64)
+        .map_err(|e| JsValue::from_str(&format!("Invalid base64: {}", e)))?;
+    let result = pqc::verify_contact_fingerprint(&our_id, scanned_qr_data);
+    let status = match result {
+        pqc::VerificationStatus::Verified => "Verified",
+        pqc::VerificationStatus::Mismatch => "Mismatch",
+        pqc::VerificationStatus::InvalidData => "InvalidData",
+    };
+    Ok(format!("{{\"status\": \"{}\"}}", status))
+}
+
+/// Detect if a contact's identity key has changed (possible MITM).
+/// Returns JSON:
+///   { "result": "FirstSeen" }
+///   { "result": "Unchanged" }
+///   { "result": "Changed", "previousFingerprint": "...", "newFingerprint": "..." }
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn detect_identity_key_change(
+    our_identity_b64: &str,
+    stored_their_identity_b64: &str,
+    current_their_identity_b64: &str,
+) -> Result<String, JsValue> {
+    let our_id = base64::engine::general_purpose::STANDARD
+        .decode(our_identity_b64)
+        .map_err(|e| JsValue::from_str(&format!("Invalid base64 (our): {}", e)))?;
+    let current_id = base64::engine::general_purpose::STANDARD
+        .decode(current_their_identity_b64)
+        .map_err(|e| JsValue::from_str(&format!("Invalid base64 (current): {}", e)))?;
+
+    let stored = if stored_their_identity_b64.is_empty() {
+        None
+    } else {
+        Some(
+            base64::engine::general_purpose::STANDARD
+                .decode(stored_their_identity_b64)
+                .map_err(|e| JsValue::from_str(&format!("Invalid base64 (stored): {}", e)))?,
+        )
+    };
+
+    let result = pqc::detect_identity_key_change(
+        &our_id,
+        stored.as_deref(),
+        &current_id,
+    );
+
+    let json = match result {
+        pqc::IdentityKeyChangeResult::FirstSeen => {
+            "{\"result\": \"FirstSeen\"}".to_string()
+        }
+        pqc::IdentityKeyChangeResult::Unchanged => {
+            "{\"result\": \"Unchanged\"}".to_string()
+        }
+        pqc::IdentityKeyChangeResult::Changed { previous_fingerprint, new_fingerprint } => {
+            format!(
+                "{{\"result\": \"Changed\", \"previousFingerprint\": \"{}\", \"newFingerprint\": \"{}\"}}",
+                previous_fingerprint, new_fingerprint
+            )
+        }
+    };
+    Ok(json)
+}
+
 // ─────────────────────── Utility ───────────────────────
 
 /// Get library version

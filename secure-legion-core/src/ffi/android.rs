@@ -8769,3 +8769,170 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_pollFriendRequestBlock
         }
     }, std::ptr::null_mut())
 }
+
+
+// ==================== SAFETY NUMBERS & CONTACT VERIFICATION ====================
+
+/// Generate a 60-digit safety number from two identity public keys (commutative).
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_generateSafetyNumber(
+    mut env: JNIEnv,
+    _class: JClass,
+    our_identity: JByteArray,
+    their_identity: JByteArray,
+) -> jstring {
+    catch_panic!(env, {
+        let our_id = match env.convert_byte_array(&our_identity) {
+            Ok(v) => v,
+            Err(_) => return std::ptr::null_mut(),
+        };
+        let their_id = match env.convert_byte_array(&their_identity) {
+            Ok(v) => v,
+            Err(_) => return std::ptr::null_mut(),
+        };
+        let safety_number = crate::crypto::pqc::generate_safety_number(&our_id, &their_id);
+        match env.new_string(&safety_number) {
+            Ok(s) => s.into_raw(),
+            Err(_) => std::ptr::null_mut(),
+        }
+    }, std::ptr::null_mut())
+}
+
+/// Verify a safety number against two identity keys.
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_verifySafetyNumber(
+    mut env: JNIEnv,
+    _class: JClass,
+    our_identity: JByteArray,
+    their_identity: JByteArray,
+    safety_number: JString,
+) -> jboolean {
+    catch_panic!(env, {
+        let our_id = match env.convert_byte_array(&our_identity) {
+            Ok(v) => v,
+            Err(_) => return JNI_FALSE,
+        };
+        let their_id = match env.convert_byte_array(&their_identity) {
+            Ok(v) => v,
+            Err(_) => return JNI_FALSE,
+        };
+        let sn: String = match env.get_string(&safety_number) {
+            Ok(s) => s.into(),
+            Err(_) => return JNI_FALSE,
+        };
+        if crate::crypto::pqc::verify_safety_number(&our_id, &their_id, &sn) {
+            JNI_TRUE
+        } else {
+            JNI_FALSE
+        }
+    }, JNI_FALSE)
+}
+
+/// Encode a FingerprintQrPayload for QR code display.
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_encodeFingerprintQr(
+    mut env: JNIEnv,
+    _class: JClass,
+    identity_key: JByteArray,
+    safety_number: JString,
+) -> jstring {
+    catch_panic!(env, {
+        let id_key = match env.convert_byte_array(&identity_key) {
+            Ok(v) => v,
+            Err(_) => return std::ptr::null_mut(),
+        };
+        let sn: String = match env.get_string(&safety_number) {
+            Ok(s) => s.into(),
+            Err(_) => return std::ptr::null_mut(),
+        };
+        let payload = crate::crypto::pqc::FingerprintQrPayload {
+            identity_key: id_key,
+            safety_number: sn,
+        };
+        match env.new_string(&payload.encode()) {
+            Ok(s) => s.into_raw(),
+            Err(_) => std::ptr::null_mut(),
+        }
+    }, std::ptr::null_mut())
+}
+
+/// Verify a scanned QR fingerprint against our identity key.
+/// Returns JSON: { "status": "Verified" | "Mismatch" | "InvalidData" }
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_verifyContactFingerprint(
+    mut env: JNIEnv,
+    _class: JClass,
+    our_identity: JByteArray,
+    scanned_qr_data: JString,
+) -> jstring {
+    catch_panic!(env, {
+        let our_id = match env.convert_byte_array(&our_identity) {
+            Ok(v) => v,
+            Err(_) => return std::ptr::null_mut(),
+        };
+        let qr_data: String = match env.get_string(&scanned_qr_data) {
+            Ok(s) => s.into(),
+            Err(_) => return std::ptr::null_mut(),
+        };
+        let result = crate::crypto::pqc::verify_contact_fingerprint(&our_id, &qr_data);
+        let status = match result {
+            crate::crypto::pqc::VerificationStatus::Verified => "Verified",
+            crate::crypto::pqc::VerificationStatus::Mismatch => "Mismatch",
+            crate::crypto::pqc::VerificationStatus::InvalidData => "InvalidData",
+        };
+        let json = format!("{{\042status\042: \042{}\042}}", status);
+        match env.new_string(&json) {
+            Ok(s) => s.into_raw(),
+            Err(_) => std::ptr::null_mut(),
+        }
+    }, std::ptr::null_mut())
+}
+
+/// Detect if a contact's identity key has changed (possible MITM).
+/// Returns JSON with result field.
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_detectIdentityKeyChange(
+    mut env: JNIEnv,
+    _class: JClass,
+    our_identity: JByteArray,
+    stored_their_identity: JByteArray,
+    current_their_identity: JByteArray,
+) -> jstring {
+    catch_panic!(env, {
+        let our_id = match env.convert_byte_array(&our_identity) {
+            Ok(v) => v,
+            Err(_) => return std::ptr::null_mut(),
+        };
+        let current_id = match env.convert_byte_array(&current_their_identity) {
+            Ok(v) => v,
+            Err(_) => return std::ptr::null_mut(),
+        };
+        let stored = match env.convert_byte_array(&stored_their_identity) {
+            Ok(v) if !v.is_empty() => Some(v),
+            _ => None,
+        };
+        let result = crate::crypto::pqc::detect_identity_key_change(
+            &our_id,
+            stored.as_deref(),
+            &current_id,
+        );
+        let json = match result {
+            crate::crypto::pqc::IdentityKeyChangeResult::FirstSeen => {
+                "{\042result\042: \042FirstSeen\042}".to_string()
+            }
+            crate::crypto::pqc::IdentityKeyChangeResult::Unchanged => {
+                "{\042result\042: \042Unchanged\042}".to_string()
+            }
+            crate::crypto::pqc::IdentityKeyChangeResult::Changed { previous_fingerprint, new_fingerprint } => {
+                format!(
+                    "{{\042result\042: \042Changed\042, \042previousFingerprint\042: \042{}\042, \042newFingerprint\042: \042{}\042}}",
+                    previous_fingerprint, new_fingerprint
+                )
+            }
+        };
+        match env.new_string(&json) {
+            Ok(s) => s.into_raw(),
+            Err(_) => std::ptr::null_mut(),
+        }
+    }, std::ptr::null_mut())
+}
