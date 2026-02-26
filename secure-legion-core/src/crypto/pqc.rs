@@ -15,7 +15,7 @@
 /// - Combined secret:             64 bytes (BLAKE3-KDF(X25519 ‖ ML-KEM))
 
 use ml_kem::kem::{Decapsulate, Encapsulate};
-use ml_kem::{EncodedSizeUser, KemCore, MlKem1024};
+use ml_kem::{EncodedSizeUser, KemCore, MlKem1024, MlKem1024Params};
 use rand::rngs::OsRng;
 use rand_chacha::ChaCha20Rng;
 use rand::{SeedableRng, RngCore};
@@ -161,20 +161,21 @@ pub fn hybrid_encapsulate(
 
     // Reconstruct ML-KEM-1024 EncapsulationKey from raw bytes
     let ek_array = ml_kem::Encoded::<
-        ml_kem::kem::EncapsulationKey<ml_kem::MlKem1024>,
+        ml_kem::kem::EncapsulationKey<MlKem1024Params>,
     >::try_from(recipient_mlkem_public)
         .map_err(|_| PqcError::InvalidKeyLength)?;
-    let ek = ml_kem::kem::EncapsulationKey::<ml_kem::MlKem1024>::from_bytes(&ek_array);
+    let ek = ml_kem::kem::EncapsulationKey::<MlKem1024Params>::from_bytes(&ek_array);
 
     // ML-KEM-1024 encapsulation
-    let (ct, mlkem_ss) = ek.encapsulate(&mut OsRng);
+    let (ct, mlkem_ss) = ek.encapsulate(&mut OsRng)
+        .map_err(|_| PqcError::EncapsulateFailed)?;
 
     // Combine shared secrets via BLAKE3-KDF
-    let combined = combine_shared_secrets(&x25519_shared, mlkem_ss.as_slice());
+    let combined = combine_shared_secrets(&x25519_shared, mlkem_ss.as_ref());
 
     Ok(HybridCiphertext {
         x25519_ephemeral_public: eph_public,
-        kyber_ciphertext: ct.as_slice().to_vec(),
+        kyber_ciphertext: ct.as_ref().to_vec(),
         shared_secret: combined,
     })
 }
@@ -202,20 +203,23 @@ pub fn hybrid_decapsulate(
 
     // Reconstruct ML-KEM-1024 DecapsulationKey from raw bytes
     let dk_array = ml_kem::Encoded::<
-        ml_kem::kem::DecapsulationKey<ml_kem::MlKem1024>,
+        ml_kem::kem::DecapsulationKey<MlKem1024Params>,
     >::try_from(our_mlkem_secret)
         .map_err(|_| PqcError::InvalidKeyLength)?;
-    let dk = ml_kem::kem::DecapsulationKey::<ml_kem::MlKem1024>::from_bytes(&dk_array);
+    let dk = ml_kem::kem::DecapsulationKey::<MlKem1024Params>::from_bytes(&dk_array);
 
-    // Reconstruct ciphertext from raw bytes
-    let ct_array = ml_kem::Ciphertext::<ml_kem::MlKem1024>::try_from(mlkem_ciphertext)
+    // Reconstruct ciphertext as a fixed-size array
+    // DecapsulationKey<MlKem1024Params>::decapsulate expects &Array<u8, CiphertextSize>
+    // hybrid_array::Array::try_from(&[u8]) infers the correct size from context
+    let ct_array = ml_kem::hybrid_array::Array::try_from(mlkem_ciphertext)
         .map_err(|_| PqcError::InvalidKeyLength)?;
 
     // ML-KEM-1024 decapsulation
-    let mlkem_ss = dk.decapsulate(&ct_array);
+    let mlkem_ss = dk.decapsulate(&ct_array)
+        .map_err(|_| PqcError::DecapsulateFailed)?;
 
     // Combine via BLAKE3-KDF
-    let combined = combine_shared_secrets(&x25519_shared, mlkem_ss.as_slice());
+    let combined = combine_shared_secrets(&x25519_shared, mlkem_ss.as_ref());
 
     Ok(combined)
 }
