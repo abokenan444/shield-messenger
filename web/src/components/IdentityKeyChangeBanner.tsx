@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { ShieldIcon } from './icons/ShieldIcon';
 import { useTranslation } from '../lib/i18n';
 

@@ -28,7 +28,6 @@ export function ChatView({ roomId }: ChatViewProps) {
 
   const peerTrustLevel = peerContact?.trustLevel ?? 1;
   const dismissKeyChange = useContactStore((s) => s.dismissKeyChange);
-  const verifyContact = useContactStore((s) => s.verifyContact);
 
   // Detect if this contact has a pending key-change warning
   const hasKeyChange = peerContact?.keyChangeDetectedAt && !peerContact?.keyChangeDismissed;
