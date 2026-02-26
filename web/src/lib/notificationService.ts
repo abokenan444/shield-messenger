@@ -197,12 +197,14 @@ export async function showNotification(payload: NotificationPayload): Promise<vo
     }
   }
 
-  const options: NotificationOptions = {
+  // Extended notification options interface to support Web Notification API
+  // properties (vibrate, image, renotify) that are valid at runtime but
+  // not yet in TypeScript's lib.dom NotificationOptions type.
+  const options: NotificationOptions & Record<string, unknown> = {
     body,
     icon: payload.icon ?? DEFAULT_ICON,
     badge: DEFAULT_ICON,
     tag: payload.tag ?? `sl-${payload.type}-${Date.now()}`,
-    renotify: !!payload.tag,
     silent: !preferences.soundEnabled,
     data: {
       type: payload.type,
@@ -211,10 +213,13 @@ export async function showNotification(payload: NotificationPayload): Promise<vo
     },
   };
 
+  // These properties are part of the Notifications API spec but not in TS lib.dom
+  if (payload.tag) {
+    options.renotify = true;
+  }
   if (payload.image) {
     options.image = payload.image;
   }
-
   if (preferences.vibrationEnabled && payload.urgent) {
     options.vibrate = [200, 100, 200];
   }

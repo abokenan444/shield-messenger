@@ -161,13 +161,13 @@ pub fn hybrid_encapsulate(
 
     // Reconstruct ML-KEM-1024 EncapsulationKey from raw bytes
     let ek_array = ml_kem::Encoded::<
-        ml_kem::kem::EncapsulationKey<ml_kem::MlKem1024Params>,
-    >::from_slice(recipient_mlkem_public);
-    let ek = ml_kem::kem::EncapsulationKey::<ml_kem::MlKem1024Params>::from_bytes(ek_array);
+        ml_kem::kem::EncapsulationKey<ml_kem::MlKem1024>,
+    >::try_from(recipient_mlkem_public)
+        .map_err(|_| PqcError::InvalidKeyLength)?;
+    let ek = ml_kem::kem::EncapsulationKey::<ml_kem::MlKem1024>::from_bytes(&ek_array);
 
     // ML-KEM-1024 encapsulation
-    let (ct, mlkem_ss) = ek.encapsulate(&mut OsRng)
-        .map_err(|_| PqcError::EncapsulateFailed)?;
+    let (ct, mlkem_ss) = ek.encapsulate(&mut OsRng);
 
     // Combine shared secrets via BLAKE3-KDF
     let combined = combine_shared_secrets(&x25519_shared, mlkem_ss.as_slice());
@@ -202,16 +202,17 @@ pub fn hybrid_decapsulate(
 
     // Reconstruct ML-KEM-1024 DecapsulationKey from raw bytes
     let dk_array = ml_kem::Encoded::<
-        ml_kem::kem::DecapsulationKey<ml_kem::MlKem1024Params>,
-    >::from_slice(our_mlkem_secret);
-    let dk = ml_kem::kem::DecapsulationKey::<ml_kem::MlKem1024Params>::from_bytes(dk_array);
+        ml_kem::kem::DecapsulationKey<ml_kem::MlKem1024>,
+    >::try_from(our_mlkem_secret)
+        .map_err(|_| PqcError::InvalidKeyLength)?;
+    let dk = ml_kem::kem::DecapsulationKey::<ml_kem::MlKem1024>::from_bytes(&dk_array);
 
     // Reconstruct ciphertext from raw bytes
-    let ct_array = ml_kem::Ciphertext::<ml_kem::MlKem1024Params>::from_slice(mlkem_ciphertext);
+    let ct_array = ml_kem::Ciphertext::<ml_kem::MlKem1024>::try_from(mlkem_ciphertext)
+        .map_err(|_| PqcError::InvalidKeyLength)?;
 
     // ML-KEM-1024 decapsulation
-    let mlkem_ss = dk.decapsulate(ct_array)
-        .map_err(|_| PqcError::DecapsulateFailed)?;
+    let mlkem_ss = dk.decapsulate(&ct_array);
 
     // Combine via BLAKE3-KDF
     let combined = combine_shared_secrets(&x25519_shared, mlkem_ss.as_slice());
