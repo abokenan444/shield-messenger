@@ -212,7 +212,7 @@ pub fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 /// When a user is typing, the app sends multiple small messages in quick succession.
 /// An observer could detect this pattern. Burst padding sends additional cover
 /// packets during and after typing to mask the real message boundaries.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct BurstPaddingConfig {
     /// Number of cover packets to send before the real message (pre-burst).
     pub pre_burst_count: u8,

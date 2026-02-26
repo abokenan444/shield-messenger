@@ -262,6 +262,18 @@ export interface Translations {
   pwa_updateAvailable: string;
   pwa_updateDesc: string;
   pwa_refresh: string;
+
+  // Identity Key Change
+  identity_keyChanged: string;
+  identity_keyChangedDesc: string;
+  identity_detectedAt: string;
+  identity_showDetails: string;
+  identity_hideDetails: string;
+  identity_explanation1: string;
+  identity_explanation2: string;
+  identity_explanation3: string;
+  identity_verifyNow: string;
+  identity_dismiss: string;
 }
 
 /* ───── Arabic (العربية) ───── */
