@@ -1,0 +1,42 @@
+Shield Messenger is a fully encrypted, decentralized messaging platform that protects your identity and privacy from everyone — including us.
+
+🔐 POST-QUANTUM ENCRYPTION
+All messages are encrypted end-to-end using a hybrid cryptographic scheme combining X25519 and ML-KEM-1024 (formerly Kyber). This means your conversations are protected not only against today's threats but also against future quantum computers.
+
+🧅 BUILT-IN TOR NETWORK
+Your connection is routed through the Tor network with multiple layers of encryption. No one can track your IP address, location, or browsing habits. Shield Messenger runs three hidden services for discovery, friend requests, and messaging.
+
+🌐 PEER-TO-PEER (NO SERVERS)
+Messages travel directly between devices — there is no central server that can be hacked, subpoenaed, or shut down. Your data exists only on your device.
+
+📞 ENCRYPTED VOICE CALLS
+Make voice calls over Tor with end-to-end encryption. Audio is compressed using Opus codec and transmitted through dedicated Tor circuits for low latency.
+
+💰 BUILT-IN CRYPTO WALLET
+Send and receive Zcash (shielded transactions) and Solana directly within conversations. Your financial privacy is protected by the same encryption that guards your messages.
+
+🛡️ PRIVACY BY DESIGN
+• No phone number or email required to register
+• No metadata collection — we don't know who you talk to or when
+• Hide "last seen" and read receipts
+• Silent rejection of friend requests (sender gets no notification)
+• Multi-factor authentication via WebAuthn
+• Duress PIN for plausible deniability under coercion
+• Auto-lock with configurable timeout
+• Biometric authentication support
+
+📱 WORKS EVERYWHERE
+• Native Android app (you're looking at it)
+• Progressive Web App (PWA) as backup if the app is removed from stores
+• Open source — anyone can audit the code on GitHub
+
+🔑 TRUST VERIFICATION
+Verify contacts by scanning QR codes containing public key fingerprints. Three trust levels (Untrusted → Encrypted → Verified) ensure you always know who you're talking to.
+
+👥 SECURE GROUPS
+Create groups with up to 100 members, all with end-to-end encryption. CRDT-based group management ensures consistency without a central authority.
+
+🆔 SMART IDENTIFIERS
+Unique identifiers like ahmed.s9442@securechat with a random component to prevent guessing. Discovery via DHT without any central server.
+
+Shield Messenger is open source under the MIT license. We believe privacy is a fundamental human right, not a premium feature.

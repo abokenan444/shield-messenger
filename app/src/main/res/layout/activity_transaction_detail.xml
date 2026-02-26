@@ -37,7 +37,7 @@
             android:layout_height="48dp"
             android:src="@drawable/icon_header"
             android:layout_marginStart="24dp"
-            android:contentDescription="Secure Legion Logo" />
+            android:contentDescription="Shield Messenger Logo" />
 
         <TextView
             android:layout_width="wrap_content"

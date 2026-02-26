@@ -308,7 +308,7 @@ class MainActivity : BaseActivity() {
                             // Create a simple badge notification
                             val notification = androidx.core.app.NotificationCompat.Builder(this@MainActivity, "badge_channel")
                                 .setSmallIcon(R.drawable.ic_shield)
-                                .setContentTitle("Secure Legion")
+                                .setContentTitle("Shield Messenger")
                                 .setContentText("$unreadCount unread message${if (unreadCount > 1) "s" else ""}")
                                 .setNumber(unreadCount)
                                 .setBadgeIconType(androidx.core.app.NotificationCompat.BADGE_ICON_SMALL)

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Accessibility content descriptions for screen readers (TalkBack) -->
+    <!-- These strings provide meaningful descriptions for UI elements -->
+
+    <!-- Navigation -->
+    <string name="cd_nav_chats">Conversations tab</string>
+    <string name="cd_nav_contacts">Contacts tab</string>
+    <string name="cd_nav_wallet">Wallet tab</string>
+    <string name="cd_nav_settings">Settings tab</string>
+    <string name="cd_nav_add_friend">Add friend</string>
+    <string name="cd_back_button">Go back</string>
+
+    <!-- Chat Screen -->
+    <string name="cd_send_message">Send message</string>
+    <string name="cd_attach_file">Attach file or photo</string>
+    <string name="cd_record_voice">Record voice message</string>
+    <string name="cd_cancel_recording">Cancel voice recording</string>
+    <string name="cd_send_voice">Send voice message</string>
+    <string name="cd_emoji_picker">Open emoji picker</string>
+    <string name="cd_message_input">Type a message</string>
+    <string name="cd_voice_call">Start voice call</string>
+    <string name="cd_video_call">Start video call</string>
+    <string name="cd_contact_info">View contact info</string>
+    <string name="cd_message_status_sent">Message sent</string>
+    <string name="cd_message_status_delivered">Message delivered</string>
+    <string name="cd_message_status_read">Message read</string>
+    <string name="cd_message_status_failed">Message failed to send</string>
+
+    <!-- Lock Screen -->
+    <string name="cd_password_input">Enter your password to unlock</string>
+    <string name="cd_biometric_button">Unlock with fingerprint</string>
+    <string name="cd_app_logo">Shield Messenger logo</string>
+
+    <!-- Tor Status -->
+    <string name="cd_tor_connected">Tor network connected</string>
+    <string name="cd_tor_connecting">Connecting to Tor network</string>
+    <string name="cd_tor_disconnected">Tor network disconnected</string>
+    <string name="cd_tor_status_indicator">Tor connection status</string>
+
+    <!-- QR Code -->
+    <string name="cd_qr_code">QR code for sharing your contact address</string>
+    <string name="cd_scan_qr">Scan QR code to add contact</string>
+    <string name="cd_copy_address">Copy your address to clipboard</string>
+
+    <!-- Wallet -->
+    <string name="cd_wallet_balance">Wallet balance</string>
+    <string name="cd_send_crypto">Send cryptocurrency</string>
+    <string name="cd_receive_crypto">Receive cryptocurrency</string>
+    <string name="cd_transaction_history">Transaction history</string>
+
+    <!-- Settings -->
+    <string name="cd_toggle_setting">Toggle setting</string>
+    <string name="cd_auto_lock_timeout">Auto-lock timeout setting</string>
+    <string name="cd_bridge_configuration">Tor bridge configuration</string>
+    <string name="cd_delete_account">Delete account permanently</string>
+    <string name="cd_backup_seed">Backup seed phrase</string>
+
+    <!-- Friend Requests -->
+    <string name="cd_accept_request">Accept friend request</string>
+    <string name="cd_reject_request">Reject friend request</string>
+    <string name="cd_pending_requests_badge">Pending friend requests: %d</string>
+
+    <!-- General -->
+    <string name="cd_close_dialog">Close dialog</string>
+    <string name="cd_search">Search</string>
+    <string name="cd_more_options">More options</string>
+    <string name="cd_refresh">Refresh</string>
+    <string name="cd_loading">Loading, please wait</string>
+</resources>

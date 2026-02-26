@@ -49,7 +49,7 @@ class BootReceiver : BroadcastReceiver() {
             return
         }
 
-        Log.i(TAG, "Device boot completed - initializing Secure Legion services")
+        Log.i(TAG, "Device boot completed - initializing Shield Messenger services")
 
         try {
             // Only start services if account is initialized

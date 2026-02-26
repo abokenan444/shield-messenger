@@ -493,7 +493,7 @@ class SwapActivity : AppCompatActivity() {
                 "USDT" -> "Tether"
                 "ZEC" -> "Zcash"
                 "USD1" -> "World Liberty Financial USD"
-                "SECURE" -> "Secure Legion"
+                "SECURE" -> "Shield Messenger"
                 else -> ""
             }
 

@@ -6931,7 +6931,7 @@ class TorService : Service() {
         // Only show notification text for problem states
         // Normal "Connected" state shows bandwidth stats
         if (isProblemState) {
-            builder.setContentTitle("Secure Legion")
+            builder.setContentTitle("Shield Messenger")
                    .setContentText(status)
                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
         } else {
@@ -6943,7 +6943,7 @@ class TorService : Service() {
                 val vpnDown = formatBytesTotal(vpnBytesReceived)
                 val vpnUp = formatBytesTotal(vpnBytesSent)
 
-                builder.setContentTitle("Secure Legion")
+                builder.setContentTitle("Shield Messenger")
                        .setContentText("Messaging: ↓ $messagingDown ↑ $messagingUp\nVPN: ↓ $vpnDown ↑ $vpnUp")
                        .setStyle(NotificationCompat.BigTextStyle()
                            .bigText("Messaging Tor: ↓ $messagingDown / ↑ $messagingUp\nDevice VPN: ↓ $vpnDown / ↑ $vpnUp"))

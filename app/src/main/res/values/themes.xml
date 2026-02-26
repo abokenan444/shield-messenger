@@ -104,7 +104,7 @@
         <item name="android:textColor">@color/text_white</item>
     </style>
 
-    <!-- Secure Legion Custom Progress Bar Style -->
+    <!-- Shield Messenger Custom Progress Bar Style -->
     <style name="SecureLegionProgressBar" parent="android:Widget.ProgressBar.Horizontal">
         <item name="android:indeterminateOnly">false</item>
         <item name="android:progressDrawable">@drawable/secure_legion_progress_bar</item>

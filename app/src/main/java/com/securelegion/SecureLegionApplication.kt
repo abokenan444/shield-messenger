@@ -12,6 +12,8 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.securelegion.crypto.TorManager
+import com.securelegion.utils.ANRWatchdog
+import com.securelegion.utils.CrashReporter
 import IPtProxy.Controller
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
@@ -19,7 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
- * Application class for Secure Legion
+ * Application class for Shield Messenger
  *
  * Handles:
  * - Tor network initialization on app startup
@@ -71,6 +73,16 @@ class SecureLegionApplication : Application() {
         }
 
         Log.d(TAG, "Application starting...")
+
+        // Initialize crash reporter (local-only, privacy-respecting)
+        CrashReporter.initialize(this)
+        Log.d(TAG, "Crash reporter initialized")
+
+        // Start ANR watchdog in debug builds
+        if (BuildConfig.ENABLE_DEBUG_LOGS) {
+            ANRWatchdog.start()
+            Log.d(TAG, "ANR watchdog started")
+        }
 
         // Create notification channels
         createNotificationChannels()

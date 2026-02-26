@@ -329,7 +329,15 @@ dependencies {
     // Photo editor (draw, text, emoji overlay before sending)
     implementation("com.burhanrashid52:photoeditor:3.0.2")
 
+    // ViewModel + LiveData for MVVM architecture
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.8.7")
+    implementation("androidx.activity:activity-ktx:1.9.3")
+
     testImplementation(libs.junit)
+    testImplementation("org.mockito:mockito-core:5.14.2")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.4.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }

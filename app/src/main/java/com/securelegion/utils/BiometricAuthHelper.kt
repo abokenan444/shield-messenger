@@ -236,7 +236,7 @@ class BiometricAuthHelper(private val context: Context) {
             )
 
             val promptInfo = BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Unlock Secure Legion")
+                .setTitle("Unlock Shield Messenger")
                 .setSubtitle("Verify your identity to unlock")
                 .setNegativeButtonText("Use Password")
                 .setAllowedAuthenticators(

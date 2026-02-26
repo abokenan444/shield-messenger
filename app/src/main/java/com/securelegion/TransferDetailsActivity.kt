@@ -155,7 +155,7 @@ class TransferDetailsActivity : AppCompatActivity() {
         } else ""
 
         val details = """
-            Secure Legion Transfer
+            Shield Messenger Transfer
 
             To: ${recipientName.text}
             Amount: ${amountSent.text}
