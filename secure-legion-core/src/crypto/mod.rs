@@ -11,6 +11,7 @@ pub mod zkproofs;
 pub mod ratchet;
 pub mod backup;
 pub mod deadman;
+pub mod duress;
 
 pub use constant_time::{eq_32, eq_64, eq_24, eq_slices};
 pub use pq_ratchet::{PQRatchetState, PQRatchetError, ChainDirection};
@@ -48,4 +49,5 @@ pub use pqc::{
 pub use ratchet::{PQDoubleRatchet, RatchetHeader, RatchetState};
 pub use backup::{create_encrypted_backup, restore_encrypted_backup, split_secret, reconstruct_secret, BackupBlob, SecretShare};
 pub use deadman::{DeadManSwitch, WipeAction, CheckInResult};
+pub use duress::{DuressManager, DuressConfig, DuressError, PinVerifyResult, WipeActions as DuressWipeActions, DecoyProfile, execute_emergency_wipe};
 pub use zkproofs::{generate_range_proof, verify_range_proof};

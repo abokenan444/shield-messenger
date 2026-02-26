@@ -20,6 +20,12 @@ export interface Contact {
   addedAt: number;
   /** Trust level: 0 = Untrusted, 1 = Encrypted, 2 = Verified */
   trustLevel: TrustLevelValue;
+  /** Previous public key — set when an identity key change is detected */
+  previousPublicKey?: string;
+  /** Timestamp when the identity key change was detected */
+  keyChangeDetectedAt?: number;
+  /** Whether the user has dismissed the key-change warning */
+  keyChangeDismissed?: boolean;
 }
 
 export interface FriendRequest {
@@ -50,6 +56,10 @@ interface ContactState {
   rejectFriendRequest: (id: string) => void;
   cancelFriendRequest: (id: string) => void;
   setFriendRequests: (requests: FriendRequest[]) => void;
+  /** Record an identity key change for a contact — drops trust to 1 */
+  recordKeyChange: (id: string, newPublicKey: string) => void;
+  /** Dismiss the key-change warning banner for a contact */
+  dismissKeyChange: (id: string) => void;
 }
 
 export const useContactStore = create<ContactState>()((set) => ({
@@ -194,4 +204,28 @@ export const useContactStore = create<ContactState>()((set) => ({
     })),
 
   setFriendRequests: (requests) => set({ friendRequests: requests }),
+
+  recordKeyChange: (id, newPublicKey) =>
+    set((state) => ({
+      contacts: state.contacts.map((c) =>
+        c.id === id
+          ? {
+              ...c,
+              previousPublicKey: c.publicKey,
+              publicKey: newPublicKey,
+              keyChangeDetectedAt: Date.now(),
+              keyChangeDismissed: false,
+              trustLevel: 1 as TrustLevelValue,
+              verified: false,
+            }
+          : c,
+      ),
+    })),
+
+  dismissKeyChange: (id) =>
+    set((state) => ({
+      contacts: state.contacts.map((c) =>
+        c.id === id ? { ...c, keyChangeDismissed: true } : c,
+      ),
+    })),
 }));

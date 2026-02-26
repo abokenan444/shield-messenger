@@ -5,6 +5,7 @@ pub mod friend_request_server;
 pub mod socks5_client;
 pub mod packet;
 pub mod arti;
+pub mod tor_dos_protection;
 
 pub use padding::{
     pad_to_fixed_size,
@@ -24,6 +25,13 @@ pub use padding::{
     COVER_INTERVAL_MAX_SECS,
     MSG_TYPE_COVER,
     PaddingError,
+    BurstPaddingConfig,
+    generate_burst_padding,
+    random_burst_delay_ms,
+    TrafficProfile,
+    fragment_and_pad,
+    reassemble_fragments,
+    constant_time_eq,
 };
 
 pub use pingpong::{
@@ -44,3 +52,4 @@ pub use friend_request_server::{ContactExchangeEndpoint, get_endpoint};
 pub use socks5_client::Socks5Client;
 pub use packet::{Packet, PacketType, PACKET_SIZE, MAX_PAYLOAD};
 pub use arti::{ArtiTorManager, ArtiConfig, IsolationToken, EphemeralOnionService};
+pub use tor_dos_protection::{HsDoSProtection, HsDoSConfig, ConnectionDecision, DoSStats, verify_pow_solution_public};

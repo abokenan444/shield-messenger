@@ -54,5 +54,22 @@ name = "fuzz_key_exchange"
 path = "fuzz_targets/fuzz_key_exchange.rs"
 doc = false
 
+# ── Extended fuzz targets (network & ratchet) ─────────────────────────
+
+[[bin]]
+name = "fuzz_ratchet"
+path = "fuzz_targets/fuzz_ratchet.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_padding"
+path = "fuzz_targets/fuzz_padding.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_dos_protection"
+path = "fuzz_targets/fuzz_dos_protection.rs"
+doc = false
+
 [workspace]
 members = ["."]

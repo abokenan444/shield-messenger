@@ -4,6 +4,7 @@ import { useAuthStore } from '../lib/store/authStore';
 import { useContactStore } from '../lib/store/contactStore';
 import { useTranslation } from '../lib/i18n';
 import { ShieldIcon } from './icons/ShieldIcon';
+import { IdentityKeyChangeBanner } from './IdentityKeyChangeBanner';
 
 interface ChatViewProps {
   roomId: string;
@@ -26,6 +27,11 @@ export function ChatView({ roomId }: ChatViewProps) {
     : null;
 
   const peerTrustLevel = peerContact?.trustLevel ?? 1;
+  const dismissKeyChange = useContactStore((s) => s.dismissKeyChange);
+  const verifyContact = useContactStore((s) => s.verifyContact);
+
+  // Detect if this contact has a pending key-change warning
+  const hasKeyChange = peerContact?.keyChangeDetectedAt && !peerContact?.keyChangeDismissed;
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -166,6 +172,21 @@ export function ChatView({ roomId }: ChatViewProps) {
           </button>
         </div>
       </div>
+
+      {/* Identity Key Change Warning Banner */}
+      {hasKeyChange && peerContact && (
+        <IdentityKeyChangeBanner
+          contactId={peerContact.id}
+          contactName={peerContact.displayName}
+          detectedAt={peerContact.keyChangeDetectedAt!}
+          dismissed={!!peerContact.keyChangeDismissed}
+          onDismiss={() => dismissKeyChange(peerContact.id)}
+          onVerify={() => {
+            // Navigate to contacts page with verification modal
+            window.location.href = `/contacts?verify=${peerContact.id}`;
+          }}
+        />
+      )}
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">

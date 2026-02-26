@@ -1,0 +1,169 @@
+name: Reproducible Build Verification
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to build (tag, branch, or commit SHA)'
+        required: false
+        default: 'main'
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: >-
+    -C codegen-units=1
+    --remap-path-prefix=${{ github.workspace }}=shield-messenger
+    -C strip=none
+
+jobs:
+  dual-build-verify:
+    name: Dual Build & Hash Comparison
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout (Build A)
+        uses: actions/checkout@v4
+        with:
+          path: build-a
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: Checkout (Build B)
+        uses: actions/checkout@v4
+        with:
+          path: build-b
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-reproducible-${{ hashFiles('build-a/secure-legion-core/Cargo.lock') }}
+
+      # ── Build A ──────────────────────────────────────────────
+      - name: Build A — Compile secure-legion-core
+        working-directory: build-a/secure-legion-core
+        run: |
+          cargo build --release --locked 2>&1 | tail -20
+          echo "Build A complete"
+
+      - name: Build A — Compute hashes
+        working-directory: build-a/secure-legion-core
+        run: |
+          mkdir -p /tmp/hashes-a
+          find target/release -maxdepth 1 \( -name "*.a" -o -name "*.so" -o -name "*.rlib" \) \
+            -exec sha256sum {} \; | sort -k2 > /tmp/hashes-a/SHA256SUMS.txt
+          echo "=== Build A Hashes ==="
+          cat /tmp/hashes-a/SHA256SUMS.txt
+
+      # ── Build B ──────────────────────────────────────────────
+      - name: Build B — Clean Cargo cache to force fresh build
+        run: |
+          rm -rf build-b/secure-legion-core/target
+
+      - name: Build B — Compile secure-legion-core
+        working-directory: build-b/secure-legion-core
+        run: |
+          cargo build --release --locked 2>&1 | tail -20
+          echo "Build B complete"
+
+      - name: Build B — Compute hashes
+        working-directory: build-b/secure-legion-core
+        run: |
+          mkdir -p /tmp/hashes-b
+          find target/release -maxdepth 1 \( -name "*.a" -o -name "*.so" -o -name "*.rlib" \) \
+            -exec sha256sum {} \; | sort -k2 > /tmp/hashes-b/SHA256SUMS.txt
+          echo "=== Build B Hashes ==="
+          cat /tmp/hashes-b/SHA256SUMS.txt
+
+      # ── Compare ──────────────────────────────────────────────
+      - name: Compare Build A vs Build B
+        run: |
+          echo "=== Comparing hashes ==="
+          # Normalize paths (remove build-a/ and build-b/ prefixes)
+          sed 's|build-a/||g' /tmp/hashes-a/SHA256SUMS.txt > /tmp/norm-a.txt
+          sed 's|build-b/||g' /tmp/hashes-b/SHA256SUMS.txt > /tmp/norm-b.txt
+
+          if diff /tmp/norm-a.txt /tmp/norm-b.txt; then
+            echo "PASS: All hashes match — build is reproducible"
+          else
+            echo "FAIL: Hash mismatch detected — build is NOT reproducible"
+            echo ""
+            echo "=== Build A ==="
+            cat /tmp/norm-a.txt
+            echo ""
+            echo "=== Build B ==="
+            cat /tmp/norm-b.txt
+            exit 1
+          fi
+
+      # ── Publish hashes on release ────────────────────────────
+      - name: Prepare SHA256SUMS for release
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          sed 's|build-a/secure-legion-core/target/release/||g' /tmp/hashes-a/SHA256SUMS.txt \
+            > /tmp/SHA256SUMS.txt
+          cat /tmp/SHA256SUMS.txt
+
+      - name: Upload SHA256SUMS artifact
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: SHA256SUMS
+          path: /tmp/SHA256SUMS.txt
+
+  wasm-reproducible:
+    name: WASM Reproducible Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout (Build A)
+        uses: actions/checkout@v4
+        with:
+          path: build-a
+
+      - name: Checkout (Build B)
+        uses: actions/checkout@v4
+        with:
+          path: build-b
+
+      - name: Install Rust toolchain + WASM target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Build A — WASM
+        working-directory: build-a/secure-legion-core
+        run: |
+          cargo build --target wasm32-unknown-unknown --features wasm --no-default-features --release --locked
+          sha256sum target/wasm32-unknown-unknown/release/*.wasm > /tmp/wasm-a.txt
+          cat /tmp/wasm-a.txt
+
+      - name: Build B — WASM (clean)
+        working-directory: build-b/secure-legion-core
+        run: |
+          cargo build --target wasm32-unknown-unknown --features wasm --no-default-features --release --locked
+          sha256sum target/wasm32-unknown-unknown/release/*.wasm > /tmp/wasm-b.txt
+          cat /tmp/wasm-b.txt
+
+      - name: Compare WASM builds
+        run: |
+          HASH_A=$(cut -d' ' -f1 /tmp/wasm-a.txt | head -1)
+          HASH_B=$(cut -d' ' -f1 /tmp/wasm-b.txt | head -1)
+          if [ "$HASH_A" = "$HASH_B" ]; then
+            echo "PASS: WASM build is reproducible (SHA256: $HASH_A)"
+          else
+            echo "FAIL: WASM hash mismatch"
+            echo "Build A: $HASH_A"
+            echo "Build B: $HASH_B"
+            exit 1
+          fi
