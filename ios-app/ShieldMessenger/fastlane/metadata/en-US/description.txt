@@ -1,0 +1,36 @@
+Shield Messenger — Privacy-First Encrypted Communication
+
+Shield Messenger is an open-source, end-to-end encrypted messaging app that routes ALL traffic through the Tor network. No phone number. No email. No metadata. Just private communication.
+
+CORE FEATURES:
+
+• End-to-End Encryption — Every message, call, and file is encrypted using a post-quantum Double Ratchet protocol (X25519 + ML-KEM-768 hybrid).
+
+• Tor-Only Networking — All communication travels through Tor hidden services (.onion). Your IP address is never exposed. No central server sees your messages.
+
+• Encrypted Voice Calls — Make voice calls over Tor with Opus codec and adaptive jitter buffering. Latency-optimized for real-time conversation.
+
+• Zero Metadata — No phone number or email required to register. Your identity is a cryptographic keypair, not a phone number.
+
+• Plausible Deniability — Duress PIN feature: enter a special PIN under coercion to silently wipe sensitive data while showing a decoy profile.
+
+• Shielded Payments — Send and receive Zcash (ZEC) using shielded (Sapling) addresses directly within conversations.
+
+• Safety Numbers — Verify your contacts' identity keys using numeric safety numbers or QR codes, just like Signal.
+
+• Self-Destructing Messages — Set messages to auto-delete after a chosen time period.
+
+• Open Source — Fully auditable code. The cryptographic core is written in Rust for memory safety.
+
+PRIVACY BY DESIGN:
+
+Shield Messenger collects zero user data. There are no analytics, no tracking, no ads, and no telemetry. The app cannot read your messages — only you and your intended recipient can.
+
+Your encryption keys never leave your device. If you lose your device, your messages are gone forever (unless you back up your seed phrase).
+
+BUILT FOR ACTIVISTS, JOURNALISTS, AND ANYONE WHO VALUES PRIVACY.
+
+Shield Messenger is designed for people living under surveillance, journalists protecting sources, activists organizing safely, and anyone who believes private communication is a human right.
+
+Website: https://shieldmessenger.com
+Source Code: https://github.com/nickshouse/shield-messenger
