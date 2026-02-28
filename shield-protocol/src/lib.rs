@@ -93,8 +93,8 @@ pub use storage::{
 };
 
 pub use transport::{
-    pad_to_fixed_size, strip_padding, generate_cover_packet, is_cover_packet,
-    Packet, PacketType, PaddingError,
+    generate_cover_packet, is_cover_packet, pad_to_fixed_size, strip_padding, Packet, PacketType,
+    PaddingError,
 };
 
 // ── Library metadata ────────────────────────────────────────────────────────

@@ -32,7 +32,7 @@ const AddFriendScreen: React.FC<AddFriendScreenProps> = ({navigation}) => {
     setIsSending(true);
     try {
       // TODO: Send via Rust core → Tor → Friend Request Server
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise<void>(resolve => setTimeout(resolve, 2000));
       Alert.alert('Request Sent', `Friend request sent to ${nickname || 'contact'}.`, [
         {text: 'OK', onPress: () => navigation.goBack()},
       ]);

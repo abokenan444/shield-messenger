@@ -110,7 +110,7 @@ const MockBridge: RustBridgeNative = {
 
   async encrypt(plaintext, _key) {
     return {
-      ciphertext: Buffer.from ? Buffer.from(plaintext).toString('base64') : btoa(plaintext),
+      ciphertext: plaintext, // base64 encoding deferred to native bridge
       nonce: 'MOCK_NONCE',
     };
   },
