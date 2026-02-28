@@ -23,9 +23,15 @@ class PasswordValidatorTest {
     }
 
     @Test
-    fun `password with exactly 8 characters passes`() {
+    fun `password with exactly 9 characters passes`() {
+        val result = PasswordValidator.validate("Ab1!cdefg")
+        assertTrue("9-char password should be valid", result.isValid)
+    }
+
+    @Test
+    fun `password with exactly 8 characters fails`() {
         val result = PasswordValidator.validate("Ab1!cdef")
-        assertTrue("8-char password should be valid", result.isValid)
+        assertFalse("8-char password should fail (minimum is 9)", result.isValid)
     }
 
     @Test
@@ -49,7 +55,7 @@ class PasswordValidatorTest {
     }
 
     @Test
-    fun `password shorter than 8 characters fails`() {
+    fun `password shorter than 9 characters fails`() {
         val result = PasswordValidator.validate("Ab1!cd")
         assertFalse("Short password should fail", result.isValid)
     }

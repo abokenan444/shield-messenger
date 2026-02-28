@@ -43,14 +43,14 @@ object ANRWatchdog {
             while (isRunning && !Thread.currentThread().isInterrupted) {
                 try {
                     // Post a flag-toggle to the main thread
-                    @Volatile var responded = false
-                    mainHandler.post { responded = true }
+                    val responded = java.util.concurrent.atomic.AtomicBoolean(false)
+                    mainHandler.post { responded.set(true) }
 
                     // Wait for the timeout
                     Thread.sleep(timeoutMs)
 
                     // If the main thread didn't execute our Runnable, it's blocked
-                    if (!responded) {
+                    if (!responded.get()) {
                         val mainThread = Looper.getMainLooper().thread
                         val stackTrace = mainThread.stackTrace
 

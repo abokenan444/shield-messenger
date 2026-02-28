@@ -213,7 +213,7 @@ object NotificationHelper {
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_MESSAGES)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(R.drawable.ic_notification_logo)
             .setContentTitle(title)
             .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -250,7 +250,7 @@ object NotificationHelper {
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_CALLS)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(R.drawable.ic_notification_logo)
             .setContentTitle(callerName)
             .setContentText("Incoming encrypted call")
             .setPriority(NotificationCompat.PRIORITY_MAX)
@@ -293,7 +293,7 @@ object NotificationHelper {
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_SECURITY)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(R.drawable.ic_notification_logo)
             .setContentTitle("Security Alert")
             .setContentText("$contactName's security key has changed. Verify their identity.")
             .setStyle(NotificationCompat.BigTextStyle()
@@ -332,7 +332,7 @@ object NotificationHelper {
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_FRIEND_REQUESTS)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(R.drawable.ic_notification_logo)
             .setContentTitle("New Contact Request")
             .setContentText("$senderName wants to connect")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -369,7 +369,7 @@ object NotificationHelper {
         )
 
         val notification = NotificationCompat.Builder(context, CHANNEL_GROUP_INVITES)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(R.drawable.ic_notification_logo)
             .setContentTitle("Group Invitation")
             .setContentText("$inviterName invited you to $groupName")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
