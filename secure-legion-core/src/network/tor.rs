@@ -12,6 +12,14 @@ use tokio::io::{AsyncWriteExt, AsyncReadExt, BufReader, AsyncBufReadExt};
 use tokio::net::{TcpListener, TcpStream};
 #[cfg(unix)]
 use tokio::net::UnixStream as TokioUnixStream;
+
+/// Platform-specific control stream type:
+/// Unix uses domain sockets, non-Unix falls back to TCP.
+#[cfg(unix)]
+type ControlStream = TokioUnixStream;
+#[cfg(not(unix))]
+type ControlStream = TcpStream;
+
 use tokio::sync::Mutex;
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use sha3::{Digest, Sha3_256};
@@ -72,6 +80,7 @@ pub fn get_bootstrap_status_fast() -> u32 {
     static QUERY_RUNNING: AtomicBool = AtomicBool::new(false);
     if QUERY_RUNNING.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
         std::thread::spawn(move || {
+            #[cfg(unix)]
             bootstrap_direct_poll_loop();
             QUERY_RUNNING.store(false, Ordering::SeqCst);
         });
@@ -82,6 +91,7 @@ pub fn get_bootstrap_status_fast() -> u32 {
 
 /// Background polling loop: opens one Unix domain socket connection to the ControlSocket,
 /// then queries GETINFO status/bootstrap-phase every 500ms until 100%.
+#[cfg(unix)]
 fn bootstrap_direct_poll_loop() {
     use std::io::{Read, Write};
     use std::time::Duration;
@@ -379,7 +389,7 @@ async fn bootstrap_event_listener_task() -> Result<(), Box<dyn Error + Send + Sy
                 log::info!("Event listener: Shutdown during connect phase");
                 return Ok(());
             }
-            match TokioUnixStream::connect(&socket_path).await {
+            match ControlStream::connect(&socket_path).await {
                 Ok(s) => {
                     log::info!("Event listener: Connected to ControlSocket on attempt {}", attempt);
                     control = Some(s);
@@ -680,7 +690,7 @@ fn invalidate_listener_state() {
 /// Handles interleaved 650 async events by searching the full accumulated response.
 /// Returns true if "250 OK" was received, false otherwise.
 async fn read_until_250_ok(
-    stream: &mut TokioUnixStream,
+    stream: &mut ControlStream,
     buf: &mut [u8],
     timeout_duration: tokio::time::Duration,
 ) -> bool {
@@ -706,7 +716,7 @@ async fn read_until_250_ok(
 /// Poll initial bootstrap and circuit-established state after (re)connecting.
 /// Non-fatal: if polls fail, the event loop will get updated values later.
 async fn poll_initial_state(
-    control: &mut TokioUnixStream,
+    control: &mut ControlStream,
     buf: &mut [u8],
 ) {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -1176,7 +1186,7 @@ struct HiddenServiceState {
 }
 
 pub struct TorManager {
-    control_stream: Option<Arc<Mutex<TokioUnixStream>>>, // Main Tor: Unix ControlSocket (GP 0.4.9.5)
+    control_stream: Option<Arc<Mutex<ControlStream>>>, // Main Tor: Unix ControlSocket (GP 0.4.9.5)
     voice_control_stream: Option<Arc<Mutex<TcpStream>>>, // VOICE TOR: TCP port 9052 (Single Onion)
     hidden_service_address: Option<String>,
     voice_hidden_service_address: Option<String>,
@@ -1262,7 +1272,7 @@ impl TorManager {
         log::info!("Reconnecting to Tor ControlSocket: {}...", socket_path);
 
         // Connect to ControlSocket (Unix domain socket)
-        let mut control = TokioUnixStream::connect(&socket_path).await?;
+        let mut control = ControlStream::connect(&socket_path).await?;;
 
         // Authenticate with empty auth (GP CookieAuthentication 0)
         control.write_all(b"AUTHENTICATE\r\n").await?;
@@ -1400,7 +1410,7 @@ impl TorManager {
         log::info!("Connecting to Tor ControlSocket: {}...", socket_path);
 
         // Connect to ControlSocket (GP tor-android creates this Unix domain socket)
-        let mut control = TokioUnixStream::connect(&socket_path).await?;
+        let mut control = ControlStream::connect(&socket_path).await?;;
 
         // Authenticate with empty auth (GP uses CookieAuthentication 0)
         control.write_all(b"AUTHENTICATE\r\n").await?;
@@ -2635,7 +2645,7 @@ impl TorManager {
         // Connect to ControlSocket (Unix domain socket, local only)
         let connect_result = timeout(
             Duration::from_secs(3),
-            TokioUnixStream::connect(&socket_path)
+            ControlStream::connect(&socket_path)
         ).await;
 
         let mut stream = match connect_result {
