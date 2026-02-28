@@ -2,7 +2,7 @@
  * RustBridge — TypeScript interface to the Rust core library via iOS Native Module.
  *
  * Architecture:
- *   React Native (TS) → NativeModules.RustBridge → Swift → C FFI → Rust (libsecurelegion.a)
+ *   React Native (TS) → NativeModules.RustBridge → Swift → C FFI → Rust (libshieldmessenger.a)
  *
  * The Swift layer calls the C functions exported from ios.rs (sl_* prefix).
  * All cryptographic operations happen in Rust — no crypto in JS/TS.

@@ -1,6 +1,6 @@
 # Reproducible Builds with Nix (Planned)
 
-This document describes the planned addition of a Nix flake for reproducible, bit-for-bit verifiable builds of `secure-legion-core`. This is stronger than Docker for the privacy community (F-Droid, PrivacyGuides) because every input is content-addressed.
+This document describes the planned addition of a Nix flake for reproducible, bit-for-bit verifiable builds of `shield-messenger-core`. This is stronger than Docker for the privacy community (F-Droid, PrivacyGuides) because every input is content-addressed.
 
 ## Why Nix?
 
@@ -13,7 +13,7 @@ This document describes the planned addition of a Nix flake for reproducible, bi
 
 ```nix
 {
-  description = "secure-legion-core reproducible build";
+  description = "shield-messenger-core reproducible build";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.05";
@@ -33,10 +33,10 @@ This document describes the planned addition of a Nix flake for reproducible, bi
         };
       in {
         packages.default = pkgs.rustPlatform.buildRustPackage {
-          pname = "securelegion";
+          pname = "shieldmessenger";
           version = "1.0.0";
-          src = ./secure-legion-core;
-          cargoLock.lockFile = ./secure-legion-core/Cargo.lock;
+          src = ./shield-messenger-core;
+          cargoLock.lockFile = ./shield-messenger-core/Cargo.lock;
           buildInputs = [ rust ];
           buildNoDefaultFeatures = true;
         };
@@ -58,7 +58,7 @@ This document describes the planned addition of a Nix flake for reproducible, bi
 ```bash
 # Build and produce SHA256
 nix build .#default
-sha256sum result/lib/libsecurelegion.so
+sha256sum result/lib/libshieldmessenger.so
 
 # Compare with CI-published checksum
 # If they match, the build is reproducible.
@@ -72,7 +72,7 @@ sha256sum result/lib/libsecurelegion.so
 
 ## Prerequisites
 
-1. Generate `Cargo.lock`: run `cargo generate-lockfile` in `secure-legion-core/`.
+1. Generate `Cargo.lock`: run `cargo generate-lockfile` in `shield-messenger-core/`.
 2. Commit the lockfile (currently gitignored — will be un-ignored for reproducible builds).
 3. Install Nix with flakes: `sh <(curl -L https://nixos.org/nix/install) --daemon` then `nix profile install nixpkgs#nix`.
 

@@ -1,0 +1,1720 @@
+package com.shieldmessenger
+
+import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
+import android.os.Bundle
+import android.util.Base64
+import android.util.Log
+import android.view.View
+import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import com.shieldmessenger.crypto.KeyManager
+import com.shieldmessenger.utils.ThemedToast
+import com.shieldmessenger.utils.BadgeUtils
+import com.shieldmessenger.database.ShieldMessengerDatabase
+import com.shieldmessenger.database.entities.Contact
+import com.shieldmessenger.models.ContactCard
+import com.shieldmessenger.models.FriendRequest
+import com.shieldmessenger.services.ContactCardManager
+import com.shieldmessenger.crypto.RustBridge
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+class AddFriendActivity : BaseActivity() {
+
+    companion object {
+        private const val TAG = "AddFriend"
+        private const val QR_SCAN_REQUEST_CODE = 1001
+    }
+
+    private lateinit var loadingOverlay: FrameLayout
+    private lateinit var loadingText: TextView
+    private lateinit var loadingSubtext: TextView
+    private var isDeleteMode = false
+    private val selectedRequests = mutableSetOf<String>()
+    private var scannedUsername: String? = null // Username from QR code scan
+    @Volatile private var qrAutoSent = false   // Prevents double-fire from barcode scanner
+
+    // Gallery QR picker launcher
+    private val galleryQrLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            decodeQrFromGalleryImage(uri)
+        }
+    }
+
+    // Live refresh when background friend request send completes
+    private val friendRequestStatusReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            Log.d(TAG, "Friend request status changed — refreshing list")
+            loadPendingFriendRequests()
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_add_friend)
+
+        // Enable edge-to-edge and handle system bar insets (matches MainActivity)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val rootView = findViewById<View>(android.R.id.content)
+        val bottomNav = findViewById<View>(R.id.bottomNav)
+        ViewCompat.setOnApplyWindowInsetsListener(rootView) { _, windowInsets ->
+            val insets = windowInsets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or
+                WindowInsetsCompat.Type.displayCutout()
+            )
+            bottomNav.setPadding(
+                bottomNav.paddingLeft,
+                bottomNav.paddingTop,
+                bottomNav.paddingRight,
+                insets.bottom)
+            windowInsets
+        }
+
+        // Initialize loading overlay
+        loadingOverlay = findViewById(R.id.loadingOverlay)
+        loadingText = findViewById(R.id.loadingText)
+        loadingSubtext = findViewById(R.id.loadingSubtext)
+
+        // Back button
+        findViewById<View>(R.id.backButton).setOnClickListener {
+            if (isDeleteMode) {
+                exitDeleteMode()
+            } else {
+                finish()
+            }
+        }
+
+        // Delete button
+        findViewById<View>(R.id.deleteButton).setOnClickListener {
+            if (isDeleteMode) {
+                deleteSelectedRequests()
+            } else {
+                enterDeleteMode()
+            }
+        }
+
+        // Scan QR button (camera)
+        findViewById<View>(R.id.scanQrButton).setOnClickListener {
+            val intent = Intent(this, QRScannerActivity::class.java)
+            startActivityForResult(intent, QR_SCAN_REQUEST_CODE)
+        }
+
+        // Gallery QR button — pick QR image from photos
+        findViewById<View>(R.id.galleryQrButton).setOnClickListener {
+            galleryQrLauncher.launch("image/*")
+        }
+
+        // Setup PIN boxes with auto-advance
+        setupPinBoxes()
+
+        // Check legacy manual entry setting
+        val securityPrefs = getSharedPreferences("security_prefs", Context.MODE_PRIVATE)
+        val legacyManualEntry = securityPrefs.getBoolean("legacy_manual_entry", false)
+        if (legacyManualEntry) {
+            showManualInputSection()
+        }
+
+        // Send Friend Request button
+        findViewById<View>(R.id.searchButton).setOnClickListener {
+            val friendOnion = findViewById<EditText>(R.id.cidInput).text.toString().trim()
+            val mainButton = findViewById<TextView>(R.id.searchButton)
+            val secPrefs = getSharedPreferences("security_prefs", Context.MODE_PRIVATE)
+            val isLegacy = secPrefs.getBoolean("legacy_manual_entry", false)
+
+            // Phase 2 accept: PIN not needed (X25519 key exchange from Phase 1)
+            // Unless legacy mode is on — then both PINs are required
+            if (mainButton.text.toString() == "Accept Friend Request" && !isLegacy) {
+                if (friendOnion.isEmpty()) {
+                    ThemedToast.show(this, "No friend request to accept")
+                    return@setOnClickListener
+                }
+                acceptPhase2FriendRequest(friendOnion, "")
+                return@setOnClickListener
+            }
+
+            // Phase 1 initiate (or legacy accept): PIN required
+            val friendPin = getPinFromBoxes().trim()
+
+            if (friendOnion.isEmpty()) {
+                ThemedToast.show(this, "Please enter friend's .onion address")
+                return@setOnClickListener
+            }
+
+            if (friendPin.length != 10) {
+                ThemedToast.show(this, "Please enter 10-digit PIN")
+                return@setOnClickListener
+            }
+
+            if (!friendPin.all { it.isDigit() }) {
+                ThemedToast.show(this, "PIN must be 10 digits")
+                return@setOnClickListener
+            }
+
+            if (mainButton.text.toString() == "Accept Friend Request") {
+                // Legacy mode accept — PIN required
+                acceptPhase2FriendRequest(friendOnion, friendPin)
+            } else {
+                // PHASE 1: Initiate friend request
+                initiateFriendRequest(friendOnion, friendPin)
+            }
+        }
+
+        setupBottomNav()
+    }
+
+    private fun setupPinBoxes() {
+        val boxes = listOf(
+            findViewById<EditText>(R.id.pinBox1),
+            findViewById<EditText>(R.id.pinBox2),
+            findViewById<EditText>(R.id.pinBox3),
+            findViewById<EditText>(R.id.pinBox4),
+            findViewById<EditText>(R.id.pinBox5),
+            findViewById<EditText>(R.id.pinBox6),
+            findViewById<EditText>(R.id.pinBox7),
+            findViewById<EditText>(R.id.pinBox8),
+            findViewById<EditText>(R.id.pinBox9),
+            findViewById<EditText>(R.id.pinBox10)
+        )
+
+        boxes.forEachIndexed { index, box ->
+            // Hardware keyboard backspace (fallback)
+            box.setOnKeyListener { _, keyCode, event ->
+                if (keyCode == android.view.KeyEvent.KEYCODE_DEL && event.action == android.view.KeyEvent.ACTION_DOWN) {
+                    if (box.text.isEmpty() && index > 0) {
+                        boxes[index - 1].text.clear()
+                        boxes[index - 1].requestFocus()
+                        return@setOnKeyListener true
+                    }
+                }
+                false
+            }
+
+            // TextWatcher handles both forward advance and soft-keyboard backspace
+            var prevLength = 0
+            box.addTextChangedListener(object : android.text.TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+                    prevLength = s?.length ?: 0
+                }
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: android.text.Editable?) {
+                    val len = s?.length ?: 0
+                    if (len == 1 && index < boxes.size - 1) {
+                        // Digit entered — advance to next box
+                        boxes[index + 1].requestFocus()
+                    } else if (len == 0 && prevLength == 1 && index > 0) {
+                        // Deleted digit — move back to previous box
+                        boxes[index - 1].requestFocus()
+                    }
+                }
+            })
+        }
+    }
+
+    private fun getPinFromBoxes(): String {
+        val pinBox1 = findViewById<EditText>(R.id.pinBox1).text.toString()
+        val pinBox2 = findViewById<EditText>(R.id.pinBox2).text.toString()
+        val pinBox3 = findViewById<EditText>(R.id.pinBox3).text.toString()
+        val pinBox4 = findViewById<EditText>(R.id.pinBox4).text.toString()
+        val pinBox5 = findViewById<EditText>(R.id.pinBox5).text.toString()
+        val pinBox6 = findViewById<EditText>(R.id.pinBox6).text.toString()
+        val pinBox7 = findViewById<EditText>(R.id.pinBox7).text.toString()
+        val pinBox8 = findViewById<EditText>(R.id.pinBox8).text.toString()
+        val pinBox9 = findViewById<EditText>(R.id.pinBox9).text.toString()
+        val pinBox10 = findViewById<EditText>(R.id.pinBox10).text.toString()
+
+        return pinBox1 + pinBox2 + pinBox3 + pinBox4 + pinBox5 + pinBox6 + pinBox7 + pinBox8 + pinBox9 + pinBox10
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == QR_SCAN_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
+            val scannedData = data?.getStringExtra("SCANNED_ADDRESS")
+            if (!scannedData.isNullOrEmpty()) {
+                handleScannedQrData(scannedData)
+            }
+        }
+    }
+
+    /**
+     * Parse QR data in format: username@xxxxx.onion@1234567890
+     * Backward compatible with: username@onion, plain onion
+     * Parsing from the right: last segment = PIN (if 10 digits), .onion segment = address, rest = username
+     */
+    private fun handleScannedQrData(data: String) {
+        val parts = data.split("@")
+
+        var pin: String? = null
+        var onionAddress: String? = null
+        var username: String? = null
+
+        // Parse from the right
+        val remaining = parts.toMutableList()
+
+        // Check if last segment is a 10-digit PIN
+        if (remaining.size >= 2) {
+            val lastPart = remaining.last()
+            if (lastPart.length == 10 && lastPart.all { it.isDigit() }) {
+                pin = lastPart
+                remaining.removeAt(remaining.size - 1)
+            }
+        }
+
+        // Find the .onion segment
+        val onionIndex = remaining.indexOfFirst { it.endsWith(".onion") }
+        if (onionIndex >= 0) {
+            onionAddress = remaining[onionIndex]
+            remaining.removeAt(onionIndex)
+            // Everything before the .onion is the username
+            if (remaining.isNotEmpty()) {
+                username = remaining.joinToString("@")
+            }
+        } else if (remaining.size == 1) {
+            // No .onion found — treat entire thing as the address (plain onion without .onion suffix?)
+            onionAddress = remaining[0]
+        }
+
+        if (onionAddress == null) {
+            ThemedToast.show(this, "Invalid QR code — no .onion address found")
+            return
+        }
+
+        scannedUsername = username
+        Log.i(TAG, "QR parsed: username=$username, onion=$onionAddress, pin=${if (pin != null) "***" else "none"}")
+
+        if (!qrAutoSent && onionAddress != null && pin != null) {
+            // Complete QR (onion + PIN) — auto-send immediately, no fields shown
+            qrAutoSent = true
+            findViewById<View>(R.id.manualInputSection).visibility = View.GONE
+            findViewById<View>(R.id.searchButton).visibility = View.GONE
+            val displayName = username ?: "friend"
+            ThemedToast.show(this, "Adding $displayName...")
+            initiateFriendRequest(onionAddress, pin)
+        } else if (!qrAutoSent) {
+            // Incomplete QR (missing PIN) — show manual entry for PIN only
+            showManualInputSection()
+            findViewById<EditText>(R.id.cidInput).setText(onionAddress)
+            if (pin != null) {
+                fillPinBoxes(pin)
+            }
+            val toastMsg = if (username != null) "Scanned ${username}'s contact" else "Scanned friend request address"
+            ThemedToast.show(this, toastMsg)
+        }
+    }
+
+    /**
+     * Fill all 10 PIN input boxes from a PIN string
+     */
+    private fun fillPinBoxes(pin: String) {
+        val boxes = listOf(
+            findViewById<EditText>(R.id.pinBox1), findViewById<EditText>(R.id.pinBox2),
+            findViewById<EditText>(R.id.pinBox3), findViewById<EditText>(R.id.pinBox4),
+            findViewById<EditText>(R.id.pinBox5), findViewById<EditText>(R.id.pinBox6),
+            findViewById<EditText>(R.id.pinBox7), findViewById<EditText>(R.id.pinBox8),
+            findViewById<EditText>(R.id.pinBox9), findViewById<EditText>(R.id.pinBox10)
+        )
+        for (i in boxes.indices) {
+            if (i < pin.length) {
+                boxes[i].setText(pin[i].toString())
+            } else {
+                boxes[i].setText("")
+            }
+        }
+    }
+
+    /**
+     * Show the manual input fields + send button (after QR scan or legacy mode)
+     */
+    private fun showManualInputSection() {
+        findViewById<View>(R.id.manualInputSection).visibility = View.VISIBLE
+        findViewById<View>(R.id.searchButton).visibility = View.VISIBLE
+    }
+
+    /**
+     * Decode a QR code from a gallery image using MLKit barcode scanning
+     */
+    private fun decodeQrFromGalleryImage(uri: android.net.Uri) {
+        try {
+            val image = com.google.mlkit.vision.common.InputImage.fromFilePath(this, uri)
+            val scanner = com.google.mlkit.vision.barcode.BarcodeScanning.getClient()
+            scanner.process(image)
+                .addOnSuccessListener { barcodes ->
+                    if (barcodes.isNotEmpty()) {
+                        val qrData = barcodes[0].rawValue
+                        if (!qrData.isNullOrEmpty()) {
+                            handleScannedQrData(qrData)
+                        } else {
+                            ThemedToast.show(this, "QR code is empty")
+                        }
+                    } else {
+                        ThemedToast.show(this, "No QR code found in image")
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e(TAG, "Failed to decode QR from gallery image", e)
+                    ThemedToast.show(this, "Failed to read QR code from image")
+                }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing gallery image", e)
+            ThemedToast.show(this, "Failed to process image")
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        qrAutoSent = false // Reset latch so a new scan can fire
+        // Load and display pending friend requests
+        loadPendingFriendRequests()
+        updateFriendRequestBadge()
+
+        // Listen for background friend request status changes AND finalization
+        val filter = IntentFilter().apply {
+            addAction(com.shieldmessenger.services.TorService.ACTION_FRIEND_REQUEST_STATUS_CHANGED)
+            addAction("com.shieldmessenger.FRIEND_REQUEST_RECEIVED")
+        }
+        registerReceiver(friendRequestStatusReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        try {
+            unregisterReceiver(friendRequestStatusReceiver)
+        } catch (_: IllegalArgumentException) {
+            // Already unregistered
+        }
+    }
+
+    /**
+     * Load pending friend requests from SharedPreferences and display them
+     */
+    private fun loadPendingFriendRequests() {
+        try {
+            val prefs = getSharedPreferences("friend_requests", Context.MODE_PRIVATE)
+            val pendingRequestsSet = prefs.getStringSet("pending_requests_v2", mutableSetOf()) ?: mutableSetOf()
+
+            Log.d(TAG, "Loading pending friend requests: ${pendingRequestsSet.size} requests")
+
+            // Parse pending requests (new format with direction and status)
+            val pendingRequests = mutableListOf<com.shieldmessenger.models.PendingFriendRequest>()
+            for (requestJson in pendingRequestsSet) {
+                try {
+                    val request = com.shieldmessenger.models.PendingFriendRequest.fromJson(requestJson)
+                    pendingRequests.add(request)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to parse pending request: $requestJson", e)
+                }
+            }
+
+            // Also check for old format incoming requests and migrate them
+            val oldRequestsSet = prefs.getStringSet("pending_requests", mutableSetOf()) ?: mutableSetOf()
+            for (requestJson in oldRequestsSet) {
+                try {
+                    val oldRequest = FriendRequest.fromJson(requestJson)
+                    // Convert to new format as incoming request
+                    val newRequest = com.shieldmessenger.models.PendingFriendRequest(
+                        displayName = oldRequest.displayName,
+                        ipfsCid = oldRequest.ipfsCid,
+                        direction = com.shieldmessenger.models.PendingFriendRequest.DIRECTION_INCOMING,
+                        status = com.shieldmessenger.models.PendingFriendRequest.STATUS_PENDING,
+                        timestamp = oldRequest.timestamp
+                    )
+                    pendingRequests.add(newRequest)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to parse old request: $requestJson", e)
+                }
+            }
+
+            // Stale "sending" cleanup: if process died during send, mark as failed after 3 min
+            val now = System.currentTimeMillis()
+            val staleThresholdMs = 3 * 60 * 1000L
+            var hasStale = false
+            for (i in pendingRequests.indices) {
+                val req = pendingRequests[i]
+                if (req.status == com.shieldmessenger.models.PendingFriendRequest.STATUS_SENDING
+                    && now - req.timestamp > staleThresholdMs
+                ) {
+                    pendingRequests[i] = req.copy(status = com.shieldmessenger.models.PendingFriendRequest.STATUS_FAILED)
+                    hasStale = true
+                }
+            }
+            if (hasStale) {
+                // Write cleaned-up list back to prefs
+                val cleanedSet = pendingRequests.map { it.toJson() }.toMutableSet()
+                prefs.edit().putStringSet("pending_requests_v2", cleanedSet).apply()
+                Log.i(TAG, "Cleaned up stale 'sending' requests → marked as failed")
+            }
+
+            // Deduplicate based on id (prefer id), fall back to CID for old entries without id
+            val uniqueRequests = pendingRequests.distinctBy { it.id }
+
+            Log.d(TAG, "Loaded ${uniqueRequests.size} unique pending friend requests")
+
+            // Display friend requests in UI
+            displayFriendRequests(uniqueRequests)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load pending friend requests", e)
+        }
+    }
+
+    /**
+     * Display friend requests in the UI
+     */
+    private fun displayFriendRequests(friendRequests: List<com.shieldmessenger.models.PendingFriendRequest>) {
+        val requestsContainer = findViewById<View>(R.id.friendRequestsContainer)
+        val requestsList = findViewById<android.widget.LinearLayout>(R.id.friendRequestsList)
+        val deleteButton = findViewById<View>(R.id.deleteButton)
+
+        // Clear existing views
+        requestsList.removeAllViews()
+
+        if (friendRequests.isEmpty()) {
+            requestsContainer.visibility = View.GONE
+            deleteButton.visibility = View.GONE
+            return
+        }
+
+        requestsContainer.visibility = View.VISIBLE
+        deleteButton.visibility = View.VISIBLE
+
+        // Add each friend request using the new layout
+        for (friendRequest in friendRequests) {
+            val requestView = layoutInflater.inflate(R.layout.item_friend_request, requestsList, false)
+
+            val requestName = requestView.findViewById<android.widget.TextView>(R.id.requestName)
+            val requestStatus = requestView.findViewById<android.widget.TextView>(R.id.requestStatus)
+            val requestContainer = requestView.findViewById<View>(R.id.requestContainer)
+            val requestCheckbox = requestView.findViewById<android.widget.CheckBox>(R.id.requestCheckbox)
+
+            // Set name (remove @ prefix)
+            requestName.text = friendRequest.displayName.removePrefix("@")
+
+            // Handle checkbox clicks
+            requestCheckbox.setOnCheckedChangeListener { _, isChecked ->
+                if (isChecked) {
+                    selectedRequests.add(friendRequest.ipfsCid)
+                } else {
+                    selectedRequests.remove(friendRequest.ipfsCid)
+                }
+            }
+
+            // Show checkbox if in delete mode
+            if (isDeleteMode) {
+                requestCheckbox.visibility = View.VISIBLE
+            } else {
+                requestCheckbox.visibility = View.GONE
+            }
+
+            // Clear any leftover compound drawables from previous state
+            requestStatus.setCompoundDrawablesRelativeWithIntrinsicBounds(0, 0, 0, 0)
+
+            // Set status based on direction and status
+            when {
+                friendRequest.status == com.shieldmessenger.models.PendingFriendRequest.STATUS_SENDING -> {
+                    requestStatus.text = "Sending..."
+                    requestStatus.setTextColor(getColor(R.color.text_gray))
+                    requestStatus.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                        R.drawable.ic_clock, 0, 0, 0
+                    )
+                    requestStatus.compoundDrawablePadding = 6
+                }
+                friendRequest.status == com.shieldmessenger.models.PendingFriendRequest.STATUS_INVALID_PIN -> {
+                    requestStatus.text = "Invalid PIN"
+                    requestStatus.setTextColor(getColor(android.R.color.holo_red_light))
+                }
+                friendRequest.direction == com.shieldmessenger.models.PendingFriendRequest.DIRECTION_INCOMING -> {
+                    requestStatus.text = "Accept"
+                    requestStatus.setTextColor(getColor(R.color.text_gray))
+                }
+                friendRequest.status == com.shieldmessenger.models.PendingFriendRequest.STATUS_FAILED -> {
+                    requestStatus.text = "Retry"
+                    requestStatus.setTextColor(getColor(android.R.color.holo_orange_light))
+                }
+                else -> {
+                    requestStatus.text = "Pending"
+                    requestStatus.setTextColor(getColor(R.color.text_gray))
+                }
+            }
+
+            // Handle status badge click (no action while sending or invalid PIN)
+            if (friendRequest.status == com.shieldmessenger.models.PendingFriendRequest.STATUS_SENDING) {
+                requestStatus.setOnClickListener(null)
+                requestStatus.isClickable = false
+            } else if (friendRequest.status == com.shieldmessenger.models.PendingFriendRequest.STATUS_INVALID_PIN) {
+                requestStatus.setOnClickListener {
+                    androidx.appcompat.app.AlertDialog.Builder(this@AddFriendActivity)
+                        .setTitle("Invalid PIN")
+                        .setMessage("Someone sent you a friend request but used the wrong PIN. Ask them to resend with the correct code.")
+                        .setPositiveButton("Dismiss") { _, _ ->
+                            removePendingFriendRequest(friendRequest)
+                            loadPendingFriendRequests()
+                        }
+                        .setNegativeButton("Keep", null)
+                        .show()
+                }
+            } else {
+            requestStatus.setOnClickListener {
+                if (friendRequest.direction == com.shieldmessenger.models.PendingFriendRequest.DIRECTION_OUTGOING) {
+                    // Outgoing request - show confirmation dialog before resending
+                    androidx.appcompat.app.AlertDialog.Builder(this@AddFriendActivity)
+                        .setTitle("Resend Friend Request?")
+                        .setMessage("Send another friend request to ${friendRequest.displayName}?")
+                        .setPositiveButton("Resend") { _, _ ->
+                            resendFriendRequest(friendRequest)
+                        }
+                        .setNegativeButton("Cancel", null)
+                        .show()
+                } else {
+                    // Incoming request - accept directly (no PIN needed unless legacy mode)
+                    val secPrefs = getSharedPreferences("security_prefs", Context.MODE_PRIVATE)
+                    val isLegacy = secPrefs.getBoolean("legacy_manual_entry", false)
+
+                    if (isLegacy) {
+                        // Legacy mode: show full form with PIN boxes
+                        showManualInputSection()
+                        val cidInput = findViewById<EditText>(R.id.cidInput)
+                        cidInput.setText(friendRequest.ipfsCid)
+
+                        requestStatus.isEnabled = false
+                        requestStatus.alpha = 0.5f
+
+                        val mainButton = findViewById<TextView>(R.id.searchButton)
+                        mainButton.text = "Accept Friend Request"
+
+                        val scrollView = findViewById<android.widget.ScrollView>(R.id.addFriendScrollView)
+                        scrollView?.post { scrollView.smoothScrollTo(0, 0) }
+
+                        val pinBox1 = findViewById<EditText>(R.id.pinBox1)
+                        pinBox1.requestFocus()
+                        val inputMethodManager = getSystemService(android.view.inputmethod.InputMethodManager::class.java)
+                        inputMethodManager.showSoftInput(pinBox1, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+
+                        ThemedToast.show(this, "Friend request from ${friendRequest.displayName}. Enter PIN to accept")
+                    } else {
+                        // Normal mode: accept immediately, no PIN needed
+                        requestStatus.isEnabled = false
+                        requestStatus.alpha = 0.5f
+                        acceptPhase2FriendRequest(friendRequest.ipfsCid, "")
+                    }
+                }
+            }
+            } // end else (not sending)
+
+            // Handle card click - show fields and auto-fill CID
+            requestView.setOnClickListener {
+                val secPrefs = getSharedPreferences("security_prefs", Context.MODE_PRIVATE)
+                val isLegacy = secPrefs.getBoolean("legacy_manual_entry", false)
+
+                // Incoming request in normal mode: accept immediately on tap
+                if (friendRequest.direction == com.shieldmessenger.models.PendingFriendRequest.DIRECTION_INCOMING && !isLegacy) {
+                    requestStatus.isEnabled = false
+                    requestStatus.alpha = 0.5f
+                    acceptPhase2FriendRequest(friendRequest.ipfsCid, "")
+                    return@setOnClickListener
+                }
+
+                // Legacy mode or outgoing request: show full form
+                showManualInputSection()
+                val cidInput = findViewById<EditText>(R.id.cidInput)
+                cidInput.setText(friendRequest.ipfsCid)
+
+                if (friendRequest.direction == com.shieldmessenger.models.PendingFriendRequest.DIRECTION_INCOMING) {
+                    requestStatus.isEnabled = false
+                    requestStatus.alpha = 0.5f
+
+                    val mainButton = findViewById<TextView>(R.id.searchButton)
+                    mainButton.text = "Accept Friend Request"
+                }
+
+                val scrollView = findViewById<android.widget.ScrollView>(R.id.addFriendScrollView)
+                scrollView?.post {
+                    scrollView.smoothScrollTo(0, 0)
+                }
+
+                val pinBox1 = findViewById<EditText>(R.id.pinBox1)
+                pinBox1.requestFocus()
+
+                val inputMethodManager = getSystemService(android.view.inputmethod.InputMethodManager::class.java)
+                inputMethodManager.showSoftInput(pinBox1, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+
+                val statusText = if (friendRequest.direction == com.shieldmessenger.models.PendingFriendRequest.DIRECTION_INCOMING) {
+                    "Enter their PIN to accept friend request"
+                } else {
+                    "Enter PIN to complete request"
+                }
+                ThemedToast.show(this, statusText)
+            }
+
+            // Menu removed - deletion now handled via delete mode
+
+            requestsList.addView(requestView)
+        }
+    }
+
+    /**
+     * Prompt user for PIN and accept friend request
+     */
+    private fun promptForPinAndAcceptRequest(friendRequest: FriendRequest) {
+        val pinInput = android.widget.EditText(this)
+        pinInput.inputType = android.text.InputType.TYPE_CLASS_NUMBER
+        pinInput.hint = "Enter 6-digit PIN"
+        pinInput.setTextColor(getColor(R.color.text_white))
+        pinInput.setHintTextColor(getColor(R.color.text_gray))
+        pinInput.setPadding(32, 32, 32, 32)
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Accept Friend Request")
+            .setMessage("${friendRequest.displayName} wants to add you as a friend.\n\nEnter the PIN they gave you:")
+            .setView(pinInput)
+            .setPositiveButton("Accept") { _, _ ->
+                val pin = pinInput.text.toString().trim()
+
+                if (pin.length != 6 || !pin.all { it.isDigit() }) {
+                    ThemedToast.show(this, "PIN must be 6 digits")
+                    return@setPositiveButton
+                }
+
+                // Download contact card using CID and PIN
+                acceptFriendRequest(friendRequest, pin)
+            }
+            .setNegativeButton("Decline") { _, _ ->
+                declineFriendRequest(friendRequest)
+            }
+            .show()
+    }
+
+    /**
+     * Accept friend request by downloading contact card
+     */
+    private fun acceptFriendRequest(friendRequest: FriendRequest, pin: String) {
+        Log.d(TAG, "Accepting friend request from ${friendRequest.displayName}")
+
+        // Use the existing downloadContactCard function
+        // Note: downloadContactCard will automatically call removeFriendRequestByCid()
+        // when the download completes successfully, which will refresh the UI
+        downloadContactCard(friendRequest.ipfsCid, pin)
+    }
+
+    /**
+     * Decline friend request
+     */
+    private fun declineFriendRequest(friendRequest: FriendRequest) {
+        Log.d(TAG, "Declining friend request from ${friendRequest.displayName}")
+
+        removeFriendRequest(friendRequest)
+
+        ThemedToast.show(this, "Declined friend request from ${friendRequest.displayName}")
+    }
+
+    /**
+     * Remove friend request from SharedPreferences
+     */
+    private fun removeFriendRequest(friendRequest: FriendRequest) {
+        try {
+            val prefs = getSharedPreferences("friend_requests", Context.MODE_PRIVATE)
+            val pendingRequestsSet = prefs.getStringSet("pending_requests", mutableSetOf()) ?: mutableSetOf()
+
+            // Rebuild set without this request
+            val newSet = mutableSetOf<String>()
+            for (requestJson in pendingRequestsSet) {
+                val request = FriendRequest.fromJson(requestJson)
+
+                // Keep all requests except the one we're removing
+                if (request.displayName != friendRequest.displayName ||
+                    request.ipfsCid != friendRequest.ipfsCid) {
+                    newSet.add(requestJson)
+                }
+            }
+
+            // Save updated set
+            prefs.edit()
+                .putStringSet("pending_requests", newSet)
+                .apply()
+
+            Log.d(TAG, "Removed friend request - ${newSet.size} remaining")
+
+            // Reload the UI
+            loadPendingFriendRequests()
+            updateFriendRequestBadge()
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to remove friend request", e)
+        }
+    }
+
+    /**
+     * Remove friend request by CID
+     */
+    private fun removeFriendRequestByCid(cid: String) {
+        try {
+            val prefs = getSharedPreferences("friend_requests", Context.MODE_PRIVATE)
+            val pendingRequestsV2 = prefs.getStringSet("pending_requests_v2", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+
+            // Cancel the system notification for this friend request
+            for (requestJson in pendingRequestsV2) {
+                try {
+                    val request = com.shieldmessenger.models.PendingFriendRequest.fromJson(requestJson)
+                    if (request.ipfsCid == cid) {
+                        val notificationId = 5000 + Math.abs(request.displayName.hashCode() % 10000)
+                        val notificationManager = getSystemService(android.app.NotificationManager::class.java)
+                        notificationManager.cancel(notificationId)
+                        Log.d(TAG, "Cancelled friend request notification for ${request.displayName} (ID: $notificationId)")
+                        break
+                    }
+                } catch (e: Exception) { /* ignore parse errors */ }
+            }
+
+            // Remove requests matching this CID
+            val updatedRequests = pendingRequestsV2.filter { requestJson ->
+                try {
+                    val request = com.shieldmessenger.models.PendingFriendRequest.fromJson(requestJson)
+                    request.ipfsCid != cid // Keep if CID doesn't match
+                } catch (e: Exception) {
+                    true // Keep if can't parse
+                }
+            }.toMutableSet()
+
+            // Save updated set
+            prefs.edit()
+                .putStringSet("pending_requests_v2", updatedRequests)
+                .apply()
+
+            Log.d(TAG, "Removed friend request with CID=$cid - ${updatedRequests.size} remaining")
+
+            // Reload the UI
+            loadPendingFriendRequests()
+            updateFriendRequestBadge()
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to remove friend request by CID", e)
+        }
+    }
+
+    /**
+     * Update the friend request badge count
+     */
+    private fun updateFriendRequestBadge() {
+        val rootView = findViewById<View>(android.R.id.content)
+        BadgeUtils.updateFriendRequestBadge(this, rootView)
+    }
+
+    private fun showLoading(text: String, subtext: String = "Please wait") {
+        loadingText.text = text
+        loadingSubtext.text = subtext
+        loadingOverlay.visibility = View.VISIBLE
+    }
+
+    private fun hideLoading() {
+        loadingOverlay.visibility = View.GONE
+    }
+
+    private fun downloadContactCard(cidOrOnion: String, pin: String, isAccepting: Boolean = false) {
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                // Detect if input is .onion address (v2.0) or IPFS CID (v1.0)
+                val isOnion = cidOrOnion.endsWith(".onion")
+
+                if (isOnion) {
+                    Log.d(TAG, "Downloading contact card via Tor from .onion address...")
+                } else {
+                    Log.d(TAG, "Downloading contact card from IPFS...")
+                }
+
+                val loadingText = if (isAccepting) "Accepting friend request..." else "Downloading contact card..."
+                val loadingSubtext = if (isOnion) "Connecting via Tor..." else "Downloading from IPFS..."
+                showLoading(loadingText, loadingSubtext)
+
+                val cardManager = ContactCardManager(this@AddFriendActivity)
+                val result = withContext(Dispatchers.IO) {
+                    if (isOnion) {
+                        // v2.0: Download via Tor .onion address
+                        cardManager.downloadContactCardViaTor(cidOrOnion, pin)
+                    } else {
+                        // v1.0: Download via IPFS CID
+                        cardManager.downloadContactCard(cidOrOnion, pin)
+                    }
+                }
+
+                if (result.isSuccess) {
+                    val contactCard = result.getOrThrow()
+                    handleContactCardDownloaded(contactCard, cidOrOnion, pin)
+                } else {
+                    throw result.exceptionOrNull()!!
+                }
+            } catch (e: Exception) {
+                hideLoading()
+                Log.e(TAG, "Failed to download contact card", e)
+                val errorMessage = when {
+                    e.message?.contains("invalid PIN", ignoreCase = true) == true ||
+                    e.message?.contains("decryption failed", ignoreCase = true) == true ->
+                        "Invalid PIN. Please check and try again."
+                    e.message?.contains("download failed", ignoreCase = true) == true ||
+                    e.message?.contains("404", ignoreCase = true) == true ||
+                    e.message?.contains("no response", ignoreCase = true) == true ->
+                        "Could not reach contact. They may be offline."
+                    e.message?.contains("SOCKS5", ignoreCase = true) == true ||
+                    e.message?.contains("Tor", ignoreCase = true) == true ->
+                        "Tor connection failed. Check network settings."
+                    else ->
+                        "Failed to download contact: ${e.message}"
+                }
+                ThemedToast.showLong(this@AddFriendActivity, errorMessage)
+            }
+        }
+    }
+
+    private fun handleContactCardDownloaded(contactCard: ContactCard, cid: String, pin: String) {
+        Log.i(TAG, "Successfully downloaded contact card for: ${contactCard.displayName}")
+
+        // Save contact to encrypted database
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                Log.d(TAG, "Step 1: Getting KeyManager instance...")
+                val keyManager = KeyManager.getInstance(this@AddFriendActivity)
+
+                Log.d(TAG, "Step 2: Getting database passphrase...")
+                val dbPassphrase = keyManager.getDatabasePassphrase()
+                Log.d(TAG, "Database passphrase obtained (${dbPassphrase.size} bytes)")
+
+                Log.d(TAG, "Step 3: Getting database instance...")
+                val database = ShieldMessengerDatabase.getInstance(this@AddFriendActivity, dbPassphrase)
+                Log.d(TAG, "Database instance obtained")
+
+                Log.d(TAG, "Step 4: Checking if contact already exists...")
+                val existingContact = withContext(Dispatchers.IO) {
+                    database.contactDao().getContactBySolanaAddress(contactCard.solanaAddress)
+                }
+
+                if (existingContact != null) {
+                    hideLoading()
+                    Log.w(TAG, "Contact already exists in database")
+                    ThemedToast.show(this@AddFriendActivity, "Contact already exists: ${contactCard.displayName}")
+                    finish()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                        overrideActivityTransition(Activity.OVERRIDE_TRANSITION_CLOSE, 0, 0)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        overridePendingTransition(0, 0)
+                    }
+                    return@launch
+                }
+
+                // Step 4.5: IPFS Contact List Backup (v5 architecture)
+                // After adding a friend, backup our updated contact list to IPFS mesh
+                Log.d(TAG, "Step 4.5: Backing up contact list to IPFS mesh...")
+                try {
+                    val contactListManager = com.shieldmessenger.services.ContactListManager.getInstance(this@AddFriendActivity)
+
+                    // Backup our own contact list (now includes this new friend)
+                    Log.d(TAG, "Starting OUR contact list backup...")
+                    val backupResult = contactListManager.backupToIPFS()
+                    if (backupResult.isSuccess) {
+                        val ourCID = backupResult.getOrThrow()
+                        Log.i(TAG, "SUCCESS: OUR contact list backed up to IPFS")
+                    } else {
+                        Log.e(TAG, "FAILED to backup OUR contact list: ${backupResult.exceptionOrNull()?.message}")
+                        backupResult.exceptionOrNull()?.printStackTrace()
+                    }
+
+                    // Pin friend's contact list for redundancy (v5 architecture)
+                    // Fetch friend's contact list via their .onion HTTP and pin it locally
+                    if (contactCard.ipfsCid != null) {
+                        Log.d(TAG, "Starting contact list pinning for ${contactCard.displayName}")
+
+                        val ipfsManager = com.shieldmessenger.services.IPFSManager.getInstance(this@AddFriendActivity)
+                        val pinResult = ipfsManager.pinFriendContactList(
+                            friendCID = contactCard.ipfsCid,
+                            displayName = contactCard.displayName,
+                            friendOnion = contactCard.friendRequestOnion // Fetch via friend's .onion
+                        )
+                        if (pinResult.isSuccess) {
+                            Log.i(TAG, "SUCCESS: Pinned ${contactCard.displayName}'s contact list")
+                        } else {
+                            Log.e(TAG, "FAILED to pin ${contactCard.displayName}'s contact list: ${pinResult.exceptionOrNull()?.message}")
+                        }
+                    } else {
+                        Log.w(TAG, "Friend's contact list CID is NULL - cannot pin (they may be using old version)")
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Non-critical error during contact list backup", e)
+                    // Don't fail the entire friend add process if backup fails
+                }
+
+                Log.d(TAG, "Step 5: Check if this is accepting a friend request...")
+                // Check if we have a pending INCOMING friend request from this person
+                val prefs = getSharedPreferences("friend_requests", Context.MODE_PRIVATE)
+
+                // Check new format
+                val pendingRequestsV2 = prefs.getStringSet("pending_requests_v2", mutableSetOf()) ?: mutableSetOf()
+                val incomingRequest = pendingRequestsV2.mapNotNull { requestJson ->
+                    try {
+                        com.shieldmessenger.models.PendingFriendRequest.fromJson(requestJson)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }.find {
+                    it.ipfsCid == cid &&
+                    it.direction == com.shieldmessenger.models.PendingFriendRequest.DIRECTION_INCOMING
+                }
+
+                // Also check old format for backwards compatibility
+                val oldRequests = prefs.getStringSet("pending_requests", mutableSetOf()) ?: mutableSetOf()
+                val hasOldIncomingRequest = oldRequests.any { requestJson ->
+                    try {
+                        val request = com.shieldmessenger.models.FriendRequest.fromJson(requestJson)
+                        request.ipfsCid == cid
+                    } catch (e: Exception) {
+                        false
+                    }
+                }
+
+                val isAcceptingFriendRequest = (incomingRequest != null) || hasOldIncomingRequest
+                Log.d(TAG, "Is accepting friend request: $isAcceptingFriendRequest")
+
+                if (isAcceptingFriendRequest) {
+                    // Accepting an incoming request - add to Contacts immediately
+                    Log.d(TAG, "Step 6: Adding to Contacts (mutual friends)...")
+                    val contact = Contact(
+                        displayName = contactCard.displayName,
+                        solanaAddress = contactCard.solanaAddress,
+                        publicKeyBase64 = Base64.encodeToString(
+                            contactCard.solanaPublicKey,
+                            Base64.NO_WRAP
+                        ),
+                        x25519PublicKeyBase64 = Base64.encodeToString(
+                            contactCard.x25519PublicKey,
+                            Base64.NO_WRAP
+                        ),
+                        kyberPublicKeyBase64 = Base64.encodeToString(
+                            contactCard.kyberPublicKey,
+                            Base64.NO_WRAP
+                        ),
+                        voiceOnion = contactCard.voiceOnion,
+                        addedTimestamp = System.currentTimeMillis(),
+                        lastContactTimestamp = System.currentTimeMillis(),
+                        trustLevel = Contact.TRUST_UNTRUSTED,
+                        friendshipStatus = Contact.FRIENDSHIP_CONFIRMED
+                    )
+
+                    val contactId = withContext(Dispatchers.IO) {
+                        database.contactDao().insertContact(contact)
+                    }
+
+                    Log.i(TAG, "SUCCESS! Contact added with ID: $contactId")
+
+                    // Initialize key chain for progressive ephemeral key evolution
+                    try {
+                        val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@AddFriendActivity)
+                        val ourMessagingOnion = keyManager.getMessagingOnion()
+                        val theirMessagingOnion = contact.messagingOnion ?: contactCard.messagingOnion
+
+                        if (ourMessagingOnion.isNullOrEmpty() || theirMessagingOnion.isNullOrEmpty()) {
+                            Log.e(TAG, "Cannot initialize key chain: missing onion address for ${contact.displayName}")
+                        } else {
+                            com.shieldmessenger.crypto.KeyChainManager.initializeKeyChain(
+                                context = this@AddFriendActivity,
+                                contactId = contactId,
+                                theirX25519PublicKey = contactCard.x25519PublicKey,
+                                theirKyberPublicKey = contactCard.kyberPublicKey,
+                                ourMessagingOnion = ourMessagingOnion,
+                                theirMessagingOnion = theirMessagingOnion
+                            )
+                            Log.i(TAG, "Key chain initialized for ${contact.displayName}")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to initialize key chain for ${contact.displayName}", e)
+                    }
+
+                    // Remove the incoming request from pending
+                    removeFriendRequestByCid(cid)
+
+                    // NOTE: OLD v1.0 friend request notification removed - use NEW Phase 1/2/2b flow instead
+                    Log.i(TAG, "Contact added successfully (manual download flow)")
+                    // TODO: Consider removing this entire manual download flow in favor of Phase 1/2/2b
+
+                    ThemedToast.showLong(this@AddFriendActivity, "Contact added: ${contactCard.displayName}")
+                } else {
+                    // Initiating a friend request - save to pending (NOT Contacts yet)
+                    Log.d(TAG, "Step 6: Saving to pending outgoing requests (NOT adding to Contacts)...")
+
+                    val pendingRequest = com.shieldmessenger.models.PendingFriendRequest(
+                        displayName = contactCard.displayName,
+                        ipfsCid = cid,
+                        direction = com.shieldmessenger.models.PendingFriendRequest.DIRECTION_OUTGOING,
+                        status = com.shieldmessenger.models.PendingFriendRequest.STATUS_PENDING,
+                        timestamp = System.currentTimeMillis(),
+                        contactCardJson = contactCard.toJson() // Save contact card for later
+                    )
+
+                    // Save to pending requests
+                    savePendingFriendRequest(pendingRequest)
+
+                    // NOTE: OLD v1.0 friend request notification removed - use NEW Phase 1/2/2b flow instead
+                    Log.i(TAG, "Contact card saved to pending (manual download flow)")
+                    // TODO: Consider removing this entire manual download flow in favor of Phase 1/2/2b
+
+                    ThemedToast.showLong(this@AddFriendActivity, "Contact card saved. Use Phase 1 flow to send friend request.")
+                }
+
+                hideLoading()
+
+                // Navigate back to main screen (Messages view)
+                val intent = Intent(this@AddFriendActivity, MainActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                startActivity(intent)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    overrideActivityTransition(Activity.OVERRIDE_TRANSITION_CLOSE, 0, 0)
+                } else {
+                    @Suppress("DEPRECATION")
+                    overridePendingTransition(0, 0)
+                }
+                finish()
+            } catch (e: Exception) {
+                Log.e(TAG, "DETAILED ERROR - Failed to save contact to database", e)
+                Log.e(TAG, "Error type: ${e.javaClass.simpleName}")
+                Log.e(TAG, "Error message: ${e.message}")
+                Log.e(TAG, "Stack trace:", e)
+
+                val errorMsg = when {
+                    e.message?.contains("no such table") == true ->
+                        "Database error: Table not created"
+                    e.message?.contains("UNIQUE constraint") == true ->
+                        "Contact already exists"
+                    e.message != null ->
+                        "Database error: ${e.message}"
+                    else ->
+                        "Database error: ${e.javaClass.simpleName}"
+                }
+
+                hideLoading()
+                ThemedToast.showLong(this@AddFriendActivity, errorMsg)
+
+                // Navigate back to main screen even on error
+                val intent = Intent(this@AddFriendActivity, MainActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                startActivity(intent)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    overrideActivityTransition(Activity.OVERRIDE_TRANSITION_CLOSE, 0, 0)
+                } else {
+                    @Suppress("DEPRECATION")
+                    overridePendingTransition(0, 0)
+                }
+                finish()
+            }
+        }
+    }
+
+    /**
+     * PHASE 2: Accept incoming friend request
+     * Decrypts Phase 1 payload, sends full contact card encrypted with sender's X25519 key
+     */
+    private fun acceptPhase2FriendRequest(senderOnion: String, senderPin: String) {
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                // Sanitize .onion address - remove https://, http://, and trailing slashes
+                val sanitizedOnion = senderOnion
+                    .replace("https://", "", ignoreCase = true)
+                    .replace("http://", "", ignoreCase = true)
+                    .removeSuffix("/")
+                    .trim()
+
+                Log.d(TAG, "Phase 2: Accepting friend request...")
+
+                // Find the pending incoming request by onion address (stored in ipfsCid field for v2.0)
+                val prefs = getSharedPreferences("friend_requests", Context.MODE_PRIVATE)
+                val pendingRequestsSet = prefs.getStringSet("pending_requests_v2", mutableSetOf()) ?: mutableSetOf()
+
+                val incomingRequest = pendingRequestsSet.mapNotNull { requestJson ->
+                    try {
+                        com.shieldmessenger.models.PendingFriendRequest.fromJson(requestJson)
+                    } catch (e: Exception) {
+                        null
+                    }
+                }.find {
+                    it.direction == com.shieldmessenger.models.PendingFriendRequest.DIRECTION_INCOMING &&
+                    it.contactCardJson != null // Must have Phase 1 encrypted data
+                }
+
+                if (incomingRequest == null || incomingRequest.contactCardJson == null) {
+                    hideLoading()
+                    ThemedToast.show(this@AddFriendActivity, "No pending friend request found")
+                    return@launch
+                }
+
+                Log.d(TAG, "Found incoming request, loading Phase 1 payload...")
+
+                // Phase 1 is already decrypted by TorService - just use the JSON directly
+                val phase1Json = incomingRequest.contactCardJson ?: throw Exception("No Phase 1 data")
+
+                Log.d(TAG, "Loaded Phase 1: $phase1Json")
+
+                // Parse Phase 1 payload
+                val phase1Obj = org.json.JSONObject(phase1Json)
+                val senderUsername = phase1Obj.getString("username")
+                val senderFriendRequestOnion = phase1Obj.getString("friend_request_onion")
+                val senderX25519PublicKeyBase64 = phase1Obj.getString("x25519_public_key")
+                val senderX25519PublicKey = Base64.decode(senderX25519PublicKeyBase64, Base64.NO_WRAP)
+
+                // Extract Kyber public key (for quantum resistance)
+                val senderKyberPublicKey = if (phase1Obj.has("kyber_public_key")) {
+                    Base64.decode(phase1Obj.getString("kyber_public_key"), Base64.NO_WRAP)
+                } else {
+                    null
+                }
+
+                // Verify Ed25519 signature (defense-in-depth against .onion MitM)
+                if (phase1Obj.has("signature") && phase1Obj.has("ed25519_public_key")) {
+                    val signature = Base64.decode(phase1Obj.getString("signature"), Base64.NO_WRAP)
+                    val senderEd25519PublicKey = Base64.decode(phase1Obj.getString("ed25519_public_key"), Base64.NO_WRAP)
+
+                    // Reconstruct unsigned JSON to verify signature
+                    val unsignedJson = org.json.JSONObject().apply {
+                        put("username", senderUsername)
+                        put("friend_request_onion", senderFriendRequestOnion)
+                        put("x25519_public_key", senderX25519PublicKeyBase64)
+                        put("kyber_public_key", phase1Obj.getString("kyber_public_key"))
+                        put("phase", 1)
+                    }.toString()
+
+                    val signatureValid = com.shieldmessenger.crypto.RustBridge.verifySignature(
+                        unsignedJson.toByteArray(Charsets.UTF_8),
+                        signature,
+                        senderEd25519PublicKey
+                    )
+
+                    if (!signatureValid) {
+                        hideLoading()
+                        ThemedToast.show(this@AddFriendActivity, "Invalid signature - friend request rejected (possible MitM attack)")
+                        Log.e(TAG, "Phase 1 signature verification FAILED - rejecting friend request")
+                        return@launch
+                    }
+                    Log.i(TAG, "Phase 1 signature verified (Ed25519)")
+                } else {
+                    Log.w(TAG, "Phase 1 has no signature (legacy friend request)")
+                }
+
+                Log.i(TAG, "Phase 1 decrypted successfully for sender: $senderUsername")
+
+                // Build YOUR full contact card
+                val keyManager = KeyManager.getInstance(this@AddFriendActivity)
+                val torManager = com.shieldmessenger.crypto.TorManager.getInstance(applicationContext)
+                val ownContactCard = ContactCard(
+                    displayName = keyManager.getUsername() ?: throw Exception("Username not set"),
+                    solanaPublicKey = keyManager.getSolanaPublicKey(),
+                    x25519PublicKey = keyManager.getEncryptionPublicKey(),
+                    kyberPublicKey = keyManager.getKyberPublicKey(),
+                    solanaAddress = keyManager.getSolanaAddress(),
+                    friendRequestOnion = keyManager.getFriendRequestOnion() ?: throw Exception("Friend request .onion not set"),
+                    messagingOnion = keyManager.getMessagingOnion() ?: throw Exception("Messaging .onion not set"),
+                    voiceOnion = torManager.getVoiceOnionAddress().takeUnless { it.isNullOrBlank() }
+                        ?: keyManager.getVoiceOnion().takeUnless { it.isNullOrBlank() }
+                        ?: "",
+                    contactPin = keyManager.getContactPin() ?: throw Exception("Contact PIN not set"),
+                    ipfsCid = keyManager.deriveContactListCID(), // v5: Send contact LIST CID for backup mesh
+                    timestamp = System.currentTimeMillis() / 1000
+                )
+
+                Log.d(TAG, "Built own contact card for Phase 2")
+
+                // Generate Kyber ciphertext for quantum-resistant key chain initialization
+                var hybridSharedSecret: ByteArray? = null
+                val kyberCiphertextBase64 = withContext(Dispatchers.IO) {
+                    if (senderKyberPublicKey != null && senderKyberPublicKey.any { it != 0.toByte() }) {
+                        // Perform hybrid encapsulation using sender's keys
+                        Log.d(TAG, "Generating hybrid Kyber ciphertext for quantum resistance")
+                        val encapResult = RustBridge.hybridEncapsulate(
+                            senderX25519PublicKey,
+                            senderKyberPublicKey
+                        )
+                        // Result: [combined_secret:64][x25519_ephemeral:32][kyber_ciphertext:1568]
+                        // Extract shared secret (first 64 bytes) - WE NEED TO SAVE THIS for key chain init!
+                        hybridSharedSecret = encapResult.copyOfRange(0, 64)
+                        // Extract ciphertext (remaining bytes) - send to Device A
+                        val ciphertext = encapResult.copyOfRange(64, encapResult.size)
+                        Base64.encodeToString(ciphertext, Base64.NO_WRAP)
+                    } else {
+                        Log.w(TAG, "Sender has no Kyber key - using legacy X25519-only mode")
+                        null
+                    }
+                }
+
+                // Build Phase 2 payload with contact card + Kyber ciphertext
+                val phase2UnsignedJson = org.json.JSONObject().apply {
+                    put("contact_card", org.json.JSONObject(ownContactCard.toJson()))
+                    if (kyberCiphertextBase64 != null) {
+                        put("kyber_ciphertext", kyberCiphertextBase64)
+                    }
+                    put("phase", 2)
+                }.toString()
+
+                // Sign Phase 2 with our Ed25519 key (defense-in-depth)
+                val ownSigningKey = keyManager.getSigningKeyBytes()
+                val ownSigningPublicKey = keyManager.getSigningPublicKey()
+                val phase2Signature = RustBridge.signData(
+                    phase2UnsignedJson.toByteArray(Charsets.UTF_8),
+                    ownSigningKey
+                )
+
+                // Add signature to payload
+                val phase2Payload = org.json.JSONObject(phase2UnsignedJson).apply {
+                    put("ed25519_public_key", Base64.encodeToString(ownSigningPublicKey, Base64.NO_WRAP))
+                    put("signature", Base64.encodeToString(phase2Signature, Base64.NO_WRAP))
+                }.toString()
+
+                Log.d(TAG, "Phase 2 payload signed with Ed25519")
+
+                // Encrypt Phase 2 payload with sender's X25519 public key
+                val encryptedPhase2 = withContext(Dispatchers.IO) {
+                    RustBridge.encryptMessage(
+                        plaintext = phase2Payload,
+                        recipientX25519PublicKey = senderX25519PublicKey
+                    )
+                }
+
+                Log.d(TAG, "Encrypted Phase 2 payload: ${encryptedPhase2.size} bytes (quantum=${kyberCiphertextBase64 != null})")
+
+                // Remove the old incoming request immediately
+                removeFriendRequestByCid(incomingRequest.ipfsCid)
+
+                // Build partial contact JSON with shared secret for later key chain init
+                val partialContactJson = org.json.JSONObject().apply {
+                    put("username", senderUsername)
+                    put("friend_request_onion", senderFriendRequestOnion)
+                    put("x25519_public_key", senderX25519PublicKeyBase64)
+                    if (senderKyberPublicKey != null) {
+                        put("kyber_public_key", Base64.encodeToString(senderKyberPublicKey, Base64.NO_WRAP))
+                    }
+                    if (hybridSharedSecret != null) {
+                        put("hybrid_shared_secret", Base64.encodeToString(hybridSharedSecret, Base64.NO_WRAP))
+                    }
+                }.toString()
+
+                // Save as "sending" immediately — background worker will update to pending/failed
+                val requestId = java.util.UUID.randomUUID().toString()
+                val pendingContact = com.shieldmessenger.models.PendingFriendRequest(
+                    displayName = senderUsername,
+                    ipfsCid = senderFriendRequestOnion,
+                    direction = com.shieldmessenger.models.PendingFriendRequest.DIRECTION_OUTGOING,
+                    status = com.shieldmessenger.models.PendingFriendRequest.STATUS_SENDING,
+                    timestamp = System.currentTimeMillis(),
+                    contactCardJson = partialContactJson,
+                    id = requestId
+                )
+                savePendingFriendRequest(pendingContact)
+
+                // Immediate feedback — no blocking overlay
+                ThemedToast.show(this@AddFriendActivity, "Accepting friend request from $senderUsername...")
+
+                // Clear form
+                findViewById<EditText>(R.id.cidInput).setText("")
+                findViewById<EditText>(R.id.pinBox1).setText("")
+                findViewById<EditText>(R.id.pinBox2).setText("")
+                findViewById<EditText>(R.id.pinBox3).setText("")
+                findViewById<EditText>(R.id.pinBox4).setText("")
+                findViewById<EditText>(R.id.pinBox5).setText("")
+                findViewById<EditText>(R.id.pinBox6).setText("")
+                findViewById<EditText>(R.id.pinBox7).setText("")
+                findViewById<EditText>(R.id.pinBox8).setText("")
+                findViewById<EditText>(R.id.pinBox9).setText("")
+                findViewById<EditText>(R.id.pinBox10).setText("")
+
+                // Reset button text
+                findViewById<TextView>(R.id.searchButton).text = "Send Friend Request"
+
+                // Reload UI — shows clock icon for "sending" entry
+                loadPendingFriendRequests()
+
+                // Kick off background send via TorService (survives Activity navigation)
+                com.shieldmessenger.services.TorService.acceptFriendRequestInBackground(
+                    requestId, senderFriendRequestOnion, encryptedPhase2, applicationContext
+                )
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Phase 2 acceptance failed", e)
+                val errorMsg = when {
+                    e.message?.contains("invalid PIN", ignoreCase = true) == true ||
+                    e.message?.contains("decryption failed", ignoreCase = true) == true ->
+                        "Invalid PIN. Please check and try again."
+                    else ->
+                        "Failed to accept: ${e.message}"
+                }
+                ThemedToast.show(this@AddFriendActivity, errorMsg)
+            }
+        }
+    }
+
+    /**
+     * PHASE 1: Initiate friend request with key exchange
+     * Sends minimal info encrypted with PIN: username + friend-request.onion + X25519 public key
+     */
+    private fun initiateFriendRequest(friendOnion: String, friendPin: String) {
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                // Sanitize .onion address - remove https://, http://, and trailing slashes
+                val sanitizedOnion = friendOnion
+                    .replace("https://", "", ignoreCase = true)
+                    .replace("http://", "", ignoreCase = true)
+                    .removeSuffix("/")
+                    .trim()
+
+                Log.d(TAG, "Phase 1: Initiating friend request to: $sanitizedOnion (original: $friendOnion)")
+
+                // Get YOUR info for Phase 1
+                val keyManager = KeyManager.getInstance(this@AddFriendActivity)
+                val ownDisplayName = keyManager.getUsername()
+                    ?: throw Exception("Username not set")
+                val ownFriendRequestOnion = keyManager.getFriendRequestOnion()
+                    ?: throw Exception("Friend request .onion not set")
+                val ownX25519PublicKey = keyManager.getEncryptionPublicKey()
+                val ownKyberPublicKey = keyManager.getKyberPublicKey()
+
+                Log.d(TAG, "Sending Phase 1 key exchange as: $ownDisplayName")
+
+                // Build Phase 1 payload (minimal public info + Kyber key for quantum resistance)
+                val phase1UnsignedJson = org.json.JSONObject().apply {
+                    put("username", ownDisplayName)
+                    put("friend_request_onion", ownFriendRequestOnion)
+                    put("x25519_public_key", android.util.Base64.encodeToString(ownX25519PublicKey, android.util.Base64.NO_WRAP))
+                    put("kyber_public_key", android.util.Base64.encodeToString(ownKyberPublicKey, android.util.Base64.NO_WRAP))
+                    put("phase", 1)
+                }.toString()
+
+                // Sign Phase 1 with our Ed25519 key (defense-in-depth against .onion MitM)
+                val ownSigningKey = keyManager.getSigningKeyBytes()
+                val ownSigningPublicKey = keyManager.getSigningPublicKey()
+                val phase1Signature = com.shieldmessenger.crypto.RustBridge.signData(
+                    phase1UnsignedJson.toByteArray(Charsets.UTF_8),
+                    ownSigningKey
+                )
+
+                // Add signature and signing public key to payload
+                val phase1Payload = org.json.JSONObject(phase1UnsignedJson).apply {
+                    put("ed25519_public_key", android.util.Base64.encodeToString(ownSigningPublicKey, android.util.Base64.NO_WRAP))
+                    put("signature", android.util.Base64.encodeToString(phase1Signature, android.util.Base64.NO_WRAP))
+                }.toString()
+
+                Log.d(TAG, "Phase 1 payload signed with Ed25519")
+
+                // Encrypt Phase 1 with PIN
+                val cardManager = com.shieldmessenger.services.ContactCardManager(this@AddFriendActivity)
+                val encryptedPhase1 = withContext(Dispatchers.IO) {
+                    cardManager.encryptWithPin(phase1Payload, friendPin)
+                }
+
+                Log.d(TAG, "Encrypted Phase 1 payload: ${encryptedPhase1.size} bytes")
+
+                // Save as "sending" immediately — background worker will update to pending/failed
+                val requestId = java.util.UUID.randomUUID().toString()
+                val pendingRequest = com.shieldmessenger.models.PendingFriendRequest(
+                    displayName = scannedUsername ?: "Pending Friend",
+                    ipfsCid = sanitizedOnion,
+                    direction = com.shieldmessenger.models.PendingFriendRequest.DIRECTION_OUTGOING,
+                    status = com.shieldmessenger.models.PendingFriendRequest.STATUS_SENDING,
+                    timestamp = System.currentTimeMillis(),
+                    contactCardJson = phase1Payload,
+                    id = requestId
+                )
+                savePendingFriendRequest(pendingRequest)
+
+                // Immediate feedback — no blocking overlay
+                ThemedToast.show(this@AddFriendActivity, "Sending friend request...")
+
+                // Clear form
+                findViewById<EditText>(R.id.cidInput).setText("")
+                findViewById<EditText>(R.id.pinBox1).setText("")
+                findViewById<EditText>(R.id.pinBox2).setText("")
+                findViewById<EditText>(R.id.pinBox3).setText("")
+                findViewById<EditText>(R.id.pinBox4).setText("")
+                findViewById<EditText>(R.id.pinBox5).setText("")
+                findViewById<EditText>(R.id.pinBox6).setText("")
+                findViewById<EditText>(R.id.pinBox7).setText("")
+                findViewById<EditText>(R.id.pinBox8).setText("")
+                findViewById<EditText>(R.id.pinBox9).setText("")
+                findViewById<EditText>(R.id.pinBox10).setText("")
+
+                // Clear scanned username after use
+                scannedUsername = null
+
+                // Reload UI — shows clock icon for "sending" entry
+                loadPendingFriendRequests()
+
+                // Kick off background send via TorService (survives Activity navigation)
+                com.shieldmessenger.services.TorService.sendFriendRequestInBackground(
+                    requestId, sanitizedOnion, encryptedPhase1, applicationContext
+                )
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Phase 1 failed", e)
+                ThemedToast.show(this@AddFriendActivity, "Failed to send: ${e.message}")
+            }
+        }
+    }
+
+    // OLD v1.0 sendFriendRequest() function REMOVED
+    // Use NEW Phase 1/2/2b flow (initiateFriendRequest -> acceptPhase2FriendRequest) instead
+
+    /**
+     * Resend friend request from pending request (retry functionality)
+     * Handles Phase 1 requests (NEW v2.0+ system)
+     * OLD v1.0 full ContactCard format is NO LONGER SUPPORTED
+     */
+    private fun resendFriendRequest(pendingRequest: com.shieldmessenger.models.PendingFriendRequest) {
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                Log.d(TAG, "Resending friend request to ${pendingRequest.displayName}")
+
+                // Additional check: verify SOCKS proxy is actually running
+                val socksRunning = withContext(Dispatchers.IO) {
+                    com.shieldmessenger.crypto.RustBridge.isSocksProxyRunning()
+                }
+                if (!socksRunning) {
+                    Log.w(TAG, "SOCKS proxy not running - attempting to start")
+                    val started = withContext(Dispatchers.IO) {
+                        com.shieldmessenger.crypto.RustBridge.startSocksProxy()
+                    }
+                    if (!started) {
+                        Log.e(TAG, "Failed to start SOCKS proxy")
+                        ThemedToast.showLong(this@AddFriendActivity, "Network proxy unavailable. Please restart the app.")
+                        return@launch
+                    }
+                    // Wait a moment for SOCKS proxy to initialize
+                    kotlinx.coroutines.delay(1000)
+                }
+
+                // Check if we have saved data
+                if (pendingRequest.contactCardJson == null) {
+                    ThemedToast.showLong(this@AddFriendActivity, "Cannot resend: Request data missing")
+                    Log.e(TAG, "No data saved with pending request")
+                    return@launch
+                }
+
+                // Detect if this is Phase 1 data (v2.0) or full ContactCard (v1.0)
+                val jsonData = pendingRequest.contactCardJson
+                val isPhase1 = try {
+                    val obj = org.json.JSONObject(jsonData)
+                    obj.has("phase") || (obj.has("username") && obj.has("friend_request_onion") && !obj.has("solanaAddress"))
+                } catch (e: Exception) {
+                    false
+                }
+
+                if (isPhase1) {
+                    // v2.0 Phase 1 resend - just resend the saved Phase 1 payload
+                    Log.d(TAG, "Resending as Phase 1 request (v2.0)")
+
+                    // The saved contactCardJson IS the Phase 1 payload - just re-encrypt and resend
+                    val phase1Payload = jsonData
+
+                    // Need to get the recipient's onion from the ipfsCid field (where we stored it)
+                    val recipientOnion = pendingRequest.ipfsCid
+                    if (recipientOnion.isEmpty()) {
+                        ThemedToast.showLong(this@AddFriendActivity, "Cannot resend: Recipient address missing")
+                        return@launch
+                    }
+
+                    // Get the PIN - we need to prompt the user since we don't store it
+                    ThemedToast.show(this@AddFriendActivity, "Please re-enter their friend request info to retry")
+
+                    // Show manual fields and auto-fill the onion
+                    showManualInputSection()
+                    findViewById<EditText>(R.id.cidInput).setText(recipientOnion)
+
+                    // Focus on first PIN box
+                    val pinBox1 = findViewById<EditText>(R.id.pinBox1)
+                    pinBox1.requestFocus()
+
+                    return@launch
+                } else {
+                    // v1.0 full ContactCard resend (old format) - NO LONGER SUPPORTED
+                    Log.w(TAG, "Cannot resend v1.0 request - old friend request system removed")
+                    ThemedToast.showLong(this@AddFriendActivity, "Old friend request format not supported. Please use NEW Phase 1/2/2b flow.")
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error resending friend request", e)
+                ThemedToast.showLong(this@AddFriendActivity, "Failed to resend friend request")
+            }
+        }
+    }
+
+    // OLD v1.0 sendFriendRequestAccepted() function REMOVED
+    // Use NEW Phase 1/2/2b flow (acceptPhase2FriendRequest sends full contact card) instead
+
+    /**
+     * Save pending friend request to SharedPreferences
+     */
+    private fun savePendingFriendRequest(request: com.shieldmessenger.models.PendingFriendRequest) {
+        try {
+            val prefs = getSharedPreferences("friend_requests", Context.MODE_PRIVATE)
+            val pendingRequestsSet = prefs.getStringSet("pending_requests_v2", mutableSetOf()) ?: mutableSetOf()
+
+            // Remove any existing request to the same recipient+direction (prevents duplicates on resend)
+            val newSet = mutableSetOf<String>()
+            for (existingJson in pendingRequestsSet) {
+                try {
+                    val existing = com.shieldmessenger.models.PendingFriendRequest.fromJson(existingJson)
+                    if (existing.ipfsCid != request.ipfsCid || existing.direction != request.direction) {
+                        newSet.add(existingJson)
+                    }
+                } catch (e: Exception) {
+                    newSet.add(existingJson)
+                }
+            }
+            newSet.add(request.toJson())
+
+            prefs.edit()
+                .putStringSet("pending_requests_v2", newSet)
+                .apply()
+
+            Log.d(TAG, "Saved pending friend request for ${request.displayName}")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save pending friend request", e)
+        }
+    }
+
+    /**
+     * Remove pending friend request from SharedPreferences
+     */
+    private fun removePendingFriendRequest(request: com.shieldmessenger.models.PendingFriendRequest) {
+        try {
+            val prefs = getSharedPreferences("friend_requests", Context.MODE_PRIVATE)
+            val pendingRequestsSet = prefs.getStringSet("pending_requests_v2", mutableSetOf()) ?: mutableSetOf()
+
+            // Rebuild set without this request
+            val newSet = mutableSetOf<String>()
+            for (requestJson in pendingRequestsSet) {
+                val existingRequest = com.shieldmessenger.models.PendingFriendRequest.fromJson(requestJson)
+
+                // Keep all requests except the one we're removing
+                if (existingRequest.ipfsCid != request.ipfsCid) {
+                    newSet.add(requestJson)
+                }
+            }
+
+            prefs.edit()
+                .putStringSet("pending_requests_v2", newSet)
+                .apply()
+
+            Log.d(TAG, "Removed pending friend request for ${request.displayName}")
+
+            // Reload the UI
+            loadPendingFriendRequests()
+            updateFriendRequestBadge()
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to remove pending friend request", e)
+        }
+    }
+
+    private fun setupBottomNav() {
+        BottomNavigationHelper.setupBottomNavigation(this)
+    }
+
+    private fun enterDeleteMode() {
+        isDeleteMode = true
+        selectedRequests.clear()
+
+        // Show all checkboxes
+        val requestsList = findViewById<android.widget.LinearLayout>(R.id.friendRequestsList)
+        for (i in 0 until requestsList.childCount) {
+            val requestView = requestsList.getChildAt(i)
+            val checkbox = requestView.findViewById<android.widget.CheckBox>(R.id.requestCheckbox)
+            checkbox?.visibility = View.VISIBLE
+        }
+
+        ThemedToast.show(this, "Select requests to delete")
+    }
+
+    private fun exitDeleteMode() {
+        isDeleteMode = false
+        selectedRequests.clear()
+
+        // Hide all checkboxes
+        val requestsList = findViewById<android.widget.LinearLayout>(R.id.friendRequestsList)
+        for (i in 0 until requestsList.childCount) {
+            val requestView = requestsList.getChildAt(i)
+            val checkbox = requestView.findViewById<android.widget.CheckBox>(R.id.requestCheckbox)
+            checkbox?.visibility = View.GONE
+            checkbox?.isChecked = false
+        }
+    }
+
+    private fun deleteSelectedRequests() {
+        if (selectedRequests.isEmpty()) {
+            ThemedToast.show(this, "No requests selected")
+            return
+        }
+
+        try {
+            val prefs = getSharedPreferences("friend_requests", Context.MODE_PRIVATE)
+            val pendingRequestsV2 = prefs.getStringSet("pending_requests_v2", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+
+            // Remove selected requests
+            val updatedRequests = pendingRequestsV2.filter { requestJson ->
+                try {
+                    val request = com.shieldmessenger.models.PendingFriendRequest.fromJson(requestJson)
+                    !selectedRequests.contains(request.ipfsCid)
+                } catch (e: Exception) {
+                    true // Keep if can't parse
+                }
+            }.toMutableSet()
+
+            prefs.edit().putStringSet("pending_requests_v2", updatedRequests).apply()
+
+            ThemedToast.show(this, "Deleted ${selectedRequests.size} request(s)")
+
+            // Exit delete mode and reload
+            exitDeleteMode()
+            loadPendingFriendRequests()
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deleting requests", e)
+            ThemedToast.show(this, "Failed to delete requests")
+        }
+    }
+
+    private fun markRequestAsFailed(ipfsCid: String) {
+        try {
+            val prefs = getSharedPreferences("friend_requests", Context.MODE_PRIVATE)
+            val pendingRequestsV2 = prefs.getStringSet("pending_requests_v2", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+
+            // Find and update the request to mark as failed
+            val updatedRequests = pendingRequestsV2.map { requestJson ->
+                try {
+                    val request = com.shieldmessenger.models.PendingFriendRequest.fromJson(requestJson)
+                    if (request.ipfsCid == ipfsCid) {
+                        // Create a copy with failed status
+                        val failedRequest = request.copy(status = com.shieldmessenger.models.PendingFriendRequest.STATUS_FAILED)
+                        failedRequest.toJson()
+                    } else {
+                        requestJson
+                    }
+                } catch (e: Exception) {
+                    requestJson
+                }
+            }.toMutableSet()
+
+            prefs.edit().putStringSet("pending_requests_v2", updatedRequests).apply()
+
+            // Reload to show updated status
+            loadPendingFriendRequests()
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error marking request as failed", e)
+        }
+    }
+}

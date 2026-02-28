@@ -13,7 +13,7 @@ RUN cargo install cargo-audit --locked && \
 WORKDIR /app
 
 # Copy dependency manifests first for layer caching
-COPY secure-legion-core/Cargo.toml secure-legion-core/Cargo.lock ./
+COPY shield-messenger-core/Cargo.toml shield-messenger-core/Cargo.lock ./
 
 # Create a dummy src to pre-build dependencies
 RUN mkdir -p src && \
@@ -22,7 +22,7 @@ RUN mkdir -p src && \
     rm -rf src
 
 # Copy actual source
-COPY secure-legion-core/ .
+COPY shield-messenger-core/ .
 
 # Deterministic build flags
 ENV RUSTFLAGS="-C codegen-units=1 --remap-path-prefix=/app=shield-messenger -C strip=none"
@@ -38,8 +38,8 @@ RUN cargo sbom > /app/sbom.json 2>/dev/null || \
     cargo tree --format "{p} {l}" > /app/sbom.txt
 
 # Compute SHA256 of outputs
-RUN sha256sum target/release/libsecurelegion.a > /app/checksums.sha256 2>/dev/null || true && \
-    sha256sum target/release/libsecurelegion.so >> /app/checksums.sha256 2>/dev/null || true
+RUN sha256sum target/release/libshieldmessenger.a > /app/checksums.sha256 2>/dev/null || true && \
+    sha256sum target/release/libshieldmessenger.so >> /app/checksums.sha256 2>/dev/null || true
 
 # Run tests
 RUN cargo test --release --locked
@@ -70,7 +70,7 @@ RUN groupadd --gid 1000 shield && \
 WORKDIR /app
 
 # Copy Rust artifacts
-COPY --from=builder /app/target/release/libsecurelegion.a /app/lib/
+COPY --from=builder /app/target/release/libshieldmessenger.a /app/lib/
 COPY --from=builder /app/checksums.sha256 /app/
 COPY --from=builder /app/sbom.* /app/
 

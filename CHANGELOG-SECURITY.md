@@ -1,9 +1,9 @@
-# Security Changelog — Shield Messenger (Secure Legion)
+# Security Changelog — Shield Messenger (Shield Messenger)
 
 **Repository:** https://github.com/abokenan444/shield-messenger  
 **Branch:** `main`
 
-This changelog documents all security and privacy enhancements applied to the Secure Legion core library and protocol.
+This changelog documents all security and privacy enhancements applied to the Shield Messenger core library and protocol.
 
 ---
 
@@ -22,7 +22,7 @@ This changelog documents all security and privacy enhancements applied to the Se
   - `test_duplicate_rejected` — verifies replay rejection.
   - `test_too_far_ahead_rejected` — verifies skip limit enforcement.
 
-**Files:** `secure-legion-core/src/crypto/pq_ratchet.rs`
+**Files:** `shield-messenger-core/src/crypto/pq_ratchet.rs`
 
 ---
 
@@ -33,7 +33,7 @@ This changelog documents all security and privacy enhancements applied to the Se
 - **Cover traffic:** Added `generate_cover_packet()` (type `0xFF`) with random nonce, padded to fixed size. `random_cover_interval_secs()` returns a random interval in [30, 90] seconds for idle connections. Receiver discards cover packets silently via `is_cover_packet()`.
 - **Receive path updated:** `tor.rs` now accepts any valid fixed size (4096/8192/16384) and silently discards cover traffic packets before any further processing.
 
-**Files:** `secure-legion-core/src/network/padding.rs`, `secure-legion-core/src/network/mod.rs`, `secure-legion-core/src/network/tor.rs`
+**Files:** `shield-messenger-core/src/network/padding.rs`, `shield-messenger-core/src/network/mod.rs`, `shield-messenger-core/src/network/tor.rs`
 
 ---
 
@@ -43,7 +43,7 @@ This changelog documents all security and privacy enhancements applied to the Se
 - **`eq_24()` helper:** Added constant-time equality for 24-byte arrays (nonces).
 - **Unit tests** for all `eq_*` functions and the `ct_eq!` macro.
 
-**Files:** `secure-legion-core/src/crypto/constant_time.rs`, `secure-legion-core/src/crypto/mod.rs`
+**Files:** `shield-messenger-core/src/crypto/constant_time.rs`, `shield-messenger-core/src/crypto/mod.rs`
 
 ---
 
@@ -54,7 +54,7 @@ This changelog documents all security and privacy enhancements applied to the Se
 - **`DuressPinSpec` extended:** Now includes `stealth_mode` and `decoy_config` fields for comprehensive duress response.
 - **All new types exported** from `lib.rs`: `StealthModeSpec`, `DecoyConfig`, `DecoyContact`, `DecoyMessage`, `generate_decoy_data`.
 
-**Files:** `secure-legion-core/src/storage/mod.rs`, `secure-legion-core/src/lib.rs`
+**Files:** `shield-messenger-core/src/storage/mod.rs`, `shield-messenger-core/src/lib.rs`
 
 ---
 
@@ -85,7 +85,7 @@ This changelog documents all security and privacy enhancements applied to the Se
 - **`kem_ratchet_send()` / `kem_ratchet_receive()`** — KEM ratchet steps that refresh the root key for post-compromise security.
 - Integration with existing `crypto/pqc/hybrid_kem.rs` (X25519 + Kyber-1024).
 
-**Files:** `secure-legion-core/src/crypto/pq_ratchet.rs`
+**Files:** `shield-messenger-core/src/crypto/pq_ratchet.rs`
 
 ---
 
@@ -98,7 +98,7 @@ This changelog documents all security and privacy enhancements applied to the Se
 - **Protocol invariant:** Control messages (PONG, ACK) are rejected if padding fails — no unpadded fallback. `debug_assert_eq!(to_send.len(), FIXED_PACKET_SIZE)` in the send path.
 - **Receive path** in `tor.rs` automatically strips padding when incoming packet matches `FIXED_PACKET_SIZE`.
 
-**Files:** `secure-legion-core/src/network/padding.rs`, `secure-legion-core/src/network/tor.rs`
+**Files:** `shield-messenger-core/src/network/padding.rs`, `shield-messenger-core/src/network/tor.rs`
 
 ---
 
@@ -107,7 +107,7 @@ This changelog documents all security and privacy enhancements applied to the Se
 - **`eq_32()`, `eq_64()`, `eq_slices()`** using `subtle::ConstantTimeEq` for all key, nonce, and tag comparisons.
 - **`pingpong.rs`** updated to use `eq_32()` for `recipient_pubkey` verification instead of byte-by-byte comparison.
 
-**Files:** `secure-legion-core/src/crypto/constant_time.rs`, `secure-legion-core/src/network/pingpong.rs`
+**Files:** `shield-messenger-core/src/crypto/constant_time.rs`, `shield-messenger-core/src/network/pingpong.rs`
 
 ---
 
@@ -117,7 +117,7 @@ This changelog documents all security and privacy enhancements applied to the Se
 - **`clear_all_pending_ratchets_for_duress()`** — Zeroizes all pending ratchet chain keys when Duress PIN is triggered.
 - **`PQRatchetState::Drop`** — All keys (root, sending chain, receiving chain, skipped cache) are zeroized on drop.
 
-**Files:** `secure-legion-core/src/crypto/encryption.rs`, `secure-legion-core/src/crypto/pq_ratchet.rs`
+**Files:** `shield-messenger-core/src/crypto/encryption.rs`, `shield-messenger-core/src/crypto/pq_ratchet.rs`
 
 ---
 
@@ -128,7 +128,7 @@ This changelog documents all security and privacy enhancements applied to the Se
 - **`on_duress_pin_entered()`** — Core entry point that clears in-memory sensitive state.
 - **Android JNI** — `RustBridge.onDuressPinEntered()` binding for Android apps.
 
-**Files:** `secure-legion-core/src/storage/mod.rs`, `secure-legion-core/src/ffi/android.rs`
+**Files:** `shield-messenger-core/src/storage/mod.rs`, `shield-messenger-core/src/ffi/android.rs`
 
 ---
 
@@ -142,7 +142,7 @@ This changelog documents all security and privacy enhancements applied to the Se
   - SHA256 checksums of release artifacts on push to `main`.
 - **`deny.toml`** — `cargo-deny` configuration: allowed licenses (MIT, Apache-2.0, BSD), advisory database checks, ban on multiple dependency versions.
 
-**Files:** `Dockerfile.core`, `.github/workflows/ci.yml`, `secure-legion-core/deny.toml`
+**Files:** `Dockerfile.core`, `.github/workflows/ci.yml`, `shield-messenger-core/deny.toml`
 
 ---
 
@@ -154,7 +154,7 @@ This changelog documents all security and privacy enhancements applied to the Se
   - Cover traffic on Tor circuits.
 - **`Cargo.toml`** — Commented-out `arti` feature flag for future integration.
 
-**Files:** `docs/arti-migration.md`, `secure-legion-core/Cargo.toml`
+**Files:** `docs/arti-migration.md`, `shield-messenger-core/Cargo.toml`
 
 ---
 
@@ -179,21 +179,21 @@ This changelog documents all security and privacy enhancements applied to the Se
 
 | Path | Status | Description |
 |------|--------|-------------|
-| `secure-legion-core/src/crypto/pq_ratchet.rs` | New | Post-quantum double ratchet with OOO support |
-| `secure-legion-core/src/crypto/constant_time.rs` | New | Constant-time comparisons + `ct_eq!` macro |
-| `secure-legion-core/src/network/padding.rs` | New | Traffic analysis resistance (padding, delays, cover traffic) |
-| `secure-legion-core/src/storage/mod.rs` | New | Deniability, Duress PIN, decoy generator, stealth mode |
-| `secure-legion-core/src/crypto/encryption.rs` | Modified | Memory hardening (zeroize), duress ratchet clearing |
-| `secure-legion-core/src/network/tor.rs` | Modified | Padding integration, cover traffic discard, configurable sizes |
-| `secure-legion-core/src/network/pingpong.rs` | Modified | Constant-time pubkey comparison |
-| `secure-legion-core/src/ffi/android.rs` | Modified | `onDuressPinEntered` JNI binding |
-| `secure-legion-core/src/crypto/mod.rs` | Modified | Re-exports for new modules |
-| `secure-legion-core/src/network/mod.rs` | Modified | Re-exports for padding, cover traffic |
-| `secure-legion-core/src/lib.rs` | Modified | Re-exports for storage types |
-| `secure-legion-core/Cargo.toml` | Modified | Feature flags, optional deps for cross-platform |
+| `shield-messenger-core/src/crypto/pq_ratchet.rs` | New | Post-quantum double ratchet with OOO support |
+| `shield-messenger-core/src/crypto/constant_time.rs` | New | Constant-time comparisons + `ct_eq!` macro |
+| `shield-messenger-core/src/network/padding.rs` | New | Traffic analysis resistance (padding, delays, cover traffic) |
+| `shield-messenger-core/src/storage/mod.rs` | New | Deniability, Duress PIN, decoy generator, stealth mode |
+| `shield-messenger-core/src/crypto/encryption.rs` | Modified | Memory hardening (zeroize), duress ratchet clearing |
+| `shield-messenger-core/src/network/tor.rs` | Modified | Padding integration, cover traffic discard, configurable sizes |
+| `shield-messenger-core/src/network/pingpong.rs` | Modified | Constant-time pubkey comparison |
+| `shield-messenger-core/src/ffi/android.rs` | Modified | `onDuressPinEntered` JNI binding |
+| `shield-messenger-core/src/crypto/mod.rs` | Modified | Re-exports for new modules |
+| `shield-messenger-core/src/network/mod.rs` | Modified | Re-exports for padding, cover traffic |
+| `shield-messenger-core/src/lib.rs` | Modified | Re-exports for storage types |
+| `shield-messenger-core/Cargo.toml` | Modified | Feature flags, optional deps for cross-platform |
 | `docs/protocol.md` | New | Protocol specification v2.0 with threat model |
 | `docs/arti-migration.md` | New | Tor to Arti migration plan |
 | `docs/nix-reproducible.md` | New | Nix flake reproducible builds guide |
 | `.github/workflows/ci.yml` | New | CI pipeline with audit and checksums |
 | `Dockerfile.core` | New | Reproducible Docker build |
-| `secure-legion-core/deny.toml` | New | cargo-deny license/dep policy |
+| `shield-messenger-core/deny.toml` | New | cargo-deny license/dep policy |

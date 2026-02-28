@@ -51,7 +51,7 @@ export function SettingsPage() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-dark-300">البروتوكول</span>
-              <span className="text-dark-400 text-sm">Secure Legion P2P</span>
+              <span className="text-dark-400 text-sm">Shield Messenger P2P</span>
             </div>
           </div>
         </div>

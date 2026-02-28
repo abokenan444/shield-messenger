@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- SecureLegion: Explicitly disable ALL backups for maximum security -->
+<!-- ShieldMessenger: Explicitly disable ALL backups for maximum security -->
 <data-extraction-rules>
     <cloud-backup disableIfNoEncryptionCapabilities="true">
         <!-- Exclude ALL data from cloud backup -->

@@ -5,7 +5,7 @@ This document describes the planned migration from the current C Tor daemon (via
 ## Current State
 
 - **Android:** Tor lifecycle is managed by `OnionProxyManager` (tor-android). The app connects via SOCKS5 (127.0.0.1:9050) and uses a Unix ControlSocket for bootstrap and HS events.
-- **Core (Rust):** `secure-legion-core` uses SOCKS5 to connect to `.onion` addresses; it does not spawn or manage the Tor process. Control port logic (bootstrap polling, SETEVENTS) runs in Rust and talks to the C Tor daemon over the socket.
+- **Core (Rust):** `shield-messenger-core` uses SOCKS5 to connect to `.onion` addresses; it does not spawn or manage the Tor process. Control port logic (bootstrap polling, SETEVENTS) runs in Rust and talks to the C Tor daemon over the socket.
 
 ## Target State with Arti
 

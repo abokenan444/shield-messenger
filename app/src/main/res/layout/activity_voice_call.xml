@@ -130,7 +130,7 @@
             android:contentDescription="Secure call lock icon" />
 
         <!-- Waveform visualization (shown when connected) -->
-        <com.securelegion.ui.WaveformView
+        <com.shieldmessenger.ui.WaveformView
             android:id="@+id/waveformView"
             android:layout_width="match_parent"
             android:layout_height="match_parent"

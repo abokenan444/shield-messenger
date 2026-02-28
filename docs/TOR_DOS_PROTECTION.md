@@ -73,7 +73,7 @@ The `tor_dos_protection` module provides fine-grained, application-level rate li
 **Usage:**
 
 ```rust
-use securelegion::network::tor_dos_protection::{HsDoSProtection, HsDoSConfig};
+use shieldmessenger::network::tor_dos_protection::{HsDoSProtection, HsDoSConfig};
 
 let config = HsDoSConfig {
     max_connections_per_second: 50,
@@ -103,7 +103,7 @@ match protection.evaluate_connection(circuit_id).await {
 When using the Arti (pure Rust Tor) manager, DoS protection is automatically integrated:
 
 ```rust
-use securelegion::network::arti::{ArtiTorManager, ArtiConfig};
+use shieldmessenger::network::arti::{ArtiTorManager, ArtiConfig};
 
 let config = ArtiConfig {
     dos_protection_enabled: true,

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build Secure Legion Rust core to WebAssembly
+# Build Shield Messenger Rust core to WebAssembly
 #
 # Prerequisites:
 #   rustup target add wasm32-unknown-unknown
@@ -9,7 +9,7 @@
 
 set -e
 
-cd "$(dirname "$0")/../secure-legion-core"
+cd "$(dirname "$0")/../shield-messenger-core"
 
 BUILD_MODE="${1:---release}"
 PROFILE="release"
@@ -21,7 +21,7 @@ echo "==> Building Rust core for WASM ($PROFILE)..."
 cargo build --target wasm32-unknown-unknown --features wasm --no-default-features $BUILD_MODE
 
 echo "==> Running wasm-bindgen..."
-WASM_FILE="target/wasm32-unknown-unknown/$PROFILE/securelegion.wasm"
+WASM_FILE="target/wasm32-unknown-unknown/$PROFILE/shieldmessenger.wasm"
 
 if [ ! -f "$WASM_FILE" ]; then
     echo "ERROR: WASM file not found at $WASM_FILE"

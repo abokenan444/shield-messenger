@@ -16,13 +16,13 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.securelegion"
+    namespace = "com.shieldmessenger"
     compileSdk = 36
 
     flavorDimensions += "version"
 
     defaultConfig {
-        applicationId = "com.securelegion"
+        applicationId = "com.shieldmessenger"
         minSdk = 27  // Increased from 26 for Zcash SDK compatibility
         targetSdk = 36
         versionCode = 1
@@ -38,7 +38,7 @@ android {
     productFlavors {
         create("master") {
             dimension = "version"
-            applicationId = "com.securelegion.master"
+            applicationId = "com.shieldmessenger.master"
             versionNameSuffix = "-master"
 
             buildConfigField("boolean", "ENABLE_TOR", "true")
@@ -57,7 +57,7 @@ android {
 
         create("solanadapp") {
             dimension = "version"
-            applicationId = "com.securelegion.solana"
+            applicationId = "com.shieldmessenger.solana"
             versionNameSuffix = "-solana"
 
             buildConfigField("boolean", "ENABLE_TOR", "true")
@@ -77,7 +77,7 @@ android {
 
         create("starnethackathon") {
             dimension = "version"
-            applicationId = "com.securelegion.starnet.hackathon"
+            applicationId = "com.shieldmessenger.starnet.hackathon"
             versionNameSuffix = "-starnet-hackathon"
 
             buildConfigField("boolean", "ENABLE_TOR", "true")
@@ -97,7 +97,7 @@ android {
 
         create("googleplay") {
             dimension = "version"
-            applicationId = "com.securelegion"
+            applicationId = "com.shieldmessenger"
 
             buildConfigField("boolean", "ENABLE_TOR", "true")
             buildConfigField("boolean", "ENABLE_VOICE", "true")
@@ -115,7 +115,7 @@ android {
 
         create("googleplaydemo") {
             dimension = "version"
-            applicationId = "com.securelegion.demo"
+            applicationId = "com.shieldmessenger.demo"
             versionNameSuffix = "-demo"
 
             buildConfigField("boolean", "ENABLE_TOR", "true")
@@ -138,7 +138,7 @@ android {
 
         create("fdroid") {
             dimension = "version"
-            applicationId = "com.securelegion.fdroid"
+            applicationId = "com.shieldmessenger.fdroid"
             versionNameSuffix = "-fdroid"
 
             buildConfigField("boolean", "ENABLE_TOR", "true")

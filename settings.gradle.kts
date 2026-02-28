@@ -21,5 +21,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "SecureLegion"
+rootProject.name = "ShieldMessenger"
 include(":app")

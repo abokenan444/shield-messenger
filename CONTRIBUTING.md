@@ -72,7 +72,7 @@ npm test        # Run tests
 ### Android
 
 ```bash
-cd secure-legion-core
+cd shield-messenger-core
 ./build_android.sh
 # Open project in Android Studio
 ```

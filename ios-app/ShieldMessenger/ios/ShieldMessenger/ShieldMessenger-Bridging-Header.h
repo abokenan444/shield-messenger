@@ -1,15 +1,15 @@
 /**
  * Shield Messenger — Bridging Header
  *
- * Declares the C functions exported from libsecurelegion.a (Rust core).
- * These functions are defined in secure-legion-core/src/ffi/ios.rs.
+ * Declares the C functions exported from libshieldmessenger.a (Rust core).
+ * These functions are defined in shield-messenger-core/src/ffi/ios.rs.
  *
  * Build the Rust library:
- *   $ cd secure-legion-core
+ *   $ cd shield-messenger-core
  *   $ cargo build --target aarch64-apple-ios --features ios --release
  *   $ cargo build --target aarch64-apple-ios-sim --features ios --release
  *
- * Then link libsecurelegion.a in Xcode → Build Phases → Link Binary With Libraries.
+ * Then link libshieldmessenger.a in Xcode → Build Phases → Link Binary With Libraries.
  */
 
 #ifndef ShieldMessenger_Bridging_Header_h

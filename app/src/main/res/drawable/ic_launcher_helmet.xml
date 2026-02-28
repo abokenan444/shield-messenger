@@ -2,7 +2,7 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Centered helmet icon -->
     <item
-        android:drawable="@drawable/secure_legion_icon"
+        android:drawable="@drawable/shield_messenger_icon"
         android:width="23dp"
         android:height="40dp"
         android:gravity="center" />

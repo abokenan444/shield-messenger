@@ -7,7 +7,7 @@ This PR completes the remaining 7 enhancement tasks from the security audit, add
 ### Task 3: Tor Hidden Service DoS Protection
 
 **New files:**
-- `secure-legion-core/src/network/tor_dos_protection.rs` — Application-level DoS protection with 5 defense layers:
+- `shield-messenger-core/src/network/tor_dos_protection.rs` — Application-level DoS protection with 5 defense layers:
   1. Connection rate limiting (global + per-circuit)
   2. Concurrent connection cap
   3. Proof-of-Work challenge (SHA3-256) under high load
@@ -17,7 +17,7 @@ This PR completes the remaining 7 enhancement tasks from the security audit, add
 
 ### Task 4: Arti Integration Enhancement
 
-**Modified:** `secure-legion-core/src/network/arti.rs`
+**Modified:** `shield-messenger-core/src/network/arti.rs`
 - Integrated DoS protection into `ArtiTorManager`
 - Added circuit health monitoring with scoring (latency, failure rate, age)
 - Added vanguard support configuration
@@ -26,7 +26,7 @@ This PR completes the remaining 7 enhancement tasks from the security audit, add
 
 ### Task 5: Network Padding Enhancement
 
-**Modified:** `secure-legion-core/src/network/padding.rs`
+**Modified:** `shield-messenger-core/src/network/padding.rs`
 - Added `BurstPaddingConfig` for configurable burst padding (pre/post message)
 - Added `TrafficProfile` enum (Chat, VoiceCall, FileTransfer, Stealth) with per-profile padding parameters
 - Added `fragment_and_pad()` / `reassemble_fragments()` for large payload handling
@@ -52,7 +52,7 @@ Total fuzz targets: **3 existing + 3 new = 6** (plus 3 from PR #4 = **9 total**)
 
 ### Task 8: Voice Call Testing
 
-**New file:** `secure-legion-core/src/audio/voice_latency_bench.rs`
+**New file:** `shield-messenger-core/src/audio/voice_latency_bench.rs`
 - ITU-T G.107 E-model MOS estimation adapted for Opus over Tor
 - `QualityThresholds` with Tor-standard and strict presets
 - `BenchConfig` with Tor-optimized defaults (24kbps Opus, 300–800ms RTT)
@@ -61,7 +61,7 @@ Total fuzz targets: **3 existing + 3 new = 6** (plus 3 from PR #4 = **9 total**)
 
 ### Task 9: Plausible Deniability (Duress PIN — Rust Core)
 
-**New file:** `secure-legion-core/src/crypto/duress.rs`
+**New file:** `shield-messenger-core/src/crypto/duress.rs`
 - `DuressManager` with Argon2id PIN hashing (indistinguishable from real PIN)
 - Constant-time PIN comparison (checks both real and duress PINs every time)
 - Configurable `WipeActions` (keys, messages, contacts, wallet, call history, secure overwrite)

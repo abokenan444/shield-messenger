@@ -171,14 +171,14 @@ Built-in multi-chain cryptocurrency wallet with in-chat payment protocol:
 ```
 shield-messenger/
 ├── app/                          # Android app (Kotlin — 153 files)
-│   ├── src/main/java/com/securelegion/
+│   ├── src/main/java/com/shieldmessenger/
 │   │   ├── crypto/               # RustBridge (JNI), KeyManager, TorManager
 │   │   ├── services/             # TorService, MessageService, Wallet services
 │   │   ├── database/             # Room DB + SQLCipher + DAOs
 │   │   └── ...                   # 49 Activities, Material 3 UI
 │   └── src/main/jniLibs/        # Compiled Rust .so libraries
 │
-├── secure-legion-core/           # Rust shared core library
+├── shield-messenger-core/           # Rust shared core library
 │   ├── src/
 │   │   ├── crypto/               # XChaCha20, Ed25519, X25519, ML-KEM
 │   │   ├── network/              # Tor, Ping-Pong, SOCKS5
@@ -197,7 +197,7 @@ shield-messenger/
 │   └── vite.config.ts
 │
 ├── ios/                          # iOS app (Swift + SwiftUI)
-│   └── SecureLegion/Sources/
+│   └── ShieldMessenger/Sources/
 │       ├── Core/                 # Rust C FFI bridge
 │       ├── Views/                # SwiftUI views (16 languages)
 │       ├── Models/               # Data models
@@ -248,7 +248,7 @@ git clone https://github.com/abokenan444/shield-messenger.git
 cd shield-messenger
 
 # Build Rust core for Android
-cd secure-legion-core
+cd shield-messenger-core
 rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
 cargo install cargo-ndk
 ./build_android.sh

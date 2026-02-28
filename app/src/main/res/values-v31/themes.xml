@@ -1,7 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Main app theme -->
-    <style name="Theme.SecureLegion" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.ShieldMessenger" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Primary brand color. -->
         <item name="colorPrimary">#888888</item>
         <item name="colorPrimaryContainer">#666666</item>
@@ -48,7 +48,7 @@
     </style>
 
     <!-- Android 12+ system splash theme -->
-    <style name="Theme.SecureLegion.Splash" parent="Theme.SplashScreen">
+    <style name="Theme.ShieldMessenger.Splash" parent="Theme.SplashScreen">
         <!-- Pure black background -->
         <item name="windowSplashScreenBackground">#000000</item>
 
@@ -62,7 +62,7 @@
         <item name="windowSplashScreenAnimationDuration">1</item>
 
         <!-- After splash, switch to normal app theme -->
-        <item name="postSplashScreenTheme">@style/Theme.SecureLegion</item>
+        <item name="postSplashScreenTheme">@style/Theme.ShieldMessenger</item>
     </style>
 
 </resources>

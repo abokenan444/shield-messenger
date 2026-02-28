@@ -11,11 +11,11 @@ set -euo pipefail
 #   ./scripts/build-rust-ios.sh [debug|release]
 #
 # Output:
-#   ios/Libraries/libsecurelegion.a (universal binary)
+#   ios/Libraries/libshieldmessenger.a (universal binary)
 # ─────────────────────────────────────────────────────────
 
 PROFILE="${1:-release}"
-RUST_DIR="../../secure-legion-core"
+RUST_DIR="../../shield-messenger-core"
 OUTPUT_DIR="../ios/Libraries"
 
 echo "╔══════════════════════════════════════╗"
@@ -64,32 +64,32 @@ echo "→ Creating universal simulator library..."
 mkdir -p "$OUTPUT_DIR"
 
 lipo -create \
-  "$TARGET_DIR/aarch64-apple-ios-sim/$BUILD_DIR/libsecurelegion.a" \
-  "$TARGET_DIR/x86_64-apple-ios/$BUILD_DIR/libsecurelegion.a" \
-  -output "$OUTPUT_DIR/libsecurelegion-sim.a" 2>/dev/null || \
-  cp "$TARGET_DIR/aarch64-apple-ios-sim/$BUILD_DIR/libsecurelegion.a" \
-     "$OUTPUT_DIR/libsecurelegion-sim.a"
+  "$TARGET_DIR/aarch64-apple-ios-sim/$BUILD_DIR/libshieldmessenger.a" \
+  "$TARGET_DIR/x86_64-apple-ios/$BUILD_DIR/libshieldmessenger.a" \
+  -output "$OUTPUT_DIR/libshieldmessenger-sim.a" 2>/dev/null || \
+  cp "$TARGET_DIR/aarch64-apple-ios-sim/$BUILD_DIR/libshieldmessenger.a" \
+     "$OUTPUT_DIR/libshieldmessenger-sim.a"
 
 # Copy device library
-cp "$TARGET_DIR/aarch64-apple-ios/$BUILD_DIR/libsecurelegion.a" \
-   "$OUTPUT_DIR/libsecurelegion-device.a"
+cp "$TARGET_DIR/aarch64-apple-ios/$BUILD_DIR/libshieldmessenger.a" \
+   "$OUTPUT_DIR/libshieldmessenger-device.a"
 
 # Create XCFramework (preferred for modern Xcode)
 echo "→ Creating XCFramework..."
-rm -rf "$OUTPUT_DIR/SecureLegion.xcframework"
+rm -rf "$OUTPUT_DIR/ShieldMessenger.xcframework"
 xcodebuild -create-xcframework \
-  -library "$OUTPUT_DIR/libsecurelegion-device.a" \
-  -library "$OUTPUT_DIR/libsecurelegion-sim.a" \
-  -output "$OUTPUT_DIR/SecureLegion.xcframework" 2>/dev/null || \
+  -library "$OUTPUT_DIR/libshieldmessenger-device.a" \
+  -library "$OUTPUT_DIR/libshieldmessenger-sim.a" \
+  -output "$OUTPUT_DIR/ShieldMessenger.xcframework" 2>/dev/null || \
   echo "  (XCFramework creation requires macOS — skipping on this platform)"
 
 echo ""
 echo "✅ Build complete!"
-echo "   Device:    $OUTPUT_DIR/libsecurelegion-device.a"
-echo "   Simulator: $OUTPUT_DIR/libsecurelegion-sim.a"
+echo "   Device:    $OUTPUT_DIR/libshieldmessenger-device.a"
+echo "   Simulator: $OUTPUT_DIR/libshieldmessenger-sim.a"
 echo ""
 echo "Next steps:"
 echo "  1. Open ios/ShieldMessenger.xcworkspace in Xcode"
-echo "  2. Add libsecurelegion-device.a to Build Phases → Link Binary"
+echo "  2. Add libshieldmessenger-device.a to Build Phases → Link Binary"
 echo "  3. Set Library Search Paths to \$(PROJECT_DIR)/Libraries"
 echo "  4. Set Bridging Header to ShieldMessenger-Bridging-Header.h"

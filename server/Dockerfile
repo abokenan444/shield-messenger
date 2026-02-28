@@ -9,15 +9,15 @@ RUN npm run build
 
 FROM node:22-alpine AS runner
 
-RUN addgroup -S legion && adduser -S legion -G legion
+RUN addgroup -S shield && adduser -S shield -G shield
 WORKDIR /app
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY package.json ./
-RUN mkdir -p /app/data && chown -R legion:legion /app
+RUN mkdir -p /app/data && chown -R shield:shield /app
 
-USER legion
+USER shield
 ENV NODE_ENV=production
 EXPOSE 4000
 

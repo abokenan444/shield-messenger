@@ -34,7 +34,7 @@ The 54 Activities are grouped into the following functional domains:
 Migrate to a **Single-Activity Architecture** using Jetpack Navigation Component with Compose or Fragment-based UI:
 
 ```
-SecureLegionActivity (single host)
+ShieldMessengerActivity (single host)
 ├── NavHostFragment / NavHost (Compose)
 │   ├── AuthGraph
 │   │   ├── SplashScreen

@@ -1,0 +1,1378 @@
+package com.shieldmessenger.crypto
+
+import android.content.Context
+import android.content.Intent
+import android.content.SharedPreferences
+import android.net.LocalSocket
+import android.net.LocalSocketAddress
+import android.os.Build
+import android.util.Log
+import okhttp3.OkHttpClient
+import org.torproject.jni.TorService
+import com.shieldmessenger.network.OkHttpProvider
+import java.io.File
+import IPtProxy.Controller
+import IPtProxy.IPtProxy
+import com.shieldmessenger.ShieldMessengerApplication
+
+/**
+ * Thrown when a user-selected bridge transport fails to start.
+ * Prevents silent fallback to direct Tor when bridges were explicitly requested.
+ */
+class BridgeTransportFailedException(message: String) : Exception(message)
+
+/**
+ * Manages Tor network initialization and hidden service setup using TorService JNI
+ *
+ * Responsibilities:
+ * - Initialize Tor client on app startup (in-process via JNI)
+ * - Create hidden service for receiving messages
+ * - Store/retrieve .onion address
+ * - Provide access to Tor SOCKS proxy
+ */
+class TorManager(private val context: Context) {
+
+    private val prefs: SharedPreferences by lazy {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
+    @Volatile
+    private var isInitializing = false
+
+    @Volatile
+    private var isInitialized = false
+
+    @Volatile
+    private var listenerStarted = false
+
+    private val initCallbacks = mutableListOf<(Boolean, String?) -> Unit>()
+
+    private var torThread: Thread? = null
+    private var torDataDir: File? = null
+
+    companion object {
+        private const val TAG = "TorManager"
+        private const val PREFS_NAME = "tor_prefs"
+        private const val KEY_ONION_ADDRESS = "onion_address"
+        private const val KEY_VOICE_ONION_ADDRESS = "voice_onion_address"
+        private const val KEY_TOR_INITIALIZED = "tor_initialized"
+        private const val DEFAULT_SERVICE_PORT = 9150 // Virtual port on .onion address
+        private const val DEFAULT_LOCAL_PORT = 8080 // Local port where app listens
+
+        @Volatile
+        private var instance: TorManager? = null
+
+        fun getInstance(context: Context): TorManager {
+            return instance ?: synchronized(this) {
+                instance ?: TorManager(context.applicationContext).also { instance = it }
+            }
+        }
+
+        /**
+         * Wait for Tor to generate hostname file and validate .onion address
+         * Prevents timing bugs where we try to read before Tor finishes
+         * @param hsDir Hidden service directory
+         * @param timeoutMs Timeout in milliseconds (default 60s)
+         * @return Valid .onion address
+         * @throws RuntimeException if timeout or invalid address
+         */
+        private fun waitForValidHostname(hsDir: File, timeoutMs: Long = 60_000): String {
+            val hostname = File(hsDir, "hostname")
+            val start = System.currentTimeMillis()
+            var lastBootstrapStatus = -1
+
+            while (System.currentTimeMillis() - start < timeoutMs) {
+                // Log Tor bootstrap progress while waiting
+                try {
+                    val status = RustBridge.getBootstrapStatus()
+                    if (status != lastBootstrapStatus && status >= 0) {
+                        Log.d(TAG, "Waiting for hidden service... Tor bootstrap: $status%")
+                        lastBootstrapStatus = status
+                    }
+                } catch (e: Exception) {
+                    // Ignore bootstrap status errors
+                }
+
+                if (hostname.exists()) {
+                    try {
+                        val txt = hostname.readText().trim()
+                        // Validate: must end with .onion and be at least 20 chars (v3 onions are 56 chars)
+                        if (txt.endsWith(".onion") && txt.length >= 20) {
+                            Log.i(TAG, "Valid .onion address found: $txt (after ${System.currentTimeMillis() - start}ms)")
+                            return txt
+                        } else {
+                            Log.w(TAG, "Invalid .onion address format: $txt (length: ${txt.length})")
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Error reading hostname file: ${e.message}")
+                    }
+                }
+
+                Thread.sleep(250) // Check every 250ms
+            }
+
+            throw RuntimeException("Hidden service hostname not ready after ${timeoutMs}ms: ${hsDir.absolutePath}")
+        }
+    }
+
+    /**
+     * Check if the :tor process (Guardian Project's TorService) is still alive.
+     * Used to prevent double-starting GP TorService which causes SIGABRT on destroyed mutex.
+     */
+    private fun isTorProcessAlive(): Boolean {
+        return try {
+            // GP TorService runs in-process. Check file existence first (cheap),
+            // then verify with a real control handshake (prevents stale socket traps).
+            val controlSocket = java.io.File(context.dataDir, "app_TorService/data/ControlSocket")
+            if (!controlSocket.exists()) return false
+            val alive = probeTorControl()
+            if (alive) {
+                Log.d(TAG, "Tor is running (probe confirmed)")
+            } else {
+                Log.w(TAG, "ControlSocket exists but probe failed — stale")
+                controlSocket.delete()
+            }
+            alive
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to check Tor status: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Probe the Tor ControlSocket to verify Tor is actually responsive.
+     * A stale ControlSocket file can survive a crash — this verifies with a real
+     * AUTHENTICATE + GETINFO handshake over the Unix domain socket.
+     * @return true if Tor responds with 250 OK, false if dead/unreachable
+     */
+    private fun probeTorControl(): Boolean {
+        return try {
+            val socketPath = File(context.dataDir, "app_TorService/data/ControlSocket").absolutePath
+            val sock = LocalSocket()
+            sock.connect(LocalSocketAddress(socketPath, LocalSocketAddress.Namespace.FILESYSTEM))
+            sock.soTimeout = 3000 // 3s timeout
+
+            val output = sock.outputStream
+            val input = sock.inputStream
+
+            // Empty auth (GP tor-android 0.4.9.5 uses --CookieAuthentication 0)
+            output.write("AUTHENTICATE\r\n".toByteArray())
+            output.flush()
+
+            // Read auth response
+            val authBuf = ByteArray(256)
+            val authLen = input.read(authBuf)
+            val authResp = String(authBuf, 0, authLen)
+            if (!authResp.startsWith("250")) {
+                Log.w(TAG, "probeTorControl: auth failed: $authResp")
+                sock.close()
+                return false
+            }
+
+            // Probe bootstrap state
+            output.write("GETINFO status/bootstrap-phase\r\n".toByteArray())
+            output.flush()
+
+            val infoBuf = ByteArray(512)
+            val infoLen = input.read(infoBuf)
+            val infoResp = String(infoBuf, 0, infoLen)
+            sock.close()
+
+            val ok = infoResp.contains("250")
+            if (ok) {
+                Log.d(TAG, "probeTorControl: Tor alive — $infoResp")
+            } else {
+                Log.w(TAG, "probeTorControl: unexpected response — $infoResp")
+            }
+            ok
+        } catch (e: Exception) {
+            Log.w(TAG, "probeTorControl: failed — ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Start GP TorService via our custom TorService (foreground-safe).
+     * Uses startForegroundService on Android O+ to avoid background execution limits.
+     */
+    private fun startGpTor() {
+        // CRITICAL: Start GP's org.torproject.jni.TorService (imported as TorService),
+        // NOT our com.shieldmessenger.services.TorService.
+        // Use startService() (not startForegroundService) because:
+        // 1. GP's TorService has no foregroundServiceType in manifest
+        // 2. Our custom TorService is already foreground, keeping the process alive
+        val serviceIntent = Intent(context, TorService::class.java)
+        serviceIntent.action = "org.torproject.android.intent.action.START"
+        context.startService(serviceIntent)
+    }
+
+    /**
+     * Search for the real ControlSocket path across all app-private directories.
+     * GP TorService may create it in different locations depending on DataDir config.
+     * @return File if found, null otherwise
+     */
+    private fun findControlSocket(): File? {
+        val candidates = listOf(
+            File(context.dataDir, "app_TorService/data/ControlSocket"),
+            File(context.filesDir, "app_TorService/data/ControlSocket"),
+            File(context.dataDir, "app_TorService/ControlSocket"),
+            File(context.filesDir, "ControlSocket"),
+        )
+        candidates.firstOrNull { it.exists() }?.let {
+            Log.i(TAG, "findControlSocket: found at ${it.absolutePath}")
+            return it
+        }
+
+        // Recursive search under app private dirs (depth-capped)
+        val roots = listOfNotNull(context.dataDir, context.filesDir, context.noBackupFilesDir, context.cacheDir)
+        for (root in roots) {
+            try {
+                val found = root.walkTopDown()
+                    .maxDepth(6)
+                    .firstOrNull { it.isFile && it.name == "ControlSocket" }
+                if (found != null) {
+                    Log.i(TAG, "findControlSocket: found via search at ${found.absolutePath}")
+                    return found
+                }
+            } catch (e: Exception) {
+                // Permission denied on some dirs — skip
+            }
+        }
+        return null
+    }
+
+    /**
+     * Initialize Tor client using Tor_Onion_Proxy_Library
+     * Should be called once on app startup (from Application class)
+     * Prevents concurrent initializations - queues callbacks if already initializing
+     */
+    fun initializeAsync(onComplete: (Boolean, String?) -> Unit) {
+        // LOG WHO IS CALLING THIS (stack trace)
+        val caller = Thread.currentThread().stackTrace.getOrNull(3)?.let {
+            "${it.className}.${it.methodName}:${it.lineNumber}"
+        } ?: "unknown"
+        Log.w(TAG, "========== initializeAsync() CALLED FROM: $caller ==========")
+
+        synchronized(this) {
+            // If currently initializing, queue the callback
+            if (isInitializing) {
+                Log.d(TAG, "Tor initialization already in progress, queuing callback (called from $caller)")
+                initCallbacks.add(onComplete)
+                return
+            }
+
+            // Start initialization (even if previously initialized, recheck bootstrap status)
+            isInitializing = true
+            initCallbacks.add(onComplete)
+        }
+
+        // Start bootstrap event listener EARLY, before Tor even starts
+        // This ensures it can capture progress from 0% onwards
+        try {
+            val socketFile = File(context.dataDir, "app_TorService/data/ControlSocket")
+            Log.i(TAG, "Starting bootstrap event listener early (socket path: ${socketFile.absolutePath})...")
+            RustBridge.startBootstrapListener(socketFile.absolutePath)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to start bootstrap listener (may start later)", e)
+        }
+
+        Thread {
+            try {
+                // GP TorService runs in-process — any leftover ControlSocket on startup is stale.
+                // Delete unconditionally so we never skip starting Tor due to a ghost file.
+                val controlSocketFile = File(context.dataDir, "app_TorService/data/ControlSocket")
+                if (controlSocketFile.exists()) {
+                    Log.w(TAG, "Deleting stale ControlSocket on startup (in-process Tor guarantees stale)")
+                    controlSocketFile.delete()
+                }
+                val alreadyRunning = false
+
+                // Create Tor data directory
+                torDataDir = File(context.filesDir, "tor")
+                torDataDir?.mkdirs()
+
+                // Create persistent hidden service directories (create-once, reuse forever)
+                // This prevents "550 Onion address collision" errors on reconnect
+                val messagingHiddenServiceDir = File(torDataDir, "messaging_hidden_service")
+                messagingHiddenServiceDir.mkdirs()
+                // Set explicit permissions for Android compatibility
+                messagingHiddenServiceDir.setReadable(true, true)
+                messagingHiddenServiceDir.setWritable(true, true)
+                messagingHiddenServiceDir.setExecutable(true, true)
+
+                val friendRequestHiddenServiceDir = File(torDataDir, "friend_request_hidden_service")
+                friendRequestHiddenServiceDir.mkdirs()
+                // Set explicit permissions for Android compatibility
+                friendRequestHiddenServiceDir.setReadable(true, true)
+                friendRequestHiddenServiceDir.setWritable(true, true)
+                friendRequestHiddenServiceDir.setExecutable(true, true)
+
+                // Seed hidden service directories with deterministic keys BEFORE Tor starts.
+                // This writes hs_ed25519_secret_key + hs_ed25519_public_key derived from the
+                // BIP39 seed, so Tor loads our keys instead of generating random ones.
+                // Result: the .onion address shown offline matches what Tor publishes.
+                val keyManager = KeyManager.getInstance(context)
+                if (keyManager.isInitialized()) {
+                    try {
+                        keyManager.seedHiddenServiceDir(messagingHiddenServiceDir, "tor_hs")
+                        keyManager.seedHiddenServiceDir(friendRequestHiddenServiceDir, "friend_req")
+                        Log.i(TAG, "Hidden service directories seeded with deterministic keys")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to seed hidden service directories — Tor may generate random keys", e)
+                    }
+                } else {
+                    Log.d(TAG, "No account yet — skipping hidden service key seeding")
+                }
+
+                // Get the torrc file location that TorService expects
+                val torrc = TorService.getTorrc(context)
+                torrc.parentFile?.mkdirs()
+
+                // Read bridge settings
+                val bridgeConfig = getBridgeConfiguration()
+
+                // Detect device performance to set appropriate initial timeouts
+                // Slower devices (Android < 13 or low-end) need more conservative timeouts
+                val sdkInt = android.os.Build.VERSION.SDK_INT
+                val isSlowerDevice = sdkInt < 33 // Android 13+
+
+                // Set initial CircuitBuildTimeout based on device
+                // Tor will learn and adapt from this starting point
+                val initialCircuitTimeout = if (isSlowerDevice) {
+                    "CircuitBuildTimeout 45" // Slower devices: start with 45s
+                } else {
+                    "CircuitBuildTimeout 30" // Faster devices: start with 30s
+                }
+
+                Log.i(TAG, "Device: Android $sdkInt, using initial timeout: ${if (isSlowerDevice) "45s (slower device)" else "30s (faster device)"}")
+
+                // Bridge performance profile: keep circuits alive longer to avoid expensive rebuilds,
+                // and send keepalives more frequently to survive mobile NAT timeouts
+                val usingBridges = bridgeConfig.isNotEmpty()
+                val bridgePerformanceConfig = if (usingBridges) {
+                    // MaxCircuitDirtiness 1800 = 30 min circuit reuse (default 10 min)
+                    // Bridge circuits are expensive to rebuild (30-60s), so reuse them longer.
+                    // Privacy cost is minimal for a messaging app with persistent onion identity.
+                    // KeepalivePeriod 120 = 2 min keepalive (default 5 min)
+                    // Mobile NATs can drop idle connections in 30-60s on some carriers.
+                    // 120s balances keeping connections alive vs battery/traffic overhead.
+                    Log.i(TAG, "Bridge mode: applying performance profile (MaxCircuitDirtiness=1800, KeepalivePeriod=120)")
+                    """
+                    MaxCircuitDirtiness 1800
+                    KeepalivePeriod 120
+                    """.trimIndent()
+                } else {
+                    "" // Use Tor defaults for direct connections
+                }
+
+                // Generate torrc content
+                // PERSISTENT HIDDEN SERVICES (not ephemeral):
+                // Keys are seeded from BIP39 seed ABOVE before Tor starts.
+                // Tor loads these deterministic keys on every startup (no collision errors).
+                //
+                // NOTE: Guardian Project's TorService uses /app_TorService/data as DataDirectory
+                // Do NOT specify DataDirectory here - let TorService manage it
+                // NOTE: ControlPort and CookieAuthentication are NOT set here.
+                // GP tor-android 0.4.9.5 manages these via command-line flags:
+                //   --ControlSocket <DataDir>/ControlSocket
+                //   --CookieAuthentication 0
+                val torrcContent = """
+                    Log notice stdout
+                    SocksPort 127.0.0.1:9050
+                    ClientOnly 1
+                    AvoidDiskWrites 1
+                    DormantCanceledByStartup 1
+                    DormantClientTimeout 525600 minutes
+                    LearnCircuitBuildTimeout 1
+                    $initialCircuitTimeout
+                    $bridgePerformanceConfig
+                    HiddenServiceDir ${messagingHiddenServiceDir.absolutePath}
+                    HiddenServicePort $DEFAULT_SERVICE_PORT 127.0.0.1:$DEFAULT_LOCAL_PORT
+                    HiddenServicePort 9153 127.0.0.1:9153
+                    HiddenServiceDir ${friendRequestHiddenServiceDir.absolutePath}
+                    HiddenServicePort 9151 127.0.0.1:9151
+                    HiddenServicePort 9152 127.0.0.1:8081
+                    $bridgeConfig
+                """.trimIndent()
+
+                // Only write torrc if content changed (avoid unnecessary rewrites)
+                val needsUpdate = !torrc.exists() || torrc.readText() != torrcContent
+                if (needsUpdate) {
+                    torrc.writeText(torrcContent)
+                    Log.d(TAG, "Torrc updated: ${torrc.absolutePath}")
+                } else {
+                    Log.d(TAG, "Torrc unchanged, skipping write: ${torrc.absolutePath}")
+                }
+
+                Log.d(TAG, "Torrc written to: ${torrc.absolutePath}")
+                if (bridgeConfig.isNotEmpty()) {
+                    Log.i(TAG, "Bridge configuration applied: ${bridgeConfig.lines().first()}")
+                }
+
+                if (!alreadyRunning || needsUpdate) {
+                    // If Tor is running but torrc changed, restart it to pick up new config
+                    if (alreadyRunning && needsUpdate) {
+                        Log.i(TAG, "Torrc configuration changed - restarting Tor to apply changes...")
+                        try {
+                            // Stop TorService first
+                            val stopIntent = Intent(context, TorService::class.java)
+                            context.stopService(stopIntent)
+
+                            // Give Tor time to shut down
+                            Thread.sleep(2000)
+                            Log.d(TAG, "TorService stopped")
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Error stopping TorService: ${e.message}")
+                        }
+                    }
+
+                    Log.w(TAG, "========== STARTING FOREGROUND SERVICE + TOR DAEMON ==========")
+
+                    // Step 1: Start our custom TorService as foreground (keeps process alive)
+                    // Uses KEEP_ALIVE action to avoid calling initializeAsync() again (circular dependency)
+                    val keepAliveIntent = Intent(context, com.shieldmessenger.services.TorService::class.java)
+                    keepAliveIntent.action = com.shieldmessenger.services.TorService.ACTION_KEEP_ALIVE
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        context.startForegroundService(keepAliveIntent)
+                    } else {
+                        context.startService(keepAliveIntent)
+                    }
+                    Log.i(TAG, "Custom TorService started as foreground (KEEP_ALIVE)")
+
+                    // Step 2: Start Guardian Project's TorService to launch native Tor daemon via JNI
+                    // GP TorService runs in main process (no separate :tor process)
+                    if (isTorProcessAlive()) {
+                        Log.i(TAG, "ControlSocket exists — probing Tor control connection...")
+                        if (probeTorControl()) {
+                            Log.i(TAG, "Tor alive and responsive — reusing existing instance")
+                        } else {
+                            Log.w(TAG, "ControlSocket stale (Tor unresponsive) — restarting")
+                            try {
+                                context.stopService(Intent(context, org.torproject.jni.TorService::class.java))
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Failed to stop GP TorService: ${e.message}")
+                            }
+                            Thread.sleep(1500)
+                            startGpTor()
+                            Log.w(TAG, "========== GP TOR DAEMON RESTARTED AFTER STALE SOCKET ==========")
+                        }
+                    } else {
+                        startGpTor()
+                        Log.w(TAG, "========== GUARDIAN PROJECT TOR DAEMON START COMMAND SENT ==========")
+                    }
+                    Log.d(TAG, "Waiting for control port to be ready...")
+                } else {
+                    Log.d(TAG, "Tor already running and torrc unchanged")
+                }
+
+                // Wait for Tor ControlSocket file to appear (GP 0.4.9.5 uses Unix domain socket)
+                // 120s to accommodate bridge transports on slow networks (~1.3 MB/s in Iran)
+                var controlSocketPath = File(context.dataDir, "app_TorService/data/ControlSocket")
+                var attempts = 0
+                val maxAttempts = 120 // 120 seconds max (bridges need more time)
+                var controlPortReady = false
+
+                while (attempts < maxAttempts && !controlPortReady) {
+                    if (controlSocketPath.exists()) {
+                        controlPortReady = true
+                        Log.d(TAG, "Tor ControlSocket ready after ${attempts + 1} attempts at ${controlSocketPath.absolutePath}")
+                    } else if (attempts % 10 == 9) {
+                        // Every 10s, search for the ControlSocket in case GP puts it elsewhere
+                        val found = findControlSocket()
+                        if (found != null) {
+                            controlSocketPath = found
+                            controlPortReady = true
+                            Log.w(TAG, "ControlSocket found at UNEXPECTED path: ${found.absolutePath}")
+                        } else {
+                            Log.d(TAG, "ControlSocket not found after ${attempts + 1}s (checked ${controlSocketPath.absolutePath})")
+                        }
+                    }
+                    if (!controlPortReady) {
+                        Thread.sleep(1000)
+                        attempts++
+                    }
+                }
+
+                if (!controlPortReady) {
+                    // Diagnostic dump: what DOES exist under app dirs?
+                    try {
+                        val dataDir = context.dataDir
+                        val appTorDir = File(dataDir, "app_TorService")
+                        Log.e(TAG, "ControlSocket TIMEOUT — diagnostics:")
+                        Log.e(TAG, "  dataDir: ${dataDir.absolutePath} exists=${dataDir.exists()}")
+                        Log.e(TAG, "  filesDir: ${context.filesDir.absolutePath} exists=${context.filesDir.exists()}")
+                        Log.e(TAG, "  app_TorService: ${appTorDir.absolutePath} exists=${appTorDir.exists()}")
+                        if (appTorDir.exists()) {
+                            appTorDir.walkTopDown().maxDepth(3).forEach {
+                                Log.e(TAG, "    ${it.absolutePath} (${if (it.isDirectory) "dir" else "file"}, ${it.length()}b)")
+                            }
+                        }
+                        val filesAppTor = File(context.filesDir, "app_TorService")
+                        if (filesAppTor.exists()) {
+                            Log.e(TAG, "  files/app_TorService EXISTS (unexpected):")
+                            filesAppTor.walkTopDown().maxDepth(3).forEach {
+                                Log.e(TAG, "    ${it.absolutePath}")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Diagnostic dump failed: ${e.message}")
+                    }
+                    throw Exception("Tor ControlSocket failed to appear after ${maxAttempts} seconds")
+                }
+
+                Log.d(TAG, "Tor is ready — ControlSocket at ${controlSocketPath.absolutePath}")
+
+                // If ControlSocket was found at a non-default path, restart the Rust listener
+                // with the correct path so it can connect
+                val defaultPath = File(context.dataDir, "app_TorService/data/ControlSocket").absolutePath
+                if (controlSocketPath.absolutePath != defaultPath) {
+                    Log.w(TAG, "ControlSocket at non-default path — restarting Rust listener with correct path")
+                    RustBridge.stopBootstrapListener()
+                    RustBridge.startBootstrapListener(controlSocketPath.absolutePath)
+                }
+
+                // CRITICAL: Also wait for SOCKS port to be ready
+                // 90s to accommodate bridge transports on slow networks (~1.3 MB/s in Iran)
+                Log.d(TAG, "Waiting for Tor SOCKS proxy on port 9050...")
+                var socksAttempts = 0
+                val maxSocksAttempts = 90 // 90 seconds max (bridges need more time)
+                var socksPortReady = false
+
+                while (socksAttempts < maxSocksAttempts && !socksPortReady) {
+                    try {
+                        // Try to connect to SOCKS port
+                        val testSocket = java.net.Socket()
+                        testSocket.connect(java.net.InetSocketAddress("127.0.0.1", 9050), 1000)
+                        testSocket.close()
+                        socksPortReady = true
+                        Log.i(TAG, "Tor SOCKS proxy ready on 127.0.0.1:9050 after ${socksAttempts + 1} attempts")
+                    } catch (e: Exception) {
+                        // SOCKS port not ready yet
+                        Thread.sleep(1000)
+                        socksAttempts++
+                    }
+                }
+
+                if (!socksPortReady) {
+                    throw Exception("Tor SOCKS proxy failed to become ready after $maxSocksAttempts seconds")
+                }
+
+                Log.d(TAG, "Tor SOCKS proxy available at 127.0.0.1:9050")
+
+                // Initialize Rust TorManager (connects to control port)
+                Log.d(TAG, "Initializing Rust TorManager...")
+                val rustStatus = RustBridge.initializeTor()
+                Log.d(TAG, "Rust TorManager initialized: $rustStatus")
+
+                // Read persistent hidden service .onion addresses from filesystem
+                // Keys were seeded above — Tor should have loaded our deterministic keys
+                val onionAddress = if (keyManager.isInitialized()) {
+                    // Wait for Tor to load hidden service keys
+                    Log.d(TAG, "Waiting for Tor to load seeded hidden service keys...")
+
+                    val address = try {
+                        waitForValidHostname(messagingHiddenServiceDir, timeoutMs = 60_000)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to get messaging hidden service address", e)
+                        throw e
+                    }
+
+                    // Verify determinism: pre-computed onion MUST match Tor's address
+                    // If they don't match, key seeding failed — delete + reseed + restart
+                    val precomputedMessaging = keyManager.getMessagingOnion()
+                    if (precomputedMessaging != null && precomputedMessaging != address) {
+                        Log.e(TAG, "FATAL: Messaging onion mismatch — determinism broken!")
+                        Log.e(TAG, "  precomputed=$precomputedMessaging")
+                        Log.e(TAG, "  tor=$address")
+                        // Reseed the directory so next Tor restart picks up correct keys
+                        messagingHiddenServiceDir.deleteRecursively()
+                        messagingHiddenServiceDir.mkdirs()
+                        messagingHiddenServiceDir.setReadable(true, true)
+                        messagingHiddenServiceDir.setWritable(true, true)
+                        messagingHiddenServiceDir.setExecutable(true, true)
+                        keyManager.seedHiddenServiceDir(messagingHiddenServiceDir, "tor_hs")
+                        Log.e(TAG, "  Reseeded messaging directory — restart required")
+                        throw Exception("Onion address determinism broken for messaging. Reseeded keys, restart Tor.")
+                    }
+
+                    saveOnionAddress(address)
+                    keyManager.storeMessagingOnion(address)
+                    Log.i(TAG, "Messaging hidden service ready (deterministic, persistent)")
+
+                    // Read friend-request .onion address
+                    try {
+                        val friendRequestOnion = waitForValidHostname(friendRequestHiddenServiceDir, timeoutMs = 60_000)
+
+                        // Verify determinism for friend-request onion too
+                        val precomputedFR = keyManager.getFriendRequestOnion()
+                        if (precomputedFR != null && precomputedFR != friendRequestOnion) {
+                            Log.e(TAG, "FATAL: Friend-request onion mismatch — determinism broken!")
+                            Log.e(TAG, "  precomputed=$precomputedFR")
+                            Log.e(TAG, "  tor=$friendRequestOnion")
+                            friendRequestHiddenServiceDir.deleteRecursively()
+                            friendRequestHiddenServiceDir.mkdirs()
+                            friendRequestHiddenServiceDir.setReadable(true, true)
+                            friendRequestHiddenServiceDir.setWritable(true, true)
+                            friendRequestHiddenServiceDir.setExecutable(true, true)
+                            keyManager.seedHiddenServiceDir(friendRequestHiddenServiceDir, "friend_req")
+                            Log.e(TAG, "  Reseeded friend-request directory — restart required")
+                            throw Exception("Onion address determinism broken for friend-request. Reseeded keys, restart Tor.")
+                        }
+
+                        keyManager.storeFriendRequestOnion(friendRequestOnion)
+                        Log.i(TAG, "Friend-request hidden service ready (deterministic): $friendRequestOnion")
+                    } catch (e: Exception) {
+                        if (e.message?.contains("determinism broken") == true) throw e
+                        Log.w(TAG, "Friend-request hidden service not ready: ${e.message}")
+                    }
+
+                    // Note: Voice hidden service is created later by TorService.startVoiceService()
+                    // after the voice streaming listener is started on localhost:9152
+                    Log.d(TAG, "Voice hidden service will be registered by TorService after voice listener starts")
+
+                    address
+                } else {
+                    Log.d(TAG, "Skipping hidden service read - no account yet")
+                    null
+                }
+
+                // Note: Listener startup is handled by TorService callback to avoid race condition
+                // TorService will call startIncomingListener() after this callback completes
+
+                // Mark as initialized
+                prefs.edit().putBoolean(KEY_TOR_INITIALIZED, true).apply()
+
+                // Mark as complete and notify all queued callbacks
+                synchronized(this) {
+                    isInitializing = false
+                    isInitialized = true
+                    val callbacks = initCallbacks.toList()
+                    initCallbacks.clear()
+                    callbacks.forEach { it(true, onionAddress) }
+                }
+            } catch (e: BridgeTransportFailedException) {
+                Log.e(TAG, "Bridge transport failed - Tor will NOT start without bridges: ${e.message}", e)
+                // Broadcast bridge failure so UI can inform the user
+                val failIntent = Intent("com.shieldmessenger.BRIDGE_TRANSPORT_FAILED")
+                failIntent.putExtra("error_message", e.message)
+                context.sendBroadcast(failIntent)
+                synchronized(this) {
+                    isInitializing = false
+                    val callbacks = initCallbacks.toList()
+                    initCallbacks.clear()
+                    callbacks.forEach { it(false, null) }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Tor initialization failed", e)
+                synchronized(this) {
+                    isInitializing = false
+                    val callbacks = initCallbacks.toList()
+                    initCallbacks.clear()
+                    callbacks.forEach { it(false, null) }
+                }
+            }
+        }.start()
+    }
+
+    /**
+     * Get the device's .onion address for receiving messages
+     * @return .onion address or null if not initialized
+     */
+    fun getOnionAddress(): String? {
+        return prefs.getString(KEY_ONION_ADDRESS, null)
+    }
+
+    /**
+     * Save the .onion address
+     */
+    fun saveOnionAddress(address: String) {
+        prefs.edit().putString(KEY_ONION_ADDRESS, address).apply()
+    }
+
+    /**
+     * Get the device's voice .onion address for receiving voice calls
+     * @return voice .onion address or null if not initialized
+     */
+    fun getVoiceOnionAddress(): String? {
+        return prefs.getString(KEY_VOICE_ONION_ADDRESS, null)
+    }
+
+    /**
+     * Save the voice .onion address
+     */
+    fun saveVoiceOnionAddress(address: String) {
+        prefs.edit().putString(KEY_VOICE_ONION_ADDRESS, address).apply()
+    }
+
+    /**
+     * Start VOICE Tor instance (port 9052) with Single Onion Service configuration
+     * This is a separate Tor daemon specifically for voice hidden service
+     * Runs with HiddenServiceNonAnonymousMode 1 for reduced latency (3-hop instead of 6-hop)
+     * Should be called from TorService.startVoiceService() before creating voice hidden service
+     */
+    fun startVoiceTor(): Boolean {
+        return try {
+            Log.i(TAG, "Starting VOICE Tor instance (Single Onion Service mode)...")
+
+            // Check if voice Tor control port is already accessible
+            val alreadyRunning = try {
+                val testSocket = java.net.Socket()
+                testSocket.connect(java.net.InetSocketAddress("127.0.0.1", 9052), 500)
+                testSocket.close()
+                true
+            } catch (e: Exception) {
+                false
+            }
+
+            if (alreadyRunning) {
+                Log.i(TAG, "Voice Tor already running on port 9052")
+                // Initialize Rust voice control connection
+                val cookiePath = File(context.filesDir, "voice_tor/control_auth_cookie").absolutePath
+                val status = RustBridge.initializeVoiceTorControl(cookiePath)
+                Log.i(TAG, "Voice Tor control initialized: $status")
+                return true
+            }
+
+            // Create voice Tor data directory (separate from main Tor)
+            val voiceTorDataDir = File(context.filesDir, "voice_tor")
+            voiceTorDataDir.mkdirs()
+
+            // Create voice hidden service directory
+            val voiceHiddenServiceDir = File(voiceTorDataDir, "voice_hidden_service")
+            voiceHiddenServiceDir.mkdirs()
+
+            // Create voice torrc file with HiddenServiceDir configuration
+            val voiceTorrc = File(context.filesDir, "voice_torrc")
+            voiceTorrc.writeText("""
+                DataDirectory ${voiceTorDataDir.absolutePath}
+                CookieAuthentication 1
+                CookieAuthFile ${voiceTorDataDir.absolutePath}/control_auth_cookie
+                ControlPort 127.0.0.1:9052
+                SOCKSPort 0
+                AvoidDiskWrites 1
+                HiddenServiceNonAnonymousMode 1
+                HiddenServiceSingleHopMode 1
+                LearnCircuitBuildTimeout 1
+                CircuitBuildTimeout 30
+                HiddenServiceDir ${voiceHiddenServiceDir.absolutePath}
+                HiddenServicePort 9152 127.0.0.1:9152
+            """.trimIndent())
+
+            Log.i(TAG, "Voice torrc written to: ${voiceTorrc.absolutePath}")
+            Log.i(TAG, "Voice Tor config: Single Onion Service (3-hop, service location visible)")
+
+            // Start VoiceTorService (separate service for voice Tor)
+            // CRITICAL: Use startForegroundService() for Android 8+ to avoid BackgroundServiceStartNotAllowedException
+            val voiceIntent = Intent(context, com.shieldmessenger.services.VoiceTorService::class.java)
+            voiceIntent.action = com.shieldmessenger.services.VoiceTorService.ACTION_START
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                context.startForegroundService(voiceIntent)
+            } else {
+                context.startService(voiceIntent)
+            }
+
+            Log.i(TAG, "VoiceTorService started, waiting for control port 9052...")
+
+            // Wait for voice Tor control port to be ready
+            var attempts = 0
+            val maxAttempts = 60 // 60 seconds max
+            var controlPortReady = false
+
+            while (attempts < maxAttempts && !controlPortReady) {
+                try {
+                    val testSocket = java.net.Socket()
+                    testSocket.connect(java.net.InetSocketAddress("127.0.0.1", 9052), 1000)
+                    testSocket.close()
+                    controlPortReady = true
+                    Log.i(TAG, "Voice Tor control port 9052 ready after ${attempts + 1} attempts")
+                } catch (e: Exception) {
+                    Thread.sleep(1000)
+                    attempts++
+                }
+            }
+
+            if (!controlPortReady) {
+                Log.e(TAG, "Voice Tor control port 9052 failed to become ready")
+                return false
+            }
+
+            // Initialize Rust voice control connection
+            val cookiePath = File(context.filesDir, "voice_tor/control_auth_cookie").absolutePath
+            val status = RustBridge.initializeVoiceTorControl(cookiePath)
+            Log.i(TAG, "Voice Tor initialized successfully: $status")
+            true
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start voice Tor: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Check if Tor has been initialized
+     */
+    fun isInitialized(): Boolean {
+        return prefs.getBoolean(KEY_TOR_INITIALIZED, false)
+    }
+
+    /**
+     * Reset Tor initialization state to force re-initialization
+     * Used when bridge configuration changes
+     */
+    fun resetInitializationState() {
+        synchronized(this) {
+            isInitializing = false
+            isInitialized = false
+            prefs.edit().putBoolean(KEY_TOR_INITIALIZED, false).apply()
+            Log.i(TAG, "Tor initialization state reset - will re-initialize on next start")
+        }
+    }
+
+    /**
+     * Create hidden service if account exists but service doesn't
+     * Called after account creation to set up the hidden service
+     *
+     * With persistent hidden services (HiddenServiceDir in torrc), Tor automatically
+     * creates and manages the keys. This function just reads the .onion address.
+     */
+    fun createHiddenServiceIfNeeded() {
+        Thread {
+            try {
+                val existingAddress = getOnionAddress()
+                if (existingAddress == null) {
+                    val keyManager = KeyManager.getInstance(context)
+                    if (keyManager.isInitialized()) {
+                        // Wait for Tor to be fully bootstrapped before reading hidden service
+                        Log.d(TAG, "Waiting for Tor to be ready before reading hidden service...")
+                        val maxAttempts = 120 // 120 seconds max (bridges on slow networks need more time)
+                        var attempts = 0
+                        while (attempts < maxAttempts) {
+                            val status = RustBridge.getBootstrapStatus()
+                            if (status >= 100) {
+                                Log.d(TAG, "Tor bootstrapped - reading hidden service...")
+                                break
+                            }
+                            Log.d(TAG, "Tor still bootstrapping ($status%)...")
+                            Thread.sleep(1000)
+                            attempts++
+                        }
+
+                        if (attempts >= maxAttempts) {
+                            Log.e(TAG, "Timeout waiting for Tor to bootstrap")
+                            return@Thread
+                        }
+
+                        // Read persistent hidden service .onion address from filesystem
+                        val messagingHiddenServiceDir = File(torDataDir, "messaging_hidden_service")
+
+                        val address = try {
+                            waitForValidHostname(messagingHiddenServiceDir, timeoutMs = 60_000)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to get messaging hidden service address: ${e.message}")
+                            return@Thread
+                        }
+
+                        // Sanity check: verify address matches stored onion
+                        val storedOnion = getOnionAddress()
+                        if (storedOnion != null && storedOnion != address) {
+                            Log.w(TAG, "Stored onion differs from filesystem!")
+                            Log.w(TAG, "Using filesystem onion (Tor's source of truth)")
+                        }
+
+                        saveOnionAddress(address)
+                        keyManager.storeMessagingOnion(address)
+                        Log.i(TAG, "Messaging hidden service read (persistent)")
+
+                        // Start listener if not already started
+                        if (!listenerStarted) {
+                            Log.d(TAG, "Starting hidden service listener on port $DEFAULT_LOCAL_PORT...")
+                            val started = RustBridge.startHiddenServiceListener(DEFAULT_LOCAL_PORT)
+                            if (started) {
+                                listenerStarted = true
+                                Log.i(TAG, "Hidden service listener started successfully on port $DEFAULT_LOCAL_PORT")
+                            } else {
+                                Log.e(TAG, "Failed to start hidden service listener")
+                            }
+                        }
+                    } else {
+                        Log.w(TAG, "Account not initialized yet, cannot read hidden service")
+                    }
+                } else {
+                    Log.d(TAG, "Hidden service already exists: $existingAddress")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to read hidden service", e)
+            }
+        }.start()
+    }
+
+    /**
+     * Send a Ping token to a contact
+     * @param contactEd25519PublicKey The contact's Ed25519 public key (for signature verification)
+     * @param contactX25519PublicKey The contact's X25519 public key (for encryption)
+     * @param contactOnionAddress The contact's .onion address
+     * @param encryptedMessage The encrypted message payload
+     * @param messageTypeByte The message type (0x03 = TEXT, 0x04 = VOICE)
+     * @return Ping ID for tracking
+     */
+    fun sendPing(
+        contactEd25519PublicKey: ByteArray,
+        contactX25519PublicKey: ByteArray,
+        contactOnionAddress: String,
+        encryptedMessage: ByteArray,
+        messageTypeByte: Byte,
+        pingId: String,
+        pingTimestamp: Long
+    ): String {
+        return RustBridge.sendPing(contactEd25519PublicKey, contactX25519PublicKey, contactOnionAddress, encryptedMessage, messageTypeByte, pingId, pingTimestamp)
+    }
+
+    /**
+     * Wait for Pong response
+     * @param pingId The Ping ID
+     * @param timeoutSeconds Timeout in seconds (default 60)
+     * @return True if Pong received and user authenticated
+     */
+    fun waitForPong(pingId: String, timeoutSeconds: Int = 60): Boolean {
+        return RustBridge.waitForPong(pingId, timeoutSeconds)
+    }
+
+    /**
+     * Respond to incoming Ping with Pong
+     * @param pingId The Ping ID
+     * @param authenticated Whether user successfully authenticated
+     * @return Pong token bytes, or null if authentication denied
+     */
+    fun respondToPing(pingId: String, authenticated: Boolean): ByteArray? {
+        return RustBridge.respondToPing(pingId, authenticated)
+    }
+
+    /**
+     * Get an OkHttpClient configured to route traffic through Tor SOCKS proxy
+     * Use this for all HTTP/HTTPS requests to preserve network anonymity
+     *
+     * @return OkHttpClient with Tor SOCKS proxy at 127.0.0.1:9050
+     * Note: This returns a shared client instance from OkHttpProvider (supports connection reset)
+     */
+    fun getTorProxyClient(): OkHttpClient {
+        return OkHttpProvider.getGenericClient()
+    }
+
+    /**
+     * Start IPtProxy pluggable transports for the selected bridge type
+     */
+    private fun startIPtProxy(bridgeType: String) {
+        try {
+            val app = context.applicationContext as? ShieldMessengerApplication
+            val controller = app?.let { ShieldMessengerApplication.iptProxyController }
+
+            if (controller == null) {
+                Log.e(TAG, "IPtProxy Controller not initialized - cannot start transport")
+                return
+            }
+
+            when (bridgeType) {
+                "obfs4" -> {
+                    Log.d(TAG, "Starting obfs4 transport...")
+                    controller.start(IPtProxy.Obfs4, null)
+
+                    // Wait for obfs4 to start and bind to a port
+                    var port = 0L
+                    var attempts = 0
+                    while (port == 0L && attempts < 90) {
+                        Thread.sleep(1000)
+                        port = controller.port(IPtProxy.Obfs4)
+                        attempts++
+                        if (port > 0) {
+                            Log.i(TAG, "obfs4 transport started on port $port after ${attempts}s")
+                            break
+                        }
+                        Log.d(TAG, "Waiting for obfs4 to start... (${attempts}s)")
+                    }
+
+                    if (port == 0L) {
+                        Log.e(TAG, "obfs4 failed to start after 90 seconds")
+                    }
+                }
+                "snowflake" -> {
+                    Log.d(TAG, "Configuring snowflake transport...")
+                    // AMP Cache method - proven to work from Iran
+                    // Uses Google's AMP CDN as rendezvous, which is not blocked
+                    controller.snowflakeBrokerUrl = "https://snowflake-broker.torproject.net/"
+                    controller.snowflakeFrontDomains = "www.google.com"
+                    controller.snowflakeAmpCacheUrl = "https://cdn.ampproject.org/"
+                    controller.snowflakeIceServers = "stun:stun.antisip.com:3478,stun:stun.epygi.com:3478,stun:stun.uls.co.za:3478,stun:stun.voipgate.com:3478,stun:stun.mixvoip.com:3478,stun:stun.nextcloud.com:3478,stun:stun.bethesda.net:3478,stun:stun.nextcloud.com:443"
+                    Log.d(TAG, "Starting snowflake transport with AMP cache...")
+                    controller.start(IPtProxy.Snowflake, null)
+
+                    // Wait for Snowflake to start and bind to a port
+                    var port = 0L
+                    var attempts = 0
+                    while (port == 0L && attempts < 90) {
+                        Thread.sleep(1000)
+                        port = controller.port(IPtProxy.Snowflake)
+                        attempts++
+                        if (port > 0) {
+                            Log.i(TAG, "Snowflake transport started on port $port after ${attempts}s")
+                            break
+                        }
+                        Log.d(TAG, "Waiting for Snowflake to start... (${attempts}s)")
+                    }
+
+                    if (port == 0L) {
+                        Log.e(TAG, "Snowflake failed to start after 90 seconds")
+                    }
+                }
+                "meek" -> {
+                    Log.d(TAG, "Starting meek_lite transport...")
+                    controller.start(IPtProxy.MeekLite, null)
+
+                    // Wait for meek_lite to start and bind to a port
+                    var port = 0L
+                    var attempts = 0
+                    while (port == 0L && attempts < 90) {
+                        Thread.sleep(1000)
+                        port = controller.port(IPtProxy.MeekLite)
+                        attempts++
+                        if (port > 0) {
+                            Log.i(TAG, "meek_lite transport started on port $port after ${attempts}s")
+                            break
+                        }
+                        Log.d(TAG, "Waiting for meek_lite to start... (${attempts}s)")
+                    }
+
+                    if (port == 0L) {
+                        Log.e(TAG, "meek_lite failed to start after 90 seconds")
+                    }
+                }
+                "webtunnel" -> {
+                    Log.d(TAG, "Starting webtunnel transport...")
+                    controller.start(IPtProxy.Webtunnel, "")
+
+                    // Wait for webtunnel to start and bind to a port
+                    var port = 0L
+                    var attempts = 0
+                    while (port == 0L && attempts < 90) {
+                        Thread.sleep(1000)
+                        port = controller.port(IPtProxy.Webtunnel)
+                        attempts++
+                        if (port > 0) {
+                            Log.i(TAG, "webtunnel transport started on port $port after ${attempts}s")
+                            break
+                        }
+                        Log.d(TAG, "Waiting for webtunnel to start... (${attempts}s)")
+                    }
+
+                    if (port == 0L) {
+                        Log.e(TAG, "webtunnel failed to start after 90 seconds")
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start IPtProxy transport for $bridgeType: ${e.message}", e)
+            throw BridgeTransportFailedException("Failed to start $bridgeType transport: ${e.message}")
+        }
+    }
+
+    /**
+     * Fetch bridge lines from Tor Project's circumvention map API.
+     * Returns null if the API is unreachable (e.g. in censored regions before Tor is up).
+     * API endpoint: https://bridges.torproject.org/moat/circumvention/map
+     */
+    private fun fetchCircumventionBridges(bridgeType: String): List<String>? {
+        return try {
+            Log.d(TAG, "Fetching bridges from circumvention API for type=$bridgeType...")
+            val url = java.net.URL("https://bridges.torproject.org/moat/circumvention/map")
+            val connection = url.openConnection() as java.net.HttpURLConnection
+            connection.connectTimeout = 45_000
+            connection.readTimeout = 45_000
+            connection.requestMethod = "GET"
+
+            val responseCode = connection.responseCode
+            if (responseCode != 200) {
+                Log.w(TAG, "Circumvention API returned $responseCode")
+                return null
+            }
+
+            val responseBody = connection.inputStream.bufferedReader().readText()
+            connection.disconnect()
+
+            val json = org.json.JSONObject(responseBody)
+
+            // Try Iran first, then fallback to other regions
+            val countryCode = "ir"
+            val countryData = json.optJSONObject(countryCode) ?: run {
+                Log.w(TAG, "No circumvention data for country=$countryCode")
+                return null
+            }
+
+            val settings = countryData.optJSONArray("settings") ?: return null
+
+            for (i in 0 until settings.length()) {
+                val setting = settings.getJSONObject(i)
+                val bridges = setting.optJSONObject("bridges") ?: continue
+                val type = bridges.optString("type", "")
+
+                if (type == bridgeType) {
+                    val bridgeStrings = bridges.optJSONArray("bridge_strings") ?: continue
+                    val result = mutableListOf<String>()
+                    for (j in 0 until bridgeStrings.length()) {
+                        result.add(bridgeStrings.getString(j))
+                    }
+                    if (result.isNotEmpty()) {
+                        Log.i(TAG, "Circumvention API: got ${result.size} $bridgeType bridges for $countryCode")
+                        // Cache the bridges for future use
+                        try {
+                            val prefs = context.getSharedPreferences("tor_settings", Context.MODE_PRIVATE)
+                            prefs.edit()
+                                .putString("cached_${bridgeType}_bridges", result.joinToString("\n"))
+                                .putLong("cached_${bridgeType}_timestamp", System.currentTimeMillis())
+                                .apply()
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to cache bridges: ${e.message}")
+                        }
+                        return result
+                    }
+                }
+            }
+
+            Log.w(TAG, "No $bridgeType bridges found in API response for $countryCode")
+            // Try cached bridges
+            getCachedBridges(bridgeType)
+        } catch (e: Exception) {
+            Log.w(TAG, "Circumvention API fetch failed: ${e.message}")
+            // Try cached bridges
+            getCachedBridges(bridgeType)
+        }
+    }
+
+    /**
+     * Get previously cached bridges from SharedPreferences.
+     * Returns null if no cache exists or cache is older than 24 hours.
+     */
+    private fun getCachedBridges(bridgeType: String): List<String>? {
+        return try {
+            val prefs = context.getSharedPreferences("tor_settings", Context.MODE_PRIVATE)
+            val cached = prefs.getString("cached_${bridgeType}_bridges", null) ?: return null
+            val timestamp = prefs.getLong("cached_${bridgeType}_timestamp", 0)
+            val ageMs = System.currentTimeMillis() - timestamp
+
+            // Cache valid for 24 hours
+            if (ageMs > 24 * 60 * 60 * 1000) {
+                Log.d(TAG, "Cached $bridgeType bridges expired (${ageMs / 1000}s old)")
+                return null
+            }
+
+            val bridges = cached.split("\n").filter { it.isNotBlank() }
+            if (bridges.isNotEmpty()) {
+                Log.i(TAG, "Using ${bridges.size} cached $bridgeType bridges (${ageMs / 1000}s old)")
+                bridges
+            } else null
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to read cached bridges: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Get bridge configuration for torrc based on user settings
+     * Uses IPtProxy for obfs4 and snowflake pluggable transports
+     */
+    private fun getBridgeConfiguration(): String {
+        val torSettings = context.getSharedPreferences("tor_settings", Context.MODE_PRIVATE)
+        val bridgeType = torSettings.getString("bridge_type", "none") ?: "none"
+
+        // Start IPtProxy if needed
+        if (bridgeType in listOf("obfs4", "snowflake", "meek", "webtunnel")) {
+            startIPtProxy(bridgeType)
+        }
+
+        return when (bridgeType) {
+            "snowflake" -> {
+                // Snowflake - uses IPtProxy pluggable transport
+                // Bridge lines from Tor Project circumvention API: bridges.torproject.org/moat/circumvention/map
+                // Iran (ir) specific config: CDN77 domain-fronted rendezvous, no SQS
+                val app = context.applicationContext as? ShieldMessengerApplication
+                val controller = app?.let { ShieldMessengerApplication.iptProxyController }
+                val port = controller?.port(IPtProxy.Snowflake) ?: 0
+                if (port == 0L) {
+                    throw BridgeTransportFailedException("Snowflake transport failed to start - no SOCKS port available")
+                } else {
+                    // Try fetching fresh bridges from circumvention API first
+                    val apiBridges = fetchCircumventionBridges("snowflake")
+                    if (apiBridges != null) {
+                        Log.i(TAG, "Using ${apiBridges.size} snowflake bridges from circumvention API")
+                        val bridgeLines = apiBridges.joinToString("\n") { "Bridge $it" }
+                        """
+                        UseBridges 1
+                        ClientTransportPlugin snowflake socks5 127.0.0.1:$port
+                        $bridgeLines
+                        """.trimIndent()
+                    } else {
+                        // Fallback: hardcoded bridges for Iran
+                        // AMP Cache bridges first (proven to work from Iran), then CDN77, Netlify, SQS
+                        Log.i(TAG, "Using hardcoded snowflake bridges (API unavailable)")
+                        """
+                        UseBridges 1
+                        ClientTransportPlugin snowflake socks5 127.0.0.1:$port
+                        Bridge snowflake 192.0.2.5:80 2B280B23E1107BB62ABFC40DDCC8824814F80A72 fingerprint=2B280B23E1107BB62ABFC40DDCC8824814F80A72 url=https://snowflake-broker.torproject.net/ ampcache=https://cdn.ampproject.org/ front=www.google.com ice=stun:stun.antisip.com:3478,stun:stun.epygi.com:3478,stun:stun.uls.co.za:3478,stun:stun.voipgate.com:3478,stun:stun.mixvoip.com:3478,stun:stun.nextcloud.com:3478,stun:stun.bethesda.net:3478,stun:stun.nextcloud.com:443 utls-imitate=hellorandomizedalpn
+                        Bridge snowflake 192.0.2.6:80 8838024498816A039FCBBAB14E6F40A0843051FA fingerprint=8838024498816A039FCBBAB14E6F40A0843051FA url=https://snowflake-broker.torproject.net/ ampcache=https://cdn.ampproject.org/ front=www.google.com ice=stun:stun.antisip.com:3478,stun:stun.epygi.com:3478,stun:stun.uls.co.za:3478,stun:stun.voipgate.com:3478,stun:stun.mixvoip.com:3478,stun:stun.nextcloud.com:3478,stun:stun.bethesda.net:3478,stun:stun.nextcloud.com:443 utls-imitate=hellorandomizedalpn
+                        Bridge snowflake 192.0.2.3:80 2B280B23E1107BB62ABFC40DDCC8824814F80A72 fingerprint=2B280B23E1107BB62ABFC40DDCC8824814F80A72 url=https://1098762253.rsc.cdn77.org front=www.phpmyadmin.net,cdn.zk.mk ice=stun:stun.antisip.com:3478,stun:stun.epygi.com:3478,stun:stun.uls.co.za:3478,stun:stun.voipgate.com:3478,stun:stun.mixvoip.com:3478,stun:stun.nextcloud.com:3478,stun:stun.bethesda.net:3478,stun:stun.nextcloud.com:443 utls-imitate=hellorandomizedalpn
+                        Bridge snowflake 192.0.2.4:80 8838024498816A039FCBBAB14E6F40A0843051FA fingerprint=8838024498816A039FCBBAB14E6F40A0843051FA url=https://1098762253.rsc.cdn77.org front=www.phpmyadmin.net,cdn.zk.mk ice=stun:stun.antisip.com:3478,stun:stun.epygi.com:3478,stun:stun.uls.co.za:3478,stun:stun.voipgate.com:3478,stun:stun.mixvoip.com:3478,stun:stun.nextcloud.com:3478,stun:stun.bethesda.net:3478,stun:stun.nextcloud.com:443 utls-imitate=hellorandomizedalpn
+                        Bridge snowflake 192.0.2.3:80 2B280B23E1107BB62ABFC40DDCC8824814F80A72 fingerprint=2B280B23E1107BB62ABFC40DDCC8824814F80A72 url=https://voluble-torrone-fc39bf.netlify.app/ fronts=vuejs.org ice=stun:stun.antisip.com:3478,stun:stun.epygi.com:3478,stun:stun.uls.co.za:3478,stun:stun.voipgate.com:3478,stun:stun.mixvoip.com:3478,stun:stun.nextcloud.com:3478,stun:stun.bethesda.net:3478,stun:stun.nextcloud.com:443 utls-imitate=hellorandomizedalpn
+                        Bridge snowflake 192.0.2.4:80 8838024498816A039FCBBAB14E6F40A0843051FA fingerprint=8838024498816A039FCBBAB14E6F40A0843051FA url=https://voluble-torrone-fc39bf.netlify.app/ fronts=vuejs.org ice=stun:stun.antisip.com:3478,stun:stun.epygi.com:3478,stun:stun.uls.co.za:3478,stun:stun.voipgate.com:3478,stun:stun.mixvoip.com:3478,stun:stun.nextcloud.com:3478,stun:stun.bethesda.net:3478,stun:stun.nextcloud.com:443 utls-imitate=hellorandomizedalpn
+                        Bridge snowflake 192.0.2.5:80 2B280B23E1107BB62ABFC40DDCC8824814F80A72 fingerprint=2B280B23E1107BB62ABFC40DDCC8824814F80A72 sqsqueue=https://sqs.us-east-1.amazonaws.com/893902434899/snowflake-broker sqscreds=eyJhd3MtYWNjZXNzLWtleS1pZCI6IkFLSUE1QUlGNFdKSlhTN1lIRUczIiwiYXdzLXNlY3JldC1rZXkiOiI3U0RNc0pBNHM1RitXZWJ1L3pMOHZrMFFXV0lsa1c2Y1dOZlVsQ0tRIn0= ice=stun:stun.antisip.com:3478,stun:stun.epygi.com:3478,stun:stun.uls.co.za:3478,stun:stun.voipgate.com:3478,stun:stun.nextcloud.com:3478,stun:stun.bethesda.net:3478,stun:stun.nextcloud.com:443 utls-imitate=hellorandomizedalpn
+                        Bridge snowflake 192.0.2.6:80 8838024498816A039FCBBAB14E6F40A0843051FA fingerprint=8838024498816A039FCBBAB14E6F40A0843051FA sqsqueue=https://sqs.us-east-1.amazonaws.com/893902434899/snowflake-broker sqscreds=eyJhd3MtYWNjZXNzLWtleS1pZCI6IkFLSUE1QUlGNFdKSlhTN1lIRUczIiwiYXdzLXNlY3JldC1rZXkiOiI3U0RNc0pBNHM1RitXZWJ1L3pMOHZrMFFXV0lsa1c2Y1dOZlVsQ0tRIn0= ice=stun:stun.antisip.com:3478,stun:stun.epygi.com:3478,stun:stun.uls.co.za:3478,stun:stun.voipgate.com:3478,stun:stun.nextcloud.com:3478,stun:stun.bethesda.net:3478,stun:stun.nextcloud.com:443 utls-imitate=hellorandomizedalpn
+                        """.trimIndent()
+                    }
+                }
+            }
+            "obfs4" -> {
+                // obfs4 bridges from https://github.com/scriptzteam/Tor-Bridges-Collector
+                // and https://bridges.torproject.org - uses IPtProxy pluggable transport
+                val app = context.applicationContext as? ShieldMessengerApplication
+                val controller = app?.let { ShieldMessengerApplication.iptProxyController }
+                val port = controller?.port(IPtProxy.Obfs4) ?: 0
+                if (port == 0L) {
+                    throw BridgeTransportFailedException("obfs4 transport failed to start - no SOCKS port available")
+                } else {
+                    """
+                    UseBridges 1
+                    ClientTransportPlugin obfs4 socks5 127.0.0.1:$port
+                    Bridge obfs4 1.2.217.144:5987 DCE57AC308CB82958C56B1B5C9C3D08D225EC942 cert=Uemn6kep2gxo9J0P81geJV3gTWQtkrNHvEh1DL3wzhvLaUaIrn0/e0a1mvyB3T4c0jmHKg iat-mode=0
+                    Bridge obfs4 2.35.113.108:9906 5A3E33D354B7B7BAE5D3873EF8A68E79B4194A2A cert=IJXo/z1hPSJ0Yr2bShs3UVnBS35rweyktBxY+azSyQwSwD2qAdrVpo8VSWhVxly6wIWkDg iat-mode=0
+                    Bridge obfs4 2.37.211.221:9875 3A16586D003E32EE9798055C75D38498863FEC7A cert=afdvowWWudLtKXb3m5L9mQ/Ko9tm1Lu3rZDsb+rgEkHFEVKvuJihbfAyJlCUZbk42QwGZA iat-mode=0
+                    Bridge obfs4 82.65.66.15:16380 4E08190BD91F309DD41CF5D6BE2AFFFF298C8A9F cert=+rOOVaQl8pO8zLKl4NNCEm+r1s2NAV55q/+INNaX4pHHvJg7wXfk8KFvTSK0NzgXfn7nFw iat-mode=0
+                    Bridge obfs4 185.177.207.156:8443 85039DCAC3BBFB86A09BB0C58878FECD79AE33DA cert=9+nXWUOkB/vGawa21fYwAv8v66QvflMgsx3KExXhHInwU6GzBF/MdWtoAvIZ2YKThUCpdA iat-mode=0
+                    """.trimIndent()
+                }
+            }
+            "meek" -> {
+                // Meek-azure bridge - uses IPtProxy pluggable transport
+                // Uses Microsoft Azure CDN for domain fronting
+                val app = context.applicationContext as? ShieldMessengerApplication
+                val controller = app?.let { ShieldMessengerApplication.iptProxyController }
+                val port = controller?.port(IPtProxy.MeekLite) ?: 0
+                if (port == 0L) {
+                    throw BridgeTransportFailedException("meek_lite transport failed to start - no SOCKS port available")
+                } else {
+                    """
+                    UseBridges 1
+                    ClientTransportPlugin meek_lite socks5 127.0.0.1:$port
+                    Bridge meek_lite 192.0.2.2:2 97700DFE9F483596DDA6264C4D7DF7641E1E39CE url=https://meek.azureedge.net/ front=ajax.aspnetcdn.com
+                    """.trimIndent()
+                }
+            }
+            "webtunnel" -> {
+                // WebTunnel - disguises Tor traffic as HTTPS WebSocket connections
+                // Iran priority #1 in Tor Project circumvention API
+                val app = context.applicationContext as? ShieldMessengerApplication
+                val controller = app?.let { ShieldMessengerApplication.iptProxyController }
+                val port = controller?.port(IPtProxy.Webtunnel) ?: 0
+                if (port == 0L) {
+                    throw BridgeTransportFailedException("webtunnel transport failed to start - no SOCKS port available")
+                } else {
+                    // Try fetching fresh bridges from circumvention API first
+                    val apiBridges = fetchCircumventionBridges("webtunnel")
+                    if (apiBridges != null) {
+                        Log.i(TAG, "Using ${apiBridges.size} webtunnel bridges from circumvention API")
+                        val bridgeLines = apiBridges.joinToString("\n") { "Bridge $it" }
+                        """
+                        UseBridges 1
+                        ClientTransportPlugin webtunnel socks5 127.0.0.1:$port
+                        $bridgeLines
+                        """.trimIndent()
+                    } else {
+                        // Fallback: hardcoded webtunnel bridges
+                        Log.i(TAG, "Using hardcoded webtunnel bridges (API unavailable)")
+                        """
+                        UseBridges 1
+                        ClientTransportPlugin webtunnel socks5 127.0.0.1:$port
+                        Bridge webtunnel [2001:db8:1fc0:eebe:5e6e:d6ee:f53e:6889]:443 4A3859C089DF40A4FFADC10A79DFEBE4F8272535 url=https://verry.org/K2A2utQIMou4Ia2WjVseyDjV ver=0.0.1
+                        Bridge webtunnel [2001:db8:2ae3:679a:856c:c72a:2746:1a1b]:443 8943BF53C9561C75A7302ED59575EF71E2B26562 url=https://allium.heelsn.eu/X1uzc7J4omPPBbqkJMDgBtXP ver=0.0.3
+                        Bridge webtunnel [2001:db8:2b58:9764:2fcf:67a0:1d1d:b622]:443 9255D4ADB05B7F8792E49779E4DF382BF7B2BE01 url=https://3124.null-f.org/KFfqlXliDgBsyHEtT0SKO1i5 ver=0.0.1
+                        Bridge webtunnel [2001:db8:2b84:8d:b5af:2b7c:2528:ecbc]:443 F99CFE52EDFF8EAA332CD73C1E638035210C0336 url=https://cdn-26.privacyguides.net/cFwsJGX85KZ4INwnDHvVxs0G ver=0.0.2
+                        Bridge webtunnel [2001:db8:2c2a:de34:35ec:ef86:f18a:e2fc]:443 B2DD1165FE69D5E934002AF882D3397CFCE441DC url=https://doxy.ptnpnhcdn.net/ptnpnh/ ver=0.0.1
+                        """.trimIndent()
+                    }
+                }
+            }
+            "custom" -> {
+                // Custom bridge provided by user
+                val customBridge = torSettings.getString("custom_bridge", "")
+                if (!customBridge.isNullOrEmpty()) {
+                    """
+                    UseBridges 1
+                    $customBridge
+                    """.trimIndent()
+                } else {
+                    "" // No custom bridge provided
+                }
+            }
+            else -> "" // No bridges (default)
+        }
+    }
+
+    /**
+     * Clear all Tor data (for account wipe)
+     * Deletes persistent hidden service keys so new identity is created
+     * IMPORTANT: Stop TorService before calling this to avoid file locks
+     */
+    fun clearData() {
+        Log.i(TAG, "Clearing all Tor data for account wipe...")
+
+        // Clear preferences first
+        prefs.edit().clear().apply()
+
+        // Stop listeners to release file handles
+        try {
+            RustBridge.stopListeners()
+            Log.d(TAG, "Stopped Rust listeners")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to stop listeners: ${e.message}")
+        }
+
+        // Give Tor a moment to close file handles
+        Thread.sleep(500)
+
+        // Delete persistent hidden service directories
+        // This ensures a fresh .onion address is generated on next account creation
+        try {
+            val messagingHiddenServiceDir = File(torDataDir, "messaging_hidden_service")
+            if (messagingHiddenServiceDir.exists()) {
+                val deleted = messagingHiddenServiceDir.deleteRecursively()
+                if (deleted) {
+                    Log.i(TAG, "Deleted persistent messaging hidden service directory")
+                } else {
+                    Log.e(TAG, "Failed to delete messaging hidden service directory (may be locked)")
+                }
+            }
+
+            val friendRequestHiddenServiceDir = File(torDataDir, "friend_request_hidden_service")
+            if (friendRequestHiddenServiceDir.exists()) {
+                val deleted = friendRequestHiddenServiceDir.deleteRecursively()
+                if (deleted) {
+                    Log.i(TAG, "Deleted persistent friend-request hidden service directory")
+                } else {
+                    Log.e(TAG, "Failed to delete friend-request hidden service directory (may be locked)")
+                }
+            }
+
+            // Also delete voice hidden service if it exists
+            val voiceTorDataDir = File(context.filesDir, "voice_tor")
+            if (voiceTorDataDir.exists()) {
+                val deleted = voiceTorDataDir.deleteRecursively()
+                if (deleted) {
+                    Log.i(TAG, "Deleted voice Tor data directory")
+                } else {
+                    Log.w(TAG, "Failed to delete voice Tor directory (may be locked)")
+                }
+            }
+
+            Log.i(TAG, "Tor data wipe complete - fresh .onion will be generated on next account creation")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to delete hidden service directories", e)
+        }
+    }
+}

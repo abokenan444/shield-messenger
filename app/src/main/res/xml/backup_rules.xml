@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- SecureLegion: Explicitly disable all backups for maximum security -->
+<!-- ShieldMessenger: Explicitly disable all backups for maximum security -->
 <full-backup-content>
     <!-- Exclude ALL sensitive data from backup -->
     <exclude domain="sharedpref" path="." />

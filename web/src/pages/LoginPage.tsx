@@ -36,7 +36,7 @@ export function LoginPage() {
           <div className="inline-flex items-center justify-center w-20 h-20 bg-primary-600/20 rounded-2xl mb-4">
             <ShieldIcon className="w-10 h-10 text-primary-400" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Secure Legion</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">Shield Messenger</h1>
           <p className="text-dark-400">منصة المراسلة الخاصة والمشفرة</p>
         </div>
 

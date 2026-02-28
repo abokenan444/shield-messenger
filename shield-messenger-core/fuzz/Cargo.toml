@@ -1,0 +1,75 @@
+[package]
+name = "shieldmessenger-fuzz"
+version = "0.1.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+
+[dependencies.shieldmessenger]
+path = ".."
+features = ["std"]
+
+# ── Existing fuzz targets ─────────────────────────────────────────────
+
+[[bin]]
+name = "fuzz_encrypt_decrypt"
+path = "fuzz_targets/fuzz_encrypt_decrypt.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_packet"
+path = "fuzz_targets/fuzz_packet.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_hybrid_kem"
+path = "fuzz_targets/fuzz_hybrid_kem.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_backup"
+path = "fuzz_targets/fuzz_backup.rs"
+doc = false
+
+# ── New fuzz targets (crypto primitives) ──────────────────────────────
+
+[[bin]]
+name = "fuzz_safety_number"
+path = "fuzz_targets/fuzz_safety_number.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_contact_verification"
+path = "fuzz_targets/fuzz_contact_verification.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_key_exchange"
+path = "fuzz_targets/fuzz_key_exchange.rs"
+doc = false
+
+# ── Extended fuzz targets (network & ratchet) ─────────────────────────
+
+[[bin]]
+name = "fuzz_ratchet"
+path = "fuzz_targets/fuzz_ratchet.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_padding"
+path = "fuzz_targets/fuzz_padding.rs"
+doc = false
+
+[[bin]]
+name = "fuzz_dos_protection"
+path = "fuzz_targets/fuzz_dos_protection.rs"
+doc = false
+
+[workspace]
+members = ["."]

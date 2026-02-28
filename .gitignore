@@ -58,9 +58,9 @@ captures/
 *.dll
 
 # ── Rust ──────────────────────────────────────────
-secure-legion-core/target/
-secure-legion-core/**/*.rs.bk
-# secure-legion-core/Cargo.lock  # Tracked for reproducible CI builds
+shield-messenger-core/target/
+shield-messenger-core/**/*.rs.bk
+# shield-messenger-core/Cargo.lock  # Tracked for reproducible CI builds
 
 # ── Node.js ───────────────────────────────────────
 node_modules/
@@ -80,7 +80,7 @@ web/dist/
 web/node_modules/
 
 # ── Old / Duplicate Projects ─────────────────────
-secure-legion-android/
+shield-messenger-android/
 conductor/
 relay-server/
 

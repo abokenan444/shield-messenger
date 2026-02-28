@@ -41,7 +41,7 @@
         </FrameLayout>
 
         <!-- Contact Avatar -->
-        <com.securelegion.views.AvatarView
+        <com.shieldmessenger.views.AvatarView
             android:id="@+id/contactAvatar"
             android:layout_width="42dp"
             android:layout_height="42dp"
@@ -115,7 +115,7 @@
         app:layout_constraintEnd_toEndOf="parent" />
 
     <!-- Media Keyboard Panel (emoji/sticker/GIF — replaces keyboard) -->
-    <com.securelegion.views.MediaKeyboardView
+    <com.shieldmessenger.views.MediaKeyboardView
         android:id="@+id/mediaKeyboardPanel"
         android:layout_width="match_parent"
         android:layout_height="0dp"

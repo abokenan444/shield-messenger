@@ -2,7 +2,7 @@ import Foundation
 import React
 
 /**
- * RustBridge — Swift Native Module that wraps the Rust C FFI (libsecurelegion.a).
+ * RustBridge — Swift Native Module that wraps the Rust C FFI (libshieldmessenger.a).
  *
  * This module is registered with React Native and exposes async methods
  * callable from TypeScript via NativeModules.RustBridge.
@@ -11,7 +11,7 @@ import React
  *   1. Compile Rust for iOS:
  *      $ rustup target add aarch64-apple-ios aarch64-apple-ios-sim
  *      $ cargo build --target aarch64-apple-ios --features ios --release
- *   2. Link libsecurelegion.a in Xcode → Build Phases → Link Binary
+ *   2. Link libshieldmessenger.a in Xcode → Build Phases → Link Binary
  *   3. Add ShieldMessenger-Bridging-Header.h with C function declarations
  */
 

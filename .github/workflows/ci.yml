@@ -32,30 +32,30 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('secure-legion-core/Cargo.toml') }}
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('shield-messenger-core/Cargo.toml') }}
           restore-keys: ${{ runner.os }}-cargo-registry-
 
-      - name: Build secure-legion-core
-        working-directory: secure-legion-core
+      - name: Build shield-messenger-core
+        working-directory: shield-messenger-core
         run: cargo build --release
 
       - name: Run tests
-        working-directory: secure-legion-core
+        working-directory: shield-messenger-core
         run: cargo test
 
       - name: Clippy lint
-        working-directory: secure-legion-core
+        working-directory: shield-messenger-core
         run: cargo clippy -- -D warnings
 
       - name: Check formatting
-        working-directory: secure-legion-core
+        working-directory: shield-messenger-core
         run: cargo fmt --all -- --check
 
       - name: Install cargo-audit
         run: cargo install cargo-audit
 
       - name: Run cargo-audit
-        working-directory: secure-legion-core
+        working-directory: shield-messenger-core
         run: cargo audit
 
   # ── Server ─────────────────────────────────────────────
@@ -177,17 +177,17 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('secure-legion-core/Cargo.toml') }}
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('shield-messenger-core/Cargo.toml') }}
           restore-keys: ${{ runner.os }}-cargo-registry-
 
       - name: Build release and output SHA256
-        working-directory: secure-legion-core
+        working-directory: shield-messenger-core
         run: |
           cargo build --release
           echo "## Build Artifact Checksums" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          find target/release -maxdepth 1 \( -name 'libsecurelegion.*' -o -name 'securelegion.*' \) -type f | while read f; do
+          find target/release -maxdepth 1 \( -name 'libshieldmessenger.*' -o -name 'shieldmessenger.*' \) -type f | while read f; do
             sha256sum "$f" | tee -a $GITHUB_STEP_SUMMARY
           done
           echo '```' >> $GITHUB_STEP_SUMMARY

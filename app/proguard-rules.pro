@@ -1,4 +1,4 @@
-# SecureLegion ProGuard Rules
+# ShieldMessenger ProGuard Rules
 # Complete configuration for R8/ProGuard optimization
 # Last updated: 2024
 # COMPREHENSIVE AUDIT COMPLETED - DO NOT MODIFY WITHOUT REVIEW
@@ -49,96 +49,96 @@
 }
 
 # Keep RustBridge completely intact (JNI callbacks)
--keep class com.securelegion.crypto.RustBridge { *; }
--keep class com.securelegion.crypto.RustBridge$* { *; }
+-keep class com.shieldmessenger.crypto.RustBridge { *; }
+-keep class com.shieldmessenger.crypto.RustBridge$* { *; }
 
 # ==================== APPLICATION CLASS ====================
 
--keep class com.securelegion.SecureLegionApplication { *; }
--keep class com.securelegion.BaseActivity { *; }
--keep class com.securelegion.BottomNavigation { *; }
+-keep class com.shieldmessenger.ShieldMessengerApplication { *; }
+-keep class com.shieldmessenger.BaseActivity { *; }
+-keep class com.shieldmessenger.BottomNavigation { *; }
 
 # ==================== ALL ACTIVITIES (40 TOTAL - MANIFEST REFERENCED) ====================
 
--keep class com.securelegion.AboutActivity { *; }
--keep class com.securelegion.AcceptPaymentActivity { *; }
--keep class com.securelegion.AccountCreatedActivity { *; }
--keep class com.securelegion.AddFriendActivity { *; }
--keep class com.securelegion.AutoLockActivity { *; }
--keep class com.securelegion.BackupSeedPhraseActivity { *; }
--keep class com.securelegion.BridgeActivity { *; }
--keep class com.securelegion.ChatActivity { *; }
--keep class com.securelegion.ComposeActivity { *; }
--keep class com.securelegion.ContactOptionsActivity { *; }
--keep class com.securelegion.CreateAccountActivity { *; }
--keep class com.securelegion.CreateWalletActivity { *; }
--keep class com.securelegion.DevicePasswordActivity { *; }
--keep class com.securelegion.DuressPinActivity { *; }
--keep class com.securelegion.ImportWalletActivity { *; }
--keep class com.securelegion.LockActivity { *; }
--keep class com.securelegion.MainActivity { *; }
--keep class com.securelegion.NotificationsActivity { *; }
--keep class com.securelegion.QRScannerActivity { *; }
--keep class com.securelegion.ReceiveActivity { *; }
--keep class com.securelegion.RecentTransactionsActivity { *; }
--keep class com.securelegion.RequestDetailsActivity { *; }
--keep class com.securelegion.RequestMoneyActivity { *; }
--keep class com.securelegion.RestoreAccountActivity { *; }
--keep class com.securelegion.SecurityModeActivity { *; }
--keep class com.securelegion.SendActivity { *; }
--keep class com.securelegion.SendMoneyActivity { *; }
--keep class com.securelegion.SettingsActivity { *; }
--keep class com.securelegion.SplashActivity { *; }
--keep class com.securelegion.SwapActivity { *; }
--keep class com.securelegion.TransactionDetailActivity { *; }
--keep class com.securelegion.TransactionsActivity { *; }
--keep class com.securelegion.TransferDetailsActivity { *; }
--keep class com.securelegion.WalletActivity { *; }
--keep class com.securelegion.WalletIdentityActivity { *; }
--keep class com.securelegion.WalletSettingsActivity { *; }
--keep class com.securelegion.WelcomeActivity { *; }
--keep class com.securelegion.WipeAccountActivity { *; }
+-keep class com.shieldmessenger.AboutActivity { *; }
+-keep class com.shieldmessenger.AcceptPaymentActivity { *; }
+-keep class com.shieldmessenger.AccountCreatedActivity { *; }
+-keep class com.shieldmessenger.AddFriendActivity { *; }
+-keep class com.shieldmessenger.AutoLockActivity { *; }
+-keep class com.shieldmessenger.BackupSeedPhraseActivity { *; }
+-keep class com.shieldmessenger.BridgeActivity { *; }
+-keep class com.shieldmessenger.ChatActivity { *; }
+-keep class com.shieldmessenger.ComposeActivity { *; }
+-keep class com.shieldmessenger.ContactOptionsActivity { *; }
+-keep class com.shieldmessenger.CreateAccountActivity { *; }
+-keep class com.shieldmessenger.CreateWalletActivity { *; }
+-keep class com.shieldmessenger.DevicePasswordActivity { *; }
+-keep class com.shieldmessenger.DuressPinActivity { *; }
+-keep class com.shieldmessenger.ImportWalletActivity { *; }
+-keep class com.shieldmessenger.LockActivity { *; }
+-keep class com.shieldmessenger.MainActivity { *; }
+-keep class com.shieldmessenger.NotificationsActivity { *; }
+-keep class com.shieldmessenger.QRScannerActivity { *; }
+-keep class com.shieldmessenger.ReceiveActivity { *; }
+-keep class com.shieldmessenger.RecentTransactionsActivity { *; }
+-keep class com.shieldmessenger.RequestDetailsActivity { *; }
+-keep class com.shieldmessenger.RequestMoneyActivity { *; }
+-keep class com.shieldmessenger.RestoreAccountActivity { *; }
+-keep class com.shieldmessenger.SecurityModeActivity { *; }
+-keep class com.shieldmessenger.SendActivity { *; }
+-keep class com.shieldmessenger.SendMoneyActivity { *; }
+-keep class com.shieldmessenger.SettingsActivity { *; }
+-keep class com.shieldmessenger.SplashActivity { *; }
+-keep class com.shieldmessenger.SwapActivity { *; }
+-keep class com.shieldmessenger.TransactionDetailActivity { *; }
+-keep class com.shieldmessenger.TransactionsActivity { *; }
+-keep class com.shieldmessenger.TransferDetailsActivity { *; }
+-keep class com.shieldmessenger.WalletActivity { *; }
+-keep class com.shieldmessenger.WalletIdentityActivity { *; }
+-keep class com.shieldmessenger.WalletSettingsActivity { *; }
+-keep class com.shieldmessenger.WelcomeActivity { *; }
+-keep class com.shieldmessenger.WipeAccountActivity { *; }
 
 # ==================== SERVICES (MANIFEST + INTENT REFERENCED) ====================
 
--keep class com.securelegion.services.TorService { *; }
--keep class com.securelegion.services.DownloadMessageService { *; }
--keep class com.securelegion.services.MessageService { *; }
--keep class com.securelegion.services.SolanaService { *; }
--keep class com.securelegion.services.ZcashService { *; }
--keep class com.securelegion.services.ContactCardManager { *; }
--keep class com.securelegion.services.CrustService { *; }
+-keep class com.shieldmessenger.services.TorService { *; }
+-keep class com.shieldmessenger.services.DownloadMessageService { *; }
+-keep class com.shieldmessenger.services.MessageService { *; }
+-keep class com.shieldmessenger.services.SolanaService { *; }
+-keep class com.shieldmessenger.services.ZcashService { *; }
+-keep class com.shieldmessenger.services.ContactCardManager { *; }
+-keep class com.shieldmessenger.services.CrustService { *; }
 
 # ==================== BROADCAST RECEIVERS (MANIFEST REFERENCED) ====================
 
--keep class com.securelegion.receivers.** { *; }
--keep class com.securelegion.receivers.TorServiceRestartReceiver { *; }
--keep class com.securelegion.receivers.BootReceiver { *; }
+-keep class com.shieldmessenger.receivers.** { *; }
+-keep class com.shieldmessenger.receivers.TorServiceRestartReceiver { *; }
+-keep class com.shieldmessenger.receivers.BootReceiver { *; }
 
 # ==================== ROOM DATABASE (CRITICAL!) ====================
 
 # Keep Room database class and generated impl
--keep class com.securelegion.database.SecureLegionDatabase { *; }
--keep class com.securelegion.database.SecureLegionDatabase_Impl { *; }
+-keep class com.shieldmessenger.database.ShieldMessengerDatabase { *; }
+-keep class com.shieldmessenger.database.ShieldMessengerDatabase_Impl { *; }
 
 # Keep all DAOs - Room uses reflection
--keep interface com.securelegion.database.dao.** { *; }
--keep class com.securelegion.database.dao.**_Impl { *; }
+-keep interface com.shieldmessenger.database.dao.** { *; }
+-keep class com.shieldmessenger.database.dao.**_Impl { *; }
 
 # Keep all entity classes with their field names (Room maps columns to fields)
 -keep @androidx.room.Entity class * { *; }
--keep class com.securelegion.database.entities.** { *; }
--keepclassmembers class com.securelegion.database.entities.** { *; }
+-keep class com.shieldmessenger.database.entities.** { *; }
+-keepclassmembers class com.shieldmessenger.database.entities.** { *; }
 
 # Entity fields - CRITICAL for Room column mapping
--keep class com.securelegion.database.entities.Contact { *; }
--keep class com.securelegion.database.entities.Message { *; }
--keep class com.securelegion.database.entities.Wallet { *; }
--keep class com.securelegion.database.entities.ReceivedId { *; }
--keep class com.securelegion.database.entities.UsedSignature { *; }
+-keep class com.shieldmessenger.database.entities.Contact { *; }
+-keep class com.shieldmessenger.database.entities.Message { *; }
+-keep class com.shieldmessenger.database.entities.Wallet { *; }
+-keep class com.shieldmessenger.database.entities.ReceivedId { *; }
+-keep class com.shieldmessenger.database.entities.UsedSignature { *; }
 
 # Room type converters
--keep class com.securelegion.database.converters.** { *; }
+-keep class com.shieldmessenger.database.converters.** { *; }
 
 # Room internals
 -keep class * extends androidx.room.RoomDatabase
@@ -147,19 +147,19 @@
 # ==================== DATA MODELS (JSON PARSING - CRITICAL!) ====================
 
 # These classes use JSONObject.getString("field_name") - field names MUST match JSON keys
--keep class com.securelegion.models.** { *; }
--keepclassmembers class com.securelegion.models.** { *; }
+-keep class com.shieldmessenger.models.** { *; }
+-keepclassmembers class com.shieldmessenger.models.** { *; }
 
 # Individual model classes with JSON parsing
--keep class com.securelegion.models.Chat { *; }
--keep class com.securelegion.models.Contact { *; }
--keep class com.securelegion.models.ContactCard { *; }
--keep class com.securelegion.models.FriendRequest { *; }
--keep class com.securelegion.models.PendingFriendRequest { *; }
--keep class com.securelegion.models.PendingPing { *; }
+-keep class com.shieldmessenger.models.Chat { *; }
+-keep class com.shieldmessenger.models.Contact { *; }
+-keep class com.shieldmessenger.models.ContactCard { *; }
+-keep class com.shieldmessenger.models.FriendRequest { *; }
+-keep class com.shieldmessenger.models.PendingFriendRequest { *; }
+-keep class com.shieldmessenger.models.PendingPing { *; }
 
 # Keep companion object factory methods (fromJson, toJson)
--keepclassmembers class com.securelegion.models.** {
+-keepclassmembers class com.shieldmessenger.models.** {
     public static ** fromJson(...);
     public static ** toJson(...);
     public static ** Companion;
@@ -169,29 +169,29 @@
 # ==================== CRYPTO & PAYMENT CLASSES (CRITICAL!) ====================
 
 # NLx402Manager - payment protocol with JSON parsing
--keep class com.securelegion.crypto.NLx402Manager { *; }
--keep class com.securelegion.crypto.NLx402Manager$* { *; }
--keep class com.securelegion.crypto.NLx402Manager$PaymentQuote { *; }
--keep class com.securelegion.crypto.NLx402Manager$VerificationResult { *; }
--keep class com.securelegion.crypto.NLx402Manager$VerificationResult$Success { *; }
--keep class com.securelegion.crypto.NLx402Manager$VerificationResult$Failed { *; }
--keepclassmembers class com.securelegion.crypto.NLx402Manager$PaymentQuote {
+-keep class com.shieldmessenger.crypto.NLx402Manager { *; }
+-keep class com.shieldmessenger.crypto.NLx402Manager$* { *; }
+-keep class com.shieldmessenger.crypto.NLx402Manager$PaymentQuote { *; }
+-keep class com.shieldmessenger.crypto.NLx402Manager$VerificationResult { *; }
+-keep class com.shieldmessenger.crypto.NLx402Manager$VerificationResult$Success { *; }
+-keep class com.shieldmessenger.crypto.NLx402Manager$VerificationResult$Failed { *; }
+-keepclassmembers class com.shieldmessenger.crypto.NLx402Manager$PaymentQuote {
     public static ** fromJson(...);
     *;
 }
 
 # KeyManager - singleton accessed from Rust JNI
--keep class com.securelegion.crypto.KeyManager { *; }
--keepclassmembers class com.securelegion.crypto.KeyManager {
+-keep class com.shieldmessenger.crypto.KeyManager { *; }
+-keepclassmembers class com.shieldmessenger.crypto.KeyManager {
     public static ** getInstance(...);
     *;
 }
 
 # TorManager - Tor network management
--keep class com.securelegion.crypto.TorManager { *; }
+-keep class com.shieldmessenger.crypto.TorManager { *; }
 
 # NLx402ReplayProtection - replay protection
--keep class com.securelegion.crypto.NLx402ReplayProtection { *; }
+-keep class com.shieldmessenger.crypto.NLx402ReplayProtection { *; }
 
 # ==================== WORKMANAGER WORKERS ====================
 
@@ -200,42 +200,42 @@
 -keep class * extends androidx.work.CoroutineWorker { *; }
 -keep class * extends androidx.work.ListenableWorker { *; }
 
-# SecureLegion workers
--keep class com.securelegion.workers.** { *; }
--keep class com.securelegion.workers.MessageRetryWorker { *; }
--keep class com.securelegion.workers.ImmediateRetryWorker { *; }
--keep class com.securelegion.workers.SelfDestructWorker { *; }
+# ShieldMessenger workers
+-keep class com.shieldmessenger.workers.** { *; }
+-keep class com.shieldmessenger.workers.MessageRetryWorker { *; }
+-keep class com.shieldmessenger.workers.ImmediateRetryWorker { *; }
+-keep class com.shieldmessenger.workers.SelfDestructWorker { *; }
 
 # ==================== RECYCLER VIEW ADAPTERS ====================
 
 # Adapters and ViewHolder classes
--keep class com.securelegion.adapters.** { *; }
--keep class com.securelegion.adapters.ChatAdapter { *; }
--keep class com.securelegion.adapters.ChatAdapter$* { *; }
--keep class com.securelegion.adapters.ContactAdapter { *; }
--keep class com.securelegion.adapters.ContactAdapter$* { *; }
--keep class com.securelegion.adapters.MessageAdapter { *; }
--keep class com.securelegion.adapters.MessageAdapter$* { *; }
--keep class com.securelegion.adapters.TransactionAdapter { *; }
--keep class com.securelegion.adapters.TransactionAdapter$* { *; }
--keep class com.securelegion.adapters.WalletAdapter { *; }
--keep class com.securelegion.adapters.WalletAdapter$* { *; }
+-keep class com.shieldmessenger.adapters.** { *; }
+-keep class com.shieldmessenger.adapters.ChatAdapter { *; }
+-keep class com.shieldmessenger.adapters.ChatAdapter$* { *; }
+-keep class com.shieldmessenger.adapters.ContactAdapter { *; }
+-keep class com.shieldmessenger.adapters.ContactAdapter$* { *; }
+-keep class com.shieldmessenger.adapters.MessageAdapter { *; }
+-keep class com.shieldmessenger.adapters.MessageAdapter$* { *; }
+-keep class com.shieldmessenger.adapters.TransactionAdapter { *; }
+-keep class com.shieldmessenger.adapters.TransactionAdapter$* { *; }
+-keep class com.shieldmessenger.adapters.WalletAdapter { *; }
+-keep class com.shieldmessenger.adapters.WalletAdapter$* { *; }
 
 # Keep all ViewHolder inner classes
--keepclassmembers class com.securelegion.adapters.**$*ViewHolder { *; }
+-keepclassmembers class com.shieldmessenger.adapters.**$*ViewHolder { *; }
 
 # ==================== UTILITY CLASSES ====================
 
--keep class com.securelegion.utils.** { *; }
--keep class com.securelegion.utils.ActivityExtensions { *; }
--keep class com.securelegion.utils.BadgeUtils { *; }
--keep class com.securelegion.utils.BiometricAuthHelper { *; }
--keep class com.securelegion.utils.PasswordValidator { *; }
--keep class com.securelegion.utils.PendingPingMigration { *; }
--keep class com.securelegion.utils.SecureWipe { *; }
--keep class com.securelegion.utils.ThemedToast { *; }
--keep class com.securelegion.utils.VoicePlayer { *; }
--keep class com.securelegion.utils.VoiceRecorder { *; }
+-keep class com.shieldmessenger.utils.** { *; }
+-keep class com.shieldmessenger.utils.ActivityExtensions { *; }
+-keep class com.shieldmessenger.utils.BadgeUtils { *; }
+-keep class com.shieldmessenger.utils.BiometricAuthHelper { *; }
+-keep class com.shieldmessenger.utils.PasswordValidator { *; }
+-keep class com.shieldmessenger.utils.PendingPingMigration { *; }
+-keep class com.shieldmessenger.utils.SecureWipe { *; }
+-keep class com.shieldmessenger.utils.ThemedToast { *; }
+-keep class com.shieldmessenger.utils.VoicePlayer { *; }
+-keep class com.shieldmessenger.utils.VoiceRecorder { *; }
 
 # ==================== TOR LIBRARIES (CRITICAL!) ====================
 
@@ -358,7 +358,7 @@
 # ==================== FRAGMENTS ====================
 
 # Keep any fragments
--keep class com.securelegion.fragments.** { *; }
+-keep class com.shieldmessenger.fragments.** { *; }
 -keep class * extends androidx.fragment.app.Fragment
 
 # ==================== LOG REMOVAL (Security) ====================

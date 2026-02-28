@@ -30,14 +30,14 @@ rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
 ```
 
 This produces:
-- `ios/Libraries/libsecurelegion-device.a` — for physical devices
-- `ios/Libraries/libsecurelegion-sim.a` — for simulators
+- `ios/Libraries/libshieldmessenger-device.a` — for physical devices
+- `ios/Libraries/libshieldmessenger-sim.a` — for simulators
 
 ### 3. Configure Xcode
 
 1. Open `ios/ShieldMessenger.xcworkspace` in Xcode
 2. Go to **Build Phases → Link Binary With Libraries**
-3. Add `libsecurelegion-device.a` (or `-sim.a` for simulator)
+3. Add `libshieldmessenger-device.a` (or `-sim.a` for simulator)
 4. Go to **Build Settings**:
    - Set **Library Search Paths** to `$(PROJECT_DIR)/Libraries`
    - Set **Objective-C Bridging Header** to `ShieldMessenger/ShieldMessenger-Bridging-Header.h`
@@ -71,7 +71,7 @@ React Native (TypeScript)
                     │
                     └── ShieldMessenger-Bridging-Header.h (C declarations)
                             │
-                            └── libsecurelegion.a (Rust core)
+                            └── libshieldmessenger.a (Rust core)
                                     │
                                     ├── ios.rs (C FFI exports, sl_* prefix)
                                     ├── crypto/ (encryption, ratchet, PQ KEM)
@@ -118,7 +118,7 @@ cd fastlane && fastlane release
 
 | Issue | Solution |
 |-------|----------|
-| `Undefined symbols for architecture arm64` | Ensure `libsecurelegion.a` is linked and Library Search Paths are set |
+| `Undefined symbols for architecture arm64` | Ensure `libshieldmessenger.a` is linked and Library Search Paths are set |
 | `Bridging header not found` | Set path in Build Settings → Swift Compiler → Objective-C Bridging Header |
 | `Module 'React' not found` in Swift | Run `cd ios && pod install` |
 | Tor connection fails | Ensure `NSAllowsLocalNetworking` is `true` in Info.plist |

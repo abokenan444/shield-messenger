@@ -1,6 +1,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
-    <style name="Theme.SecureLegion" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.ShieldMessenger" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Primary brand color. -->
         <item name="colorPrimary">#888888</item>
         <item name="colorPrimaryContainer">#666666</item>
@@ -105,9 +105,9 @@
     </style>
 
     <!-- Shield Messenger Custom Progress Bar Style -->
-    <style name="SecureLegionProgressBar" parent="android:Widget.ProgressBar.Horizontal">
+    <style name="ShieldMessengerProgressBar" parent="android:Widget.ProgressBar.Horizontal">
         <item name="android:indeterminateOnly">false</item>
-        <item name="android:progressDrawable">@drawable/secure_legion_progress_bar</item>
+        <item name="android:progressDrawable">@drawable/shield_messenger_progress_bar</item>
         <item name="android:minHeight">12dp</item>
         <item name="android:maxHeight">12dp</item>
     </style>
@@ -130,7 +130,7 @@
     </style>
 
     <!-- Theme for WelcomeActivity - disables starting window preview to prevent cached screenshot flash -->
-    <style name="Theme.SecureLegion.NoStartingWindow" parent="Theme.SecureLegion">
+    <style name="Theme.ShieldMessenger.NoStartingWindow" parent="Theme.ShieldMessenger">
         <item name="android:windowDisablePreview">true</item>
     </style>
 
@@ -158,7 +158,7 @@
     </style>
 
     <!-- Splash Screen Theme - Android 12+ system splash screen -->
-    <style name="Theme.SecureLegion.Splash" parent="Theme.SplashScreen">
+    <style name="Theme.ShieldMessenger.Splash" parent="Theme.SplashScreen">
         <!-- Full gray background (like Session) -->
         <item name="windowSplashScreenBackground">#1C1C1C</item>
 
@@ -173,6 +173,6 @@
         <item name="android:navigationBarColor">#000000</item>
 
         <!-- Post-splash theme (your regular theme) -->
-        <item name="postSplashScreenTheme">@style/Theme.SecureLegion</item>
+        <item name="postSplashScreenTheme">@style/Theme.ShieldMessenger</item>
     </style>
 </resources>

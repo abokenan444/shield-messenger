@@ -58,7 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - exists() method for checking if ID was previously received
   - deleteOldIds() for cleanup of IDs older than 30 days
 
-- **SecureLegionDatabase.kt (lines 34-35, 185-202)**: Added migration 10 to 11
+- **ShieldMessengerDatabase.kt (lines 34-35, 185-202)**: Added migration 10 to 11
   - Creates received_ids table with UNIQUE index on receivedId
   - Migration creates table and index for deduplication tracking
   - Database version bumped to 11
@@ -206,27 +206,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rust TorManager binds TCP socket to localhost:9153 via Tor hidden service
 - ACKs encrypted with shared secret (ECDH using X25519 keys)
 - Wire format: [Type Byte 0x06][Sender X25519 Public Key][Encrypted ACK]
-- JNI function Java_com_securelegion_crypto_RustBridge_startAckListener must match exactly
+- JNI function Java_com_shieldmessenger_crypto_RustBridge_startAckListener must match exactly
 - Default parameters in Kotlin external fun break JNI name mangling
 
 ### Files Modified
 
 **Kotlin Files:**
-- app/src/main/java/com/securelegion/BaseActivity.kt
-- app/src/main/java/com/securelegion/MainActivity.kt
-- app/src/main/java/com/securelegion/ChatActivity.kt
-- app/src/main/java/com/securelegion/AddFriendActivity.kt
-- app/src/main/java/com/securelegion/SecurityModeActivity.kt
-- app/src/main/java/com/securelegion/crypto/RustBridge.kt
-- app/src/main/java/com/securelegion/crypto/TorManager.kt
-- app/src/main/java/com/securelegion/BridgeActivity.kt
-- app/src/main/java/com/securelegion/services/TorService.kt
-- app/src/main/java/com/securelegion/database/SecureLegionDatabase.kt
+- app/src/main/java/com/shieldmessenger/BaseActivity.kt
+- app/src/main/java/com/shieldmessenger/MainActivity.kt
+- app/src/main/java/com/shieldmessenger/ChatActivity.kt
+- app/src/main/java/com/shieldmessenger/AddFriendActivity.kt
+- app/src/main/java/com/shieldmessenger/SecurityModeActivity.kt
+- app/src/main/java/com/shieldmessenger/crypto/RustBridge.kt
+- app/src/main/java/com/shieldmessenger/crypto/TorManager.kt
+- app/src/main/java/com/shieldmessenger/BridgeActivity.kt
+- app/src/main/java/com/shieldmessenger/services/TorService.kt
+- app/src/main/java/com/shieldmessenger/database/ShieldMessengerDatabase.kt
 
 **New Kotlin Files:**
-- app/src/main/java/com/securelegion/AutoLockActivity.kt
-- app/src/main/java/com/securelegion/database/entities/ReceivedId.kt
-- app/src/main/java/com/securelegion/database/dao/ReceivedIdDao.kt
+- app/src/main/java/com/shieldmessenger/AutoLockActivity.kt
+- app/src/main/java/com/shieldmessenger/database/entities/ReceivedId.kt
+- app/src/main/java/com/shieldmessenger/database/dao/ReceivedIdDao.kt
 
 **Layout Files:**
 - app/src/main/res/layout/activity_security_mode.xml
@@ -397,15 +397,15 @@ Now scheduled in three independent locations for maximum reliability:
 ### Files Modified
 
 **Kotlin Files:**
-- app/src/main/java/com/securelegion/services/TorService.kt
-- app/src/main/java/com/securelegion/services/MessageService.kt
-- app/src/main/java/com/securelegion/services/DownloadMessageService.kt
-- app/src/main/java/com/securelegion/BridgeActivity.kt
-- app/src/main/java/com/securelegion/SplashActivity.kt
-- app/src/main/java/com/securelegion/utils/BiometricAuthHelper.kt
+- app/src/main/java/com/shieldmessenger/services/TorService.kt
+- app/src/main/java/com/shieldmessenger/services/MessageService.kt
+- app/src/main/java/com/shieldmessenger/services/DownloadMessageService.kt
+- app/src/main/java/com/shieldmessenger/BridgeActivity.kt
+- app/src/main/java/com/shieldmessenger/SplashActivity.kt
+- app/src/main/java/com/shieldmessenger/utils/BiometricAuthHelper.kt
 
 **New Files:**
-- app/src/main/java/com/securelegion/receivers/BootReceiver.kt
+- app/src/main/java/com/shieldmessenger/receivers/BootReceiver.kt
 
 **Configuration Files:**
 - app/src/main/AndroidManifest.xml
@@ -463,11 +463,11 @@ Now scheduled in three independent locations for maximum reliability:
 ### Technical Details
 
 **New Files:**
-- app/src/main/java/com/securelegion/database/SecureLegionDatabase.kt - Encrypted database singleton
-- app/src/main/java/com/securelegion/database/entities/Contact.kt - Contact entity
-- app/src/main/java/com/securelegion/database/entities/Message.kt - Message entity
-- app/src/main/java/com/securelegion/database/dao/ContactDao.kt - Contact DAO with queries
-- app/src/main/java/com/securelegion/database/dao/MessageDao.kt - Message DAO with delivery tracking
+- app/src/main/java/com/shieldmessenger/database/ShieldMessengerDatabase.kt - Encrypted database singleton
+- app/src/main/java/com/shieldmessenger/database/entities/Contact.kt - Contact entity
+- app/src/main/java/com/shieldmessenger/database/entities/Message.kt - Message entity
+- app/src/main/java/com/shieldmessenger/database/dao/ContactDao.kt - Contact DAO with queries
+- app/src/main/java/com/shieldmessenger/database/dao/MessageDao.kt - Message DAO with delivery tracking
 - app/src/main/res/drawable/contact_info_box_bg.xml - Rounded corner background
 - app/src/main/res/drawable/delete_button_bg.xml - Delete button styling
 
@@ -506,7 +506,7 @@ CREATE TABLE messages (
 ```
 
 **Security Considerations:**
-- Database file stored at /data/data/com.securelegion/databases/secure_legion.db
+- Database file stored at /data/data/com.shieldmessenger/databases/shield_messenger.db
 - No plaintext data ever touches disk
 - Encryption key never stored, derived fresh from BIP39 seed on each session
 - Database verification method confirms encryption is active
@@ -581,10 +581,10 @@ CREATE TABLE messages (
 ### Technical Details
 
 **New Files:**
-- app/src/main/java/com/securelegion/services/PinataService.kt - IPFS gateway integration
-- app/src/main/java/com/securelegion/services/ContactCardManager.kt - Contact card encryption/decryption
-- app/src/main/java/com/securelegion/models/ContactCard.kt - Contact card data model
-- app/src/main/java/com/securelegion/BackupSeedPhraseActivity.kt - Seed phrase backup UI
+- app/src/main/java/com/shieldmessenger/services/PinataService.kt - IPFS gateway integration
+- app/src/main/java/com/shieldmessenger/services/ContactCardManager.kt - Contact card encryption/decryption
+- app/src/main/java/com/shieldmessenger/models/ContactCard.kt - Contact card data model
+- app/src/main/java/com/shieldmessenger/BackupSeedPhraseActivity.kt - Seed phrase backup UI
 - app/src/main/res/layout/activity_backup_seed_phrase.xml - Backup layout
 
 **Dependencies Added:**
@@ -611,7 +611,7 @@ CREATE TABLE messages (
 ## [0.1.1] - 2025-11-09
 
 ### Fixed
-- **App crash on x86_64 emulators** - Built and packaged Rust native library for x86_64 architecture alongside existing ARM64 build. The app was crashing on Android emulators with `dlopen failed: library "libsecurelegion.so" not found` error.
+- **App crash on x86_64 emulators** - Built and packaged Rust native library for x86_64 architecture alongside existing ARM64 build. The app was crashing on Android emulators with `dlopen failed: library "libshieldmessenger.so" not found` error.
 - **Tor reconnection on every app launch** - Fixed SplashActivity redundantly re-initializing Tor every time the app opened. Now properly checks if Tor is already initialized and reuses existing connection, preventing 15-30 second bootstrap delays.
 - **Memory leak warning in KeyManager** - Fixed singleton pattern to use applicationContext instead of Activity context to prevent memory leaks. Added proper `@Suppress("StaticFieldLeak")` annotation with safety justification.
 - **Back navigation in account creation** - Fixed issue where pressing back button in CreateAccountActivity or RestoreAccountActivity would close the app. Now properly returns to lock screen.
@@ -655,7 +655,7 @@ CREATE TABLE messages (
   - Integrated persistent Ed25519 keypair for stable .onion addresses across app restarts
   - Implemented base32 encoding for v3 .onion address generation
   - Added SHA3-256 checksum calculation for onion address validation
-  - Stores hidden service keys in `/data/data/com.securelegion/files/tor_hs/`
+  - Stores hidden service keys in `/data/data/com.shieldmessenger/files/tor_hs/`
   - Detailed logging for onion service lifecycle events
 
 - **Splash Screen Loading Indicator**
@@ -704,7 +704,7 @@ CREATE TABLE messages (
   - Added `is_listening()` utility method to check listener state
   - Enhanced error handling with detailed logging at each step
 
-- **SplashActivity Integration** (app/src/main/java/com/securelegion/SplashActivity.kt)
+- **SplashActivity Integration** (app/src/main/java/com/shieldmessenger/SplashActivity.kt)
   - Added TorService startup call in `onCreate()` lifecycle method
   - Integrated status update callbacks from TorManager
   - Implemented `updateStatus()` helper for UI thread-safe text updates
@@ -720,7 +720,7 @@ CREATE TABLE messages (
 
 - **Multiple App Instances Issue**
   - Resolved duplicate task creation by implementing singleTask launch mode
-  - Fixed recents menu showing 3-4 SecureLegion entries during testing
+  - Fixed recents menu showing 3-4 ShieldMessenger entries during testing
   - Now only one instance appears regardless of how many times app is launched
   - Existing task is brought to front instead of creating new one
 
@@ -759,7 +759,7 @@ shield-messenger-core/
 ├── src/ffi/android.rs          (Modified - added JNI bindings)
 
 app/src/main/
-├── java/com/securelegion/
+├── java/com/shieldmessenger/
 │   ├── SplashActivity.kt       (Modified - added status updates)
 │   ├── services/TorService.kt  (Modified - background thread init)
 │   └── crypto/RustBridge.kt    (Modified - new native methods)
@@ -793,8 +793,8 @@ app/src/main/
 **Tor Network Integration (Arti)**
 - Full Tor client implementation using Arti (official Rust Tor implementation)
 - Automatic Tor network bootstrap and circuit creation
-- Persistent state management in `/data/data/com.securelegion/files/tor_state`
-- Directory cache in `/data/data/com.securelegion/cache/tor_cache`
+- Persistent state management in `/data/data/com.shieldmessenger/files/tor_state`
+- Directory cache in `/data/data/com.shieldmessenger/cache/tor_cache`
 - Support for both clearnet and .onion address connections
 - Ed25519-based v3 hidden service creation
 - Cryptographically-derived .onion addresses (56 characters)

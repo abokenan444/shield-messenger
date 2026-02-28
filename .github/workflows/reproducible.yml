@@ -47,17 +47,17 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: ${{ runner.os }}-cargo-reproducible-${{ hashFiles('build-a/secure-legion-core/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-reproducible-${{ hashFiles('build-a/shield-messenger-core/Cargo.lock') }}
 
       # ── Build A ──────────────────────────────────────────────
-      - name: Build A — Compile secure-legion-core
-        working-directory: build-a/secure-legion-core
+      - name: Build A — Compile shield-messenger-core
+        working-directory: build-a/shield-messenger-core
         run: |
           cargo build --release --locked 2>&1 | tail -20
           echo "Build A complete"
 
       - name: Build A — Compute hashes
-        working-directory: build-a/secure-legion-core
+        working-directory: build-a/shield-messenger-core
         run: |
           mkdir -p /tmp/hashes-a
           find target/release -maxdepth 1 \( -name "*.a" -o -name "*.so" -o -name "*.rlib" \) \
@@ -68,16 +68,16 @@ jobs:
       # ── Build B ──────────────────────────────────────────────
       - name: Build B — Clean Cargo cache to force fresh build
         run: |
-          rm -rf build-b/secure-legion-core/target
+          rm -rf build-b/shield-messenger-core/target
 
-      - name: Build B — Compile secure-legion-core
-        working-directory: build-b/secure-legion-core
+      - name: Build B — Compile shield-messenger-core
+        working-directory: build-b/shield-messenger-core
         run: |
           cargo build --release --locked 2>&1 | tail -20
           echo "Build B complete"
 
       - name: Build B — Compute hashes
-        working-directory: build-b/secure-legion-core
+        working-directory: build-b/shield-messenger-core
         run: |
           mkdir -p /tmp/hashes-b
           find target/release -maxdepth 1 \( -name "*.a" -o -name "*.so" -o -name "*.rlib" \) \
@@ -110,7 +110,7 @@ jobs:
       - name: Prepare SHA256SUMS for release
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          sed 's|build-a/secure-legion-core/target/release/||g' /tmp/hashes-a/SHA256SUMS.txt \
+          sed 's|build-a/shield-messenger-core/target/release/||g' /tmp/hashes-a/SHA256SUMS.txt \
             > /tmp/SHA256SUMS.txt
           cat /tmp/SHA256SUMS.txt
 
@@ -142,14 +142,14 @@ jobs:
           targets: wasm32-unknown-unknown
 
       - name: Build A — WASM
-        working-directory: build-a/secure-legion-core
+        working-directory: build-a/shield-messenger-core
         run: |
           cargo build --target wasm32-unknown-unknown --features wasm --no-default-features --release --locked
           sha256sum target/wasm32-unknown-unknown/release/*.wasm > /tmp/wasm-a.txt
           cat /tmp/wasm-a.txt
 
       - name: Build B — WASM (clean)
-        working-directory: build-b/secure-legion-core
+        working-directory: build-b/shield-messenger-core
         run: |
           cargo build --target wasm32-unknown-unknown --features wasm --no-default-features --release --locked
           sha256sum target/wasm32-unknown-unknown/release/*.wasm > /tmp/wasm-b.txt

@@ -12,8 +12,8 @@ services:
       - PORT=4000
       - JWT_SECRET=${JWT_SECRET}
       - FIELD_ENCRYPTION_KEY=${FIELD_ENCRYPTION_KEY}
-      - CORS_ORIGIN=${CORS_ORIGIN:-https://securelegion.app}
-      - SQLITE_PATH=/app/data/secure_legion.db
+      - CORS_ORIGIN=${CORS_ORIGIN:-https://shieldmessenger.app}
+      - SQLITE_PATH=/app/data/shield_messenger.db
       - DISCOVERY_ENABLED=true
       - ANALYTICS_ENABLED=true
     volumes:

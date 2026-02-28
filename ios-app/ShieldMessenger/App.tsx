@@ -2,7 +2,7 @@
  * Shield Messenger — iOS App
  *
  * Privacy-first encrypted messenger over Tor.
- * All cryptographic operations run in the Rust core (libsecurelegion.a).
+ * All cryptographic operations run in the Rust core (libshieldmessenger.a).
  * React Native handles UI rendering only.
  *
  * @format

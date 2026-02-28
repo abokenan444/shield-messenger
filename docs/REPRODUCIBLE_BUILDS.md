@@ -51,7 +51,7 @@ Install the following tools before attempting any verification:
 
 ## Verify the Rust Core Library
 
-The Rust core (`secure-legion-core`) is the cryptographic heart of the application. All platforms depend on it.
+The Rust core (`shield-messenger-core`) is the cryptographic heart of the application. All platforms depend on it.
 
 ### Step 1: Clone the Repository
 
@@ -77,7 +77,7 @@ rustc --version --verbose
 ### Step 3a: Build Locally (Linux x86_64)
 
 ```bash
-cd secure-legion-core
+cd shield-messenger-core
 
 # Set deterministic RUSTFLAGS
 export RUSTFLAGS="\
@@ -89,8 +89,8 @@ export RUSTFLAGS="\
 cargo build --release --locked
 
 # Compute hashes
-sha256sum target/release/libsecurelegion.a
-sha256sum target/release/libsecurelegion.so
+sha256sum target/release/libshieldmessenger.a
+sha256sum target/release/libshieldmessenger.so
 ```
 
 ### Step 3b: Build via Docker (Recommended)
@@ -103,13 +103,13 @@ docker build -t shield-build -f Dockerfile.reproducible .
 
 # Extract the artifact
 docker create --name shield-extract shield-build
-docker cp shield-extract:/app/target/release/libsecurelegion.a ./local-libsecurelegion.a
-docker cp shield-extract:/app/target/release/libsecurelegion.so ./local-libsecurelegion.so
+docker cp shield-extract:/app/target/release/libshieldmessenger.a ./local-libshieldmessenger.a
+docker cp shield-extract:/app/target/release/libshieldmessenger.so ./local-libshieldmessenger.so
 docker rm shield-extract
 
 # Compute hashes
-sha256sum local-libsecurelegion.a
-sha256sum local-libsecurelegion.so
+sha256sum local-libshieldmessenger.a
+sha256sum local-libshieldmessenger.so
 ```
 
 ### Step 4: Compare Against Published Release
@@ -117,7 +117,7 @@ sha256sum local-libsecurelegion.so
 ```bash
 # Download the official release artifact
 RELEASE_TAG="v1.0.0"  # Replace with actual tag
-curl -LO "https://github.com/abokenan444/shield-messenger/releases/download/${RELEASE_TAG}/libsecurelegion.a"
+curl -LO "https://github.com/abokenan444/shield-messenger/releases/download/${RELEASE_TAG}/libshieldmessenger.a"
 curl -LO "https://github.com/abokenan444/shield-messenger/releases/download/${RELEASE_TAG}/SHA256SUMS.txt"
 
 # Verify the hash
@@ -125,9 +125,9 @@ sha256sum -c SHA256SUMS.txt
 
 # Or compare manually
 echo "=== Published hash ==="
-grep libsecurelegion.a SHA256SUMS.txt
+grep libshieldmessenger.a SHA256SUMS.txt
 echo "=== Your local hash ==="
-sha256sum local-libsecurelegion.a
+sha256sum local-libshieldmessenger.a
 ```
 
 **Expected result:** Both hashes must be identical. If they differ, see [Troubleshooting](#troubleshooting).
@@ -139,7 +139,7 @@ sha256sum local-libsecurelegion.a
 ### Step 1: Build the Native Libraries
 
 ```bash
-cd secure-legion-core
+cd shield-messenger-core
 
 # Install Android targets
 rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
@@ -158,9 +158,9 @@ cargo ndk \
 
 # Copy .so files to jniLibs
 mkdir -p ../app/src/main/jniLibs/{arm64-v8a,armeabi-v7a,x86_64}
-cp target/aarch64-linux-android/release/libsecurelegion.so ../app/src/main/jniLibs/arm64-v8a/
-cp target/armv7-linux-androideabi/release/libsecurelegion.so ../app/src/main/jniLibs/armeabi-v7a/
-cp target/x86_64-linux-android/release/libsecurelegion.so ../app/src/main/jniLibs/x86_64/
+cp target/aarch64-linux-android/release/libshieldmessenger.so ../app/src/main/jniLibs/arm64-v8a/
+cp target/armv7-linux-androideabi/release/libshieldmessenger.so ../app/src/main/jniLibs/armeabi-v7a/
+cp target/x86_64-linux-android/release/libshieldmessenger.so ../app/src/main/jniLibs/x86_64/
 ```
 
 ### Step 2: Build the APK
@@ -186,9 +186,9 @@ ls -la app/build/outputs/apk/release/app-release-unsigned.apk
 # Extract and hash the native libraries inside the APK
 unzip -o app/build/outputs/apk/release/app-release-unsigned.apk -d apk-contents/
 
-sha256sum apk-contents/lib/arm64-v8a/libsecurelegion.so
-sha256sum apk-contents/lib/armeabi-v7a/libsecurelegion.so
-sha256sum apk-contents/lib/x86_64/libsecurelegion.so
+sha256sum apk-contents/lib/arm64-v8a/libshieldmessenger.so
+sha256sum apk-contents/lib/armeabi-v7a/libshieldmessenger.so
+sha256sum apk-contents/lib/x86_64/libshieldmessenger.so
 
 # These should match the hashes from Step 1
 ```
@@ -208,8 +208,8 @@ diffoscope \
 
 # Or compare just the native libraries
 unzip -o shield-messenger-${RELEASE_TAG}.apk -d published-apk/
-diff <(sha256sum apk-contents/lib/arm64-v8a/libsecurelegion.so) \
-     <(sha256sum published-apk/lib/arm64-v8a/libsecurelegion.so)
+diff <(sha256sum apk-contents/lib/arm64-v8a/libshieldmessenger.so) \
+     <(sha256sum published-apk/lib/arm64-v8a/libshieldmessenger.so)
 ```
 
 ### APK Reproducibility Notes
@@ -228,7 +228,7 @@ iOS reproducible builds are more challenging due to Apple's toolchain, but the R
 ### Step 1: Build the Rust Core for iOS
 
 ```bash
-cd secure-legion-core
+cd shield-messenger-core
 
 # Install iOS targets
 rustup target add aarch64-apple-ios aarch64-apple-ios-sim
@@ -245,8 +245,8 @@ cargo build --target aarch64-apple-ios --release --locked
 cargo build --target aarch64-apple-ios-sim --release --locked
 
 # Compute hashes
-sha256sum target/aarch64-apple-ios/release/libsecurelegion.a
-sha256sum target/aarch64-apple-ios-sim/release/libsecurelegion.a
+sha256sum target/aarch64-apple-ios/release/libshieldmessenger.a
+sha256sum target/aarch64-apple-ios-sim/release/libshieldmessenger.a
 ```
 
 ### Step 2: Compare with Published Hashes
@@ -270,7 +270,7 @@ sha256sum -c SHA256SUMS-ios.txt
 ### Step 1: Build WASM
 
 ```bash
-cd secure-legion-core
+cd shield-messenger-core
 
 rustup target add wasm32-unknown-unknown
 
@@ -286,7 +286,7 @@ cargo build \
   --release \
   --locked
 
-sha256sum target/wasm32-unknown-unknown/release/securelegion.wasm
+sha256sum target/wasm32-unknown-unknown/release/shieldmessenger.wasm
 ```
 
 ### Step 2: Build the Web Frontend
@@ -350,10 +350,10 @@ Builds:
     gradle:
       - fdroid
     prebuild:
-      - cd ../secure-legion-core
+      - cd ../shield-messenger-core
       - cargo ndk -t aarch64-linux-android -t armv7-linux-androideabi build --release --locked
-      - cp target/aarch64-linux-android/release/libsecurelegion.so ../app/src/main/jniLibs/arm64-v8a/
-      - cp target/armv7-linux-androideabi/release/libsecurelegion.so ../app/src/main/jniLibs/armeabi-v7a/
+      - cp target/aarch64-linux-android/release/libshieldmessenger.so ../app/src/main/jniLibs/arm64-v8a/
+      - cp target/armv7-linux-androideabi/release/libshieldmessenger.so ../app/src/main/jniLibs/armeabi-v7a/
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags

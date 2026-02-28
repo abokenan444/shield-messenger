@@ -49,7 +49,7 @@ export function RegisterPage() {
             <ShieldIcon className="w-10 h-10 text-primary-400" />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">إنشاء حساب</h1>
-          <p className="text-dark-400">انضم إلى Secure Legion — لا نطلب بريداً أو رقم هاتف</p>
+          <p className="text-dark-400">انضم إلى Shield Messenger — لا نطلب بريداً أو رقم هاتف</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card space-y-5">
@@ -119,7 +119,7 @@ export function RegisterPage() {
             <span>لا نجمع أي بيانات شخصية</span>
           </div>
           <p className="text-xs text-dark-500">
-            مفتوحة المصدر بالكامل • بروتوكول Secure Legion P2P
+            مفتوحة المصدر بالكامل • بروتوكول Shield Messenger P2P
           </p>
         </div>
       </div>

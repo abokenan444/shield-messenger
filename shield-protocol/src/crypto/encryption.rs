@@ -134,7 +134,7 @@ pub fn generate_key() -> [u8; 32] {
 ///
 /// # Arguments
 /// * `shared_secret` - 32-byte X25519 shared secret OR 64-byte hybrid X25519+Kyber combined secret
-/// * `info` - Context information (e.g., "SecureLegion-RootKey-v1")
+/// * `info` - Context information (e.g., "ShieldMessenger-RootKey-v1")
 ///
 /// # Returns
 /// 32-byte root key for initializing key chains

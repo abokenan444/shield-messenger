@@ -50,8 +50,8 @@ export const useWalletStore = create<WalletState>()(
       hasWallet: true,
       walletType: type,
       address: type === 'solana'
-        ? 'So1...Legion' + Math.random().toString(36).slice(2, 8)
-        : 'zs1...Legion' + Math.random().toString(36).slice(2, 8),
+        ? 'So1...Shield' + Math.random().toString(36).slice(2, 8)
+        : 'zs1...Shield' + Math.random().toString(36).slice(2, 8),
       tokens: type === 'solana'
         ? [
             { symbol: 'SOL', name: 'Solana', balance: 0, usdValue: 0, icon: '◎' },

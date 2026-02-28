@@ -15,7 +15,7 @@
         android:layout_width="48dp"
         android:layout_height="48dp">
 
-        <com.securelegion.views.AvatarView
+        <com.shieldmessenger.views.AvatarView
             android:id="@+id/contactAvatar"
             android:layout_width="48dp"
             android:layout_height="48dp"

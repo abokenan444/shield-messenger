@@ -98,13 +98,13 @@
             android:padding="4dp" />
 
         <!-- Tab 1: Sticker picker -->
-        <com.securelegion.views.StickerPickerView
+        <com.shieldmessenger.views.StickerPickerView
             android:id="@+id/stickerPicker"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
         <!-- Tab 2: GIF picker -->
-        <com.securelegion.views.GifPickerView
+        <com.shieldmessenger.views.GifPickerView
             android:id="@+id/gifPicker"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />

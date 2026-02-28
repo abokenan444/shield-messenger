@@ -1,5 +1,5 @@
 /**
- * Secure Legion Protocol Client
+ * Shield Messenger Protocol Client
  *
  * Provides messaging functionality through the Rust WASM core.
  * All encryption, signing, and P2P networking is handled by the Rust core —
@@ -7,7 +7,7 @@
  */
 
 // TODO: Import from compiled WASM package once build pipeline is ready
-// import init, { generate_keypair, encrypt_message, decrypt_message, sign_message, verify_signature } from 'secure-legion-core';
+// import init, { generate_keypair, encrypt_message, decrypt_message, sign_message, verify_signature } from 'shield-messenger-core';
 
 import {
   notifyNewMessage,
@@ -39,7 +39,7 @@ let currentUserId: string | null = null;
 let currentPublicKey: string | null = null;
 
 /**
- * Initialize the Secure Legion protocol core (WASM).
+ * Initialize the Shield Messenger protocol core (WASM).
  */
 export async function initCore(): Promise<void> {
   if (initialized) return;

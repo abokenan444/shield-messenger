@@ -16,7 +16,7 @@
 │                 Rust Core Library                            │
 │  ┌───────────┬───────────┬───────────┬───────────────────┐  │
 │  │ Secure    │  Crypto   │  Storage  │   Protocol        │  │
-│  │ Legion    │  Engine   │  Engine   │   Handler         │  │
+│  │ Shield    │  Engine   │  Engine   │   Handler         │  │
 │  │ Protocol  │           │           │                   │  │
 │  │ • PingPong│ •XChaCha20│ • SQLCipher│ • Messages       │  │
 │  │ • Tor HS  │ • Ed25519 │ • KV Store│ • Presence        │  │
@@ -60,7 +60,7 @@ shield-messenger/
 │
 ├── app/                          # Android app (Kotlin)
 │   ├── src/main/
-│   │   ├── java/com/securelegion/
+│   │   ├── java/com/shieldmessenger/
 │   │   ├── jniLibs/
 │   │   └── res/
 │   └── build.gradle.kts
@@ -79,7 +79,7 @@ shield-messenger/
 │   └── vite.config.ts
 │
 ├── ios/                          # iOS app (Swift/SwiftUI)
-│   └── SecureLegion/
+│   └── ShieldMessenger/
 │       ├── Sources/
 │       │   ├── Core/             # Rust FFI bridge
 │       │   ├── Views/            # SwiftUI views

@@ -26,8 +26,8 @@ use std::fmt;
 use thiserror::Error;
 use zeroize::Zeroize;
 
-const ROOT_KEY_INFO: &[u8] = b"SecureLegion-RootKey-v1";
-const KEM_REKEY_INFO: &[u8] = b"SecureLegion-KEM-Rekey-v1";
+const ROOT_KEY_INFO: &[u8] = b"ShieldMessenger-RootKey-v1";
+const KEM_REKEY_INFO: &[u8] = b"ShieldMessenger-KEM-Rekey-v1";
 
 /// Max messages we'll skip ahead for out-of-order delivery.
 const MAX_SKIP: u64 = 256;

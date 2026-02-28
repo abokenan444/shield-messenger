@@ -5,9 +5,9 @@ on:
   push:
     branches: [main, master]
     paths:
-      - 'secure-legion-core/src/crypto/**'
-      - 'secure-legion-core/src/network/**'
-      - 'secure-legion-core/fuzz/**'
+      - 'shield-messenger-core/src/crypto/**'
+      - 'shield-messenger-core/src/network/**'
+      - 'shield-messenger-core/fuzz/**'
   # Run weekly on Saturday at 03:00 UTC
   schedule:
     - cron: '0 3 * * 6'
@@ -63,18 +63,18 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: ${{ runner.os }}-fuzz-${{ hashFiles('secure-legion-core/Cargo.toml') }}
+          key: ${{ runner.os }}-fuzz-${{ hashFiles('shield-messenger-core/Cargo.toml') }}
           restore-keys: ${{ runner.os }}-fuzz-
 
       - name: Restore fuzz corpus
         uses: actions/cache@v4
         with:
-          path: secure-legion-core/fuzz/corpus/${{ matrix.target }}
+          path: shield-messenger-core/fuzz/corpus/${{ matrix.target }}
           key: fuzz-corpus-${{ matrix.target }}-${{ github.sha }}
           restore-keys: fuzz-corpus-${{ matrix.target }}-
 
       - name: Run fuzzer — ${{ matrix.target }}
-        working-directory: secure-legion-core
+        working-directory: shield-messenger-core
         run: |
           echo "Fuzzing ${{ matrix.target }} for ${FUZZ_SECONDS}s..."
           cargo +nightly fuzz run ${{ matrix.target }} -- \
@@ -90,7 +90,7 @@ jobs:
         with:
           name: fuzz-crash-${{ matrix.target }}
           path: |
-            secure-legion-core/fuzz/artifacts/${{ matrix.target }}/
+            shield-messenger-core/fuzz/artifacts/${{ matrix.target }}/
           retention-days: 30
 
       - name: Summarize results
@@ -103,7 +103,7 @@ jobs:
             tail -20 /tmp/fuzz-${{ matrix.target }}.log >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
-          CORPUS_DIR="secure-legion-core/fuzz/corpus/${{ matrix.target }}"
+          CORPUS_DIR="shield-messenger-core/fuzz/corpus/${{ matrix.target }}"
           if [ -d "$CORPUS_DIR" ]; then
             echo "Corpus size: $(find $CORPUS_DIR -type f | wc -l) inputs" >> $GITHUB_STEP_SUMMARY
           fi

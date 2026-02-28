@@ -1,0 +1,8264 @@
+package com.shieldmessenger.services
+
+import android.app.AlarmManager
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.ServiceInfo
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
+import android.os.Build
+import android.os.Handler
+import android.os.IBinder
+import android.os.Looper
+import android.os.PowerManager
+import android.os.SystemClock
+import android.util.Log
+import androidx.core.app.NotificationCompat
+import com.shieldmessenger.ChatActivity
+import com.shieldmessenger.LockActivity
+import com.shieldmessenger.MainActivity
+import com.shieldmessenger.R
+import com.shieldmessenger.SecurityModeActivity
+import com.shieldmessenger.crypto.TorManager
+import com.shieldmessenger.crypto.RustBridge
+import com.shieldmessenger.crypto.KeyChainManager
+import com.shieldmessenger.models.AckStateTracker
+import com.shieldmessenger.database.entities.sendChainKeyBytes
+import com.shieldmessenger.database.entities.receiveChainKeyBytes
+import com.shieldmessenger.database.entities.rootKeyBytes
+import com.shieldmessenger.utils.ThemedToast
+import com.shieldmessenger.workers.TorHealthMonitorWorker
+import com.shieldmessenger.network.TransportGate
+import com.shieldmessenger.network.TorProbe
+import com.shieldmessenger.network.TorRehydrator
+import com.shieldmessenger.network.NetworkWatcher
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlin.coroutines.resume
+import java.util.concurrent.ConcurrentHashMap
+import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.min
+
+/**
+ * Foreground service that keeps Tor hidden service running 24/7
+ * Enables the Ping-Pong Wake Protocol by maintaining persistent .onion address
+ *
+ * This service:
+ * - Runs in foreground with persistent notification
+ * - Keeps Tor connection alive when app is closed
+ * - Listens for incoming Ping tokens on .onion address
+ * - Survives app termination (user must explicitly stop)
+ * - Uses WakeLock for reliable background operation
+ */
+class TorService : Service() {
+
+    private lateinit var torManager: TorManager
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var isServiceRunning = false
+    private val isPingPollerRunning: Boolean get() = pollerJobs["Ping"]?.isActive == true
+    private val isTapPollerRunning: Boolean get() = pollerJobs["Tap"]?.isActive == true
+    private val isMessagePollerRunning: Boolean get() = pollerJobs["Message"]?.isActive == true
+    private val isVoicePollerRunning: Boolean get() = pollerJobs["Voice"]?.isActive == true
+    private val isFriendRequestPollerRunning: Boolean get() = pollerJobs["FriendRequest"]?.isActive == true
+    private val isPongPollerRunning: Boolean get() = pollerJobs["Pong"]?.isActive == true
+    private val isSessionCleanupRunning: Boolean get() = pollerJobs["SessionCleanup"]?.isActive == true
+    private val isAckPollerRunning: Boolean get() = pollerJobs["ACK"]?.isActive == true
+    private var isListenerRunning = false
+
+    // AlarmManager for service restart
+    private var alarmManager: AlarmManager? = null
+
+    // Reconnection state
+    private var isReconnecting = false
+
+    // Transport gate (blocks all Tor operations during network switch)
+    private lateinit var gate: TransportGate
+    private lateinit var probe: TorProbe
+    private lateinit var rehydrator: TorRehydrator
+    private var networkWatcher: NetworkWatcher? = null
+    private var reconnectAttempts = 0
+    private var lastReconnectTime = 0L
+    private val reconnectHandler = Handler(Looper.getMainLooper())
+
+    // SOCKS failure tracking
+    private var socksFailureCount = 0
+    private var lastSocksFailureTime = 0L
+    private var downloadFailureCount = 0
+    private var downloadFailureWindowStart = 0L
+    private val SOCKS_FAILURE_THRESHOLD = 3 // Restart Tor after 3 consecutive failures
+    private val SOCKS_FAILURE_WINDOW = 60000L // 60 second window
+
+    // Reconnection constants (tuned to prevent restart storms after OOM kills)
+    private val INITIAL_RETRY_DELAY = 10_000L // 10 seconds (was 5s)
+    private val MAX_RETRY_DELAY = 60000L // 60 seconds
+    private val MIN_RETRY_INTERVAL = 15_000L // 15 seconds minimum between retries (was 3s)
+
+    // AlarmManager constants
+    private val RESTART_CHECK_INTERVAL = 15 * 60 * 1000L // 15 minutes
+
+    // Single-threaded dispatcher for protocol state mutations (ACKs, DB updates, ratchet)
+    // Ensures all protocol operations are serialized to prevent race conditions
+    private val protocolDispatcher = Dispatchers.Default.limitedParallelism(1)
+
+    // Service-scoped coroutine scope for all protocol operations
+    // Ensures proper cleanup when service is destroyed
+    private val serviceScope = CoroutineScope(SupervisorJob() + protocolDispatcher)
+
+    // Supervised poller scope — pollers run as child jobs, failures don't kill siblings
+    private val pollerScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val pollerJobs = ConcurrentHashMap<String, kotlinx.coroutines.Job>()
+
+    // Per-contact receive mutex to prevent race conditions during decrypt+DB+counter update
+    // This fixes "out-of-order" errors caused by concurrent message processing
+    private val receiveMutexByContact = ConcurrentHashMap<Long, Mutex>()
+
+    // Bandwidth monitoring
+    private var lastRxBytes = 0L
+    private var lastTxBytes = 0L
+    private var lastBandwidthUpdate = 0L
+    private var currentDownloadSpeed = 0L // bytes per second
+    private var currentUploadSpeed = 0L // bytes per second
+    private val bandwidthHandler = Handler(Looper.getMainLooper())
+    private var bandwidthUpdateRunnable: Runnable? = null
+    private var listenersReady = false
+    private var isAppInForeground = false
+    private val BANDWIDTH_UPDATE_FAST = 5000L // 5 seconds when app open (matches VPN update interval)
+    private val BANDWIDTH_UPDATE_SLOW = 10000L // 10 seconds when app closed (saves battery)
+
+    // ==================== TOR STATE MACHINE ====================
+
+    /**
+     * Tor connection state machine
+     * Replaces scattered boolean flags with a clean state machine
+     */
+    enum class TorState {
+        OFF, // Tor is not running
+        STARTING, // initializeTor() called, waiting for bootstrap to begin
+        BOOTSTRAPPING, // Bootstrap in progress (0-99%)
+        RUNNING, // Bootstrap complete (100%), fully operational
+        STOPPING, // stopTor() called, shutting down
+        ERROR // Failed to start or encountered fatal error
+    }
+
+    @Volatile private var torState: TorState = TorState.OFF
+    @Volatile private var bootstrapPercent: Int = 0
+    @Volatile private var lastBootstrapProgressMs: Long = 0L // When bootstrap % last increased
+    @Volatile private var currentSocksPort: Int = 9050
+    @Volatile private var lastRestartMs: Long = 0L // Debounce network change restarts
+    private var bootstrapWatchdogJob: kotlinx.coroutines.Job? = null
+
+    // Network change tracking (only restart on actual network changes, not capability changes)
+    @Volatile private var lastNetworkIsWifi: Boolean? = null // null = no network yet
+    @Volatile private var lastNetworkIsIpv6Only: Boolean? = null
+    @Volatile private var lastNetworkHasInternet: Boolean? = null // Track internet connectivity state
+    @Volatile private var lastNetworkChangeMs: Long = 0L // Time of last network change (for stabilization window)
+    @Volatile private var lastTorUnstableAt: Long = System.currentTimeMillis() // Time when Tor became unstable (restart/network change/gate close)
+
+    // Lifecycle management (prevent repeated resets)
+    private val startupCompleted = AtomicBoolean(false) // Latch: only run startup setup once
+    private val startTorRequested = AtomicBoolean(false) // Guard: prevent concurrent startTor() calls
+    @Volatile private var lastGlobalResetAt: Long = 0L // Rate limiter: prevent reset spam
+
+    // Fast message retry loop (runs in TorService, not subject to WorkManager 15-min limit)
+    private var fastRetryJob: kotlinx.coroutines.Job? = null
+
+    // Tor health monitoring (ControlPort-based)
+    private var healthMonitorJob: kotlinx.coroutines.Job? = null
+    private var socksHealthJob: kotlinx.coroutines.Job? = null
+    private var downloadWatchdogJob: kotlinx.coroutines.Job? = null
+    private var pinRotationJob: kotlinx.coroutines.Job? = null
+    @Volatile private var lastHealthyMs: Long = 0L // When circuits were last healthy
+    @Volatile private var consecutiveHealthyPolls: Int = 0 // Hysteresis: require 2 healthy polls before opening gate
+    @Volatile private var consecutiveRestarts: Int = 0 // Track restart attempts for backoff
+    @Volatile private var lastRestartAttemptMs: Long = 0L // Time of last restart attempt
+
+    // Event listener auto-restart (Fix: listener dies permanently on control port error)
+    @Volatile private var lastEventListenerRestartAttempt: Long = 0L
+    private val EVENT_LISTENER_RESTART_COOLDOWN_MS = 10_000L // 10 seconds between restart attempts
+
+    /**
+     * Update Tor state and log transition
+     */
+    private fun setState(newState: TorState, reason: String? = null) {
+        val oldState = torState
+        torState = newState
+        val msg = "Tor state: $oldState → $newState${reason?.let { " ($it)" } ?: ""}"
+        Log.i(TAG, msg)
+
+        // Update legacy torConnected flag for backward compatibility
+        // TODO: Remove this once all code uses torState directly
+        @Suppress("DEPRECATION")
+        torConnected = (newState == TorState.RUNNING)
+
+        // Broadcast state change to UI if needed
+        // TODO: Add StateFlow/LiveData for UI observation
+    }
+
+    /**
+     * Check if Tor is ready for operations (fully bootstrapped)
+     */
+    private fun isTorReady(): Boolean {
+        return torState == TorState.RUNNING && bootstrapPercent >= 100
+    }
+
+    @Deprecated("Use torState instead", ReplaceWith("torState == TorState.RUNNING"))
+    private var torConnected: Boolean
+        get() = torState == TorState.RUNNING
+        set(value) {
+            // For backward compatibility during migration
+            if (value && torState != TorState.RUNNING) {
+                setState(TorState.RUNNING, "legacy setter")
+            } else if (!value && torState == TorState.RUNNING) {
+                setState(TorState.OFF, "legacy setter")
+            }
+        }
+
+    /**
+     * Monitor bootstrap progress and update state
+     * Polls RustBridge.getBootstrapStatus() until bootstrap completes
+     */
+    private fun startBootstrapMonitor() {
+        serviceScope.launch {
+            while (torState == TorState.STARTING || torState == TorState.BOOTSTRAPPING) {
+                try {
+                    val percent = RustBridge.getBootstrapStatus()
+
+                    if (percent > bootstrapPercent) {
+                        bootstrapPercent = percent
+                        lastBootstrapProgressMs = SystemClock.elapsedRealtime() // Track actual progress
+
+                        Log.d(TAG, "Bootstrap progress: $percent%")
+                        updateNotification("Connecting to Tor ($percent%)...")
+
+                        // Transition to BOOTSTRAPPING on first progress
+                        if (torState == TorState.STARTING && percent > 0) {
+                            setState(TorState.BOOTSTRAPPING, "bootstrap=$percent%")
+                        }
+
+                        // Transition to RUNNING when complete
+                        if (percent >= 100 && torState != TorState.RUNNING) {
+                            setState(TorState.RUNNING, "bootstrap complete")
+                            onTorReady()
+                            return@launch // Exit monitor loop
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error checking bootstrap status", e)
+                }
+
+                kotlinx.coroutines.delay(1000) // Poll every second
+            }
+        }
+    }
+
+    /**
+     * Watchdog to detect stalled bootstrap and force restart
+     * Monitors bootstrapPercent progress (not just logs) and restarts if stalled
+     */
+    private fun startBootstrapWatchdog() {
+        bootstrapWatchdogJob?.cancel()
+        bootstrapWatchdogJob = serviceScope.launch {
+            // Use longer timeout when bridges are configured — bridge transports
+            // add significant overhead (especially on slow connections like 500kbps in Iran)
+            val torSettings = getSharedPreferences("tor_settings", MODE_PRIVATE)
+            val bridgeType = torSettings.getString("bridge_type", "none") ?: "none"
+            val usingBridges = bridgeType != "none"
+            // First-time users need more time — full consensus download from scratch
+            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+            val isFirstTime = !keyManager.isInitialized()
+            val stallTimeoutMs = when {
+                usingBridges -> 180_000L  // 3 min with bridges
+                isFirstTime -> 120_000L   // 2 min for first-time users (no consensus cache)
+                else -> 60_000L           // 1 min for returning users
+            }
+
+            if (usingBridges || isFirstTime) {
+                Log.i(TAG, "Bootstrap watchdog: using extended timeout (${stallTimeoutMs / 1000}s) for bridge type '$bridgeType', firstTime=$isFirstTime")
+            }
+
+            while (torState == TorState.STARTING || torState == TorState.BOOTSTRAPPING) {
+                kotlinx.coroutines.delay(5000) // Check every 5 seconds
+
+                // Track actual bootstrap progress, not log activity
+                // Tor can be quiet even when working, but % must increase
+                val stalledMs = SystemClock.elapsedRealtime() - lastBootstrapProgressMs
+                if (stalledMs > stallTimeoutMs) {
+                    Log.w(TAG, "WATCHDOG restarting Tor: no bootstrap progress for ${stalledMs / 1000}s, stuck at $bootstrapPercent%, bridgeType=$bridgeType, timeout=${stallTimeoutMs / 1000}s")
+                    consecutiveBootstrapFailures++
+                    restartTor("bootstrap stalled at $bootstrapPercent%")
+                    return@launch
+                }
+            }
+        }
+    }
+
+    /**
+     * Called when Tor reaches RUNNING state
+     * Uses startup-once pattern to avoid repeated resets
+     */
+    private fun onTorReady() {
+        Log.w(TAG, "========== onTorReady() CALLED - BOOTSTRAP 100% ==========")
+
+        // Bootstrap succeeded — reset all failure tracking
+        resetReconnectBackoff()
+
+        // CRITICAL: Set legacy torConnected flag for compatibility with SplashActivity
+        // SplashActivity checks isMessagingReady() which needs both torConnected AND listenersReady
+        torConnected = true
+        running = true
+        isServiceRunning = true
+        Log.w(TAG, "Set torConnected=true, running=true, isServiceRunning=true")
+
+        // Initialize PendingPingStore DAO for Rust JNI ping persistence
+        try {
+            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val dbPassphrase = keyManager.getDatabasePassphrase()
+            val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
+            com.shieldmessenger.database.PendingPingStore.dao = database.pendingPingDao()
+            com.shieldmessenger.database.PendingPingStore.purgeExpired()
+            Log.i(TAG, "PendingPingStore DAO initialized")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initialize PendingPingStore DAO", e)
+        }
+
+        // Populate own-onion cache for HS_DESC event filtering
+        refreshOwnOnionCache()
+
+        // Start services ONCE (latch prevents repeated resets)
+        Log.w(TAG, "Calling ensureStartedOnce() to start listeners...")
+        ensureStartedOnce()
+
+        // Activate push recovery mode if needed (restored from seed, no contacts found locally)
+        activateRecoveryModeIfNeeded()
+
+        // Send TAPs to all contacts
+        Log.w(TAG, "Sending taps to all contacts...")
+        sendTapsToAllContacts()
+
+        // Update notification
+        updateNotification("Connected to Tor")
+
+        // Verify bridge usage if bridges were requested
+        verifyBridgeUsage()
+
+        Log.w(TAG, "========== onTorReady() COMPLETE ==========")
+    }
+
+    /**
+     * Post-bootstrap verification: check if bridges are actually in use.
+     * Connects to Tor ControlSocket (Unix domain socket) with empty auth and checks
+     * entry guards to confirm bridge connectivity when user selected bridges.
+     */
+    private fun verifyBridgeUsage() {
+        val torSettings = getSharedPreferences("tor_settings", MODE_PRIVATE)
+        val bridgeType = torSettings.getString("bridge_type", "none") ?: "none"
+        if (bridgeType == "none") return // No bridges expected
+
+        serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                // Connect to ControlSocket (Unix domain socket, GP tor-android 0.4.9.5)
+                val socketFile = File(dataDir, "app_TorService/data/ControlSocket")
+                if (!socketFile.exists()) {
+                    Log.w(TAG, "Bridge verify: ControlSocket not found at ${socketFile.absolutePath}, skipping")
+                    return@launch
+                }
+
+                val socket = android.net.LocalSocket()
+                socket.connect(android.net.LocalSocketAddress(socketFile.absolutePath, android.net.LocalSocketAddress.Namespace.FILESYSTEM))
+                socket.soTimeout = 5000
+                val writer = socket.outputStream.bufferedWriter()
+                val reader = socket.inputStream.bufferedReader()
+
+                // Authenticate (empty auth — GP CookieAuthentication 0)
+                writer.write("AUTHENTICATE\r\n")
+                writer.flush()
+                val authReply = reader.readLine()
+                if (authReply != "250 OK") {
+                    Log.w(TAG, "Bridge verify: auth failed: $authReply")
+                    socket.close()
+                    return@launch
+                }
+
+                // Check entry guards - bridges show as "Bridge" type
+                writer.write("GETINFO entry-guards\r\n")
+                writer.flush()
+
+                val guardLines = mutableListOf<String>()
+                var line = reader.readLine()
+                while (line != null && !line.startsWith("250 ")) {
+                    guardLines.add(line)
+                    line = reader.readLine()
+                }
+
+                // Check if UseBridges is set
+                writer.write("GETCONF UseBridges\r\n")
+                writer.flush()
+                val bridgeConf = reader.readLine()
+
+                // Close connection
+                writer.write("QUIT\r\n")
+                writer.flush()
+                socket.close()
+
+                val useBridges = bridgeConf?.contains("1") == true
+                val hasBridgeGuards = guardLines.any { it.contains("Bridge", ignoreCase = true) }
+
+                if (useBridges) {
+                    Log.i(TAG, "Bridge verify: UseBridges=1, bridge guards=${guardLines.size} " +
+                            "(type=$bridgeType) — bridges ARE configured in Tor")
+                    if (hasBridgeGuards) {
+                        Log.i(TAG, "Bridge verify: Entry guards contain bridge entries — bridges ACTIVE")
+                    }
+                } else {
+                    Log.e(TAG, "Bridge verify: UseBridges NOT set but user selected '$bridgeType' — " +
+                            "Tor may be running WITHOUT bridges!")
+                    // Broadcast warning so UI can inform user
+                    val warnIntent = android.content.Intent("com.shieldmessenger.BRIDGE_VERIFICATION_WARNING")
+                    warnIntent.putExtra("message", "Bridges may not be active. Selected: $bridgeType but UseBridges not set.")
+                    sendBroadcast(warnIntent)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Bridge verify: failed to verify bridge usage: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Startup-once latch: Only run listener/poller setup once
+     * Prevents aggressive resets on every bootstrap=100% event
+     */
+    private fun ensureStartedOnce() {
+        if (!startupCompleted.compareAndSet(false, true)) {
+            Log.w(TAG, "========== Startup already completed - skipping repeated initialization ==========")
+            return
+        }
+
+        Log.w(TAG, "========== FIRST-TIME STARTUP - Initializing listeners and pollers ==========")
+
+        // Ensure SOCKS proxy is running
+        Log.w(TAG, "Ensuring SOCKS proxy is running...")
+        ensureSocksProxyRunning()
+
+        // Start incoming listener if not already running
+        if (!isListenerRunning) {
+            Log.w(TAG, "Listener not running - starting incoming listener...")
+            startIncomingListener()
+        } else {
+            Log.w(TAG, "Listener already running - skipping")
+        }
+
+        // Start bandwidth monitoring
+        Log.w(TAG, "Starting bandwidth monitoring...")
+        startBandwidthMonitoring()
+
+        Log.w(TAG, "========== STARTUP COMPLETED - listeners and pollers initialized ==========")
+    }
+
+    /**
+     * Check if global reset is allowed (rate-limited to once per 10 minutes)
+     */
+    private fun canGlobalReset(now: Long): Boolean {
+        val minIntervalMs = 10 * 60_000L // 10 minutes
+        return (now - lastGlobalResetAt) > minIntervalMs
+    }
+
+    /**
+     * EMERGENCY ONLY: Reset all network connections after Tor state changes
+     * This is VERY aggressive and should be rate-limited
+     * Only call this as last resort after sustained local health check failures
+     */
+    private fun resetNetworkConnections() {
+        val now = SystemClock.elapsedRealtime()
+        if (!canGlobalReset(now)) {
+            Log.w(TAG, "Global reset suppressed (rate-limited, last reset ${(now - lastGlobalResetAt) / 1000}s ago)")
+            return
+        }
+
+        Log.w(TAG, "=== GLOBAL RESET - Resetting all network connections (rate-limited) ===")
+
+        // 1. Reset all OkHttp clients (clears connection pools and cancels in-flight requests)
+        // CRITICAL: This is rate-limited to once per 30 seconds (see OkHttpProvider)
+        com.shieldmessenger.network.OkHttpProvider.reset("Global network reset after sustained health check failures")
+
+        // 2. Stop and restart all persistent onion listeners
+        try {
+            Log.d(TAG, "Stopping persistent onion listeners...")
+            RustBridge.stopListeners() // Stops message listeners (port 8080, 9153)
+            isListenerRunning = false
+
+            // Give sockets time to close
+            Thread.sleep(250)
+
+            Log.d(TAG, "Restarting persistent onion listeners...")
+            startIncomingListener() // Restart message listeners
+        } catch (e: Exception) {
+            Log.e(TAG, "Error resetting onion listeners", e)
+        }
+
+        // 3. Reset voice call listener (if VoiceTorService is running)
+        // Note: VoiceTorService runs independently, manages its own lifecycle
+
+        // 4. Kick retry workers to attempt pending messages
+        serviceScope.launch {
+            try {
+                val messageService = MessageService(this@TorService)
+                val result = messageService.pollForPongsAndSendMessages()
+                if (result.isSuccess) {
+                    val sentCount = result.getOrNull() ?: 0
+                    if (sentCount > 0) {
+                        Log.i(TAG, "Network reset: Sent $sentCount pending messages")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error retrying messages after network reset", e)
+            }
+        }
+
+        // Update rate limiter timestamp
+        lastGlobalResetAt = now
+        Log.i(TAG, "=== GLOBAL RESET COMPLETE ===")
+    }
+
+    // ==================== TOR HEALTH MONITORING (ControlPort) ====================
+
+    /**
+     * Start Tor health monitoring via ControlPort
+     * Polls every 2 seconds and feeds health signals into gate + restart logic
+     */
+    private fun startHealthMonitor() {
+        healthMonitorJob?.cancel()
+        healthMonitorJob = serviceScope.launch(Dispatchers.IO) {
+            Log.i(TAG, "Starting Tor health monitor (ControlPort)")
+
+            while (isActive) {
+                try {
+                    onHealthSample()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error polling Tor health", e)
+                    onHealthSample()
+                }
+
+                kotlinx.coroutines.delay(2000)
+            }
+        }
+    }
+
+    /**
+     * Periodic PIN rotation check — rotates PIN when time or count threshold exceeded,
+     * and expires previous PIN after grace period.
+     */
+    private fun startPinRotationMonitor() {
+        pinRotationJob?.cancel()
+        pinRotationJob = serviceScope.launch(Dispatchers.IO) {
+            Log.i(TAG, "Starting PIN rotation monitor")
+            while (isActive) {
+                try {
+                    val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                    val cardManager = ContactCardManager(this@TorService)
+                    val securityPrefs = getSharedPreferences("security_prefs", android.content.Context.MODE_PRIVATE)
+                    val intervalMs = securityPrefs.getLong("pin_rotation_interval_ms", 24 * 60 * 60 * 1000L)
+                    val maxDecrypts = securityPrefs.getInt("pin_max_uses", 5)
+
+                    // Initialize rotation timestamp if not set yet
+                    if (keyManager.getPinRotationTimestamp() == 0L && keyManager.getContactPin() != null) {
+                        keyManager.storePinRotationTimestamp(System.currentTimeMillis())
+                    }
+
+                    val rotated = keyManager.rotatePinIfNeeded(cardManager, intervalMs, maxDecrypts)
+                    if (rotated) {
+                        Log.i(TAG, "PIN auto-rotated by periodic monitor")
+                    }
+
+                    // Expire previous PIN after grace period (same as rotation interval)
+                    keyManager.expirePreviousPinIfNeeded(intervalMs)
+                } catch (e: Exception) {
+                    Log.e(TAG, "PIN rotation monitor error", e)
+                }
+                kotlinx.coroutines.delay(5 * 60 * 1000L) // Check every 5 minutes
+            }
+        }
+    }
+
+    /**
+     * Evaluate Tor health from ControlPort and manage gate + restart logic
+     */
+    private fun onHealthSample() {
+        val bootstrapComplete = bootstrapPercent >= 100
+        val circuitsEstablished = RustBridge.getCircuitEstablished() == 1
+        val torRunning = torState == TorState.RUNNING
+
+        // Auto-restart Rust event listener if it died (CRITICAL: without this, health data freezes)
+        if (torRunning && !RustBridge.isEventListenerRunning()) {
+            val now = SystemClock.elapsedRealtime()
+            if (now - lastEventListenerRestartAttempt > EVENT_LISTENER_RESTART_COOLDOWN_MS) {
+                lastEventListenerRestartAttempt = now
+                Log.w(TAG, "Event listener dead — restarting (health data was stale)")
+                try {
+                    val socketFile = java.io.File(dataDir, "app_TorService/data/ControlSocket")
+                    RustBridge.startBootstrapListener(socketFile.absolutePath)
+                    Log.i(TAG, "Event listener restarted successfully")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to restart event listener", e)
+                }
+            }
+        }
+
+        // Detect stale/frozen event listener: if heartbeat is >30s old while tor is RUNNING,
+        // the control port listener is dead and cached atomics are lies.
+        val listenerHeartbeat = RustBridge.getLastListenerHeartbeat()
+        val heartbeatAgeMs = if (listenerHeartbeat > 0) System.currentTimeMillis() - listenerHeartbeat else Long.MAX_VALUE
+        val listenerAlive = heartbeatAgeMs < 30_000
+        if (!listenerAlive && torRunning && bootstrapComplete) {
+            Log.w(TAG, "Event listener heartbeat stale (${heartbeatAgeMs}ms ago) — treating as unhealthy")
+        }
+
+        val isHealthy = bootstrapComplete && circuitsEstablished && torRunning && listenerAlive
+
+        if (isHealthy) {
+            lastHealthyMs = SystemClock.elapsedRealtime()
+            consecutiveHealthyPolls++
+
+            // Reset restart backoff counters when health returns
+            if (consecutiveRestarts > 0) {
+                Log.i(TAG, "Tor health recovered → resetting restart backoff counter (was $consecutiveRestarts)")
+                consecutiveRestarts = 0
+            }
+
+            // HYSTERESIS: Require 2 consecutive healthy polls before opening gate (~4s)
+            if (consecutiveHealthyPolls >= 2 && torState == TorState.RUNNING && !gate.isOpenNow()) {
+                Log.i(TAG, "Tor health confirmed via ControlPort (2 consecutive healthy polls) → opening gate")
+                gate.open()
+            }
+        } else {
+            // Reset consecutive counter immediately on unhealthy
+            consecutiveHealthyPolls = 0
+
+            // Log unhealthy state for debugging
+            val circuits = RustBridge.getCircuitEstablished()
+            Log.w(TAG, "Tor health: unhealthy (bootstrap=$bootstrapPercent%, circuits=$circuits, state=$torState, listenerAlive=$listenerAlive, heartbeatAge=${heartbeatAgeMs}ms)")
+
+            // CRITICAL FIX: Only close gate if SOCKS proxy itself is unreachable
+            // DO NOT close gate on:
+            // - Circuits temporarily at 0 (normal during rotation/churn)
+            // - Bootstrap < 100% (normal during restart)
+            // - Network liveness flapping (momentary Tor behavior)
+            //
+            // Gate closure must ONLY reflect: "Can we connect to 127.0.0.1:9050?"
+            // NOT: "Can we reach arbitrary .onion addresses right now?"
+            //
+            // Stream-level failures (SOCKS status 1/4/6) are NORMAL and retryable.
+            if (gate.isOpenNow()) {
+                // Only check SOCKS reachability if bootstrap is complete
+                // During bootstrap (< 100%), SOCKS probe failures are expected (CPU contention,
+                // proxy thread busy) and should NOT close the gate
+                if (bootstrapPercent >= 100) {
+                    // Verify SOCKS proxy is actually dead before closing gate
+                    val socksReachable = RustBridge.isSocksProxyRunning()
+
+                    if (!socksReachable) {
+                        Log.e(TAG, "SOCKS proxy UNREACHABLE (127.0.0.1:9050) → closing gate")
+                        gate.close("SOCKS_PROXY_DEAD")
+                        lastTorUnstableAt = System.currentTimeMillis()
+                    } else {
+                        // SOCKS is alive - DO NOT close gate even if circuits=0 or bootstrap<100%
+                        // This is normal Tor behavior (circuit rotation, guard changes, descriptor delays)
+                        Log.w(TAG, "Tor metrics unhealthy BUT SOCKS proxy reachable → gate stays OPEN (stream failures are retryable)")
+
+                        // FIX: When circuits are dead but SOCKS is alive, poke Tor with NEWNYM
+                        // to request new circuits. Much lighter than a full restart.
+                        if (!circuitsEstablished && bootstrapComplete) {
+                            maybeSendHealthNewnym()
+                        }
+                    }
+                } else {
+                    Log.d(TAG, "Bootstrap at $bootstrapPercent% — skipping SOCKS gate check (failures expected during bootstrap)")
+                }
+            }
+
+            // CRITICAL: Don't restart in a loop if network is truly down
+            // Use exponential backoff to prevent battery drain on hostile networks
+            val unhealthyMs = SystemClock.elapsedRealtime() - lastHealthyMs
+
+            // Calculate backoff delay based on restart attempts
+            // 30s, 2m, 5m, 10m (capped)
+            val backoffDelays = longArrayOf(10_000, 20_000, 30_000, 60_000)
+            val backoffIndex = min(consecutiveRestarts, backoffDelays.size - 1)
+            val requiredUnhealthyMs = backoffDelays[backoffIndex]
+
+            if (unhealthyMs > requiredUnhealthyMs && torState == TorState.RUNNING) {
+                // Check if Android reports no network connectivity
+                val hasNetwork = try {
+                    val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                    val activeNetwork = connectivityManager.activeNetwork
+                    val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
+                    capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+                } catch (e: Exception) {
+                    false
+                }
+
+                if (!hasNetwork) {
+                    Log.w(TAG, "Tor unhealthy for ${unhealthyMs}ms BUT Android reports no network → skipping restart")
+                } else {
+                    val timeSinceLastAttempt = SystemClock.elapsedRealtime() - lastRestartAttemptMs
+
+                    // Enforce backoff delay between restart attempts
+                    if (timeSinceLastAttempt < requiredUnhealthyMs) {
+                        Log.d(TAG, "Tor unhealthy but backoff in effect (${timeSinceLastAttempt}ms / ${requiredUnhealthyMs}ms)")
+                    } else {
+                        consecutiveRestarts++
+                        lastRestartAttemptMs = SystemClock.elapsedRealtime()
+
+                        Log.w(TAG, "Tor unhealthy for ${unhealthyMs}ms → restarting (attempt #$consecutiveRestarts, next backoff: ${backoffDelays[min(consecutiveRestarts, backoffDelays.size - 1)] / 1000}s)")
+
+                        serviceScope.launch {
+                            restartTor("health unhealthy: bootstrap=$bootstrapPercent%, circuits=${RustBridge.getCircuitEstablished()}, state=$torState")
+                        }
+                    }
+                }
+            }
+        }
+
+        // HS descriptor stall detection: if HUP was sent but HS is still unhealthy after 90s,
+        // the gentle nudge didn't work — escalate to a full restart.
+        // This catches "silent stall" where Tor stops emitting HS_DESC events entirely.
+        if (!hsDescHealthy && torState == TorState.RUNNING && lastHsHupSentAt > 0) {
+            val sinceHup = SystemClock.elapsedRealtime() - lastHsHupSentAt
+            if (sinceHup > 90_000) {
+                Log.w(TAG, "HS still unhealthy ${sinceHup / 1000}s after SIGNAL HUP — escalating to restart")
+                lastHsHupSentAt = 0L // Reset so we don't re-trigger every health poll
+                hsDescHealthy = true  // Reset to avoid immediate re-escalation after restart
+                hsDescFailureCount = 0
+                serviceScope.launch {
+                    restartTor("HS descriptor stall: HUP failed to recover after 90s")
+                }
+            }
+        }
+    }
+
+    /**
+     * Stop Tor health monitor
+     */
+    private fun stopHealthMonitor() {
+        healthMonitorJob?.cancel()
+        healthMonitorJob = null
+        Log.i(TAG, "Tor health monitor stopped")
+    }
+
+    // ==================== FAST MESSAGE RETRY LOOP ====================
+
+    /**
+     * Fast retry loop for pending messages — runs inside TorService (foreground service),
+     * NOT subject to WorkManager's 15-minute minimum interval.
+     *
+     * Bridge mode: retries every 30s (bridge circuits are slow but transient failures are common)
+     * Direct mode: retries every 90s (circuits are fast, failures are rarer)
+     *
+     * WorkManager periodic worker remains as a 15-minute safety net for edge cases
+     * (process killed, service restarted, device slept for hours).
+     */
+    private fun startFastRetryLoop() {
+        fastRetryJob?.cancel()
+        fastRetryJob = serviceScope.launch(Dispatchers.IO) {
+            val torSettings = getSharedPreferences("tor_settings", MODE_PRIVATE)
+            val bridgeType = torSettings.getString("bridge_type", "none") ?: "none"
+            val usingBridges = bridgeType != "none"
+            val intervalMs = if (usingBridges) 30_000L else 90_000L
+
+            Log.i(TAG, "Starting fast retry loop (interval=${intervalMs}ms, bridges=$usingBridges)")
+
+            // Initial delay — let Tor stabilize after startup
+            kotlinx.coroutines.delay(if (usingBridges) 15_000L else 5_000L)
+
+            while (isActive && torState != TorState.OFF && torState != TorState.STOPPING) {
+                try {
+                    // Only retry if gate is open (Tor is healthy)
+                    if (!gate.isOpenNow()) {
+                        Log.d(TAG, "Fast retry: gate closed, skipping cycle")
+                        kotlinx.coroutines.delay(intervalMs)
+                        continue
+                    }
+
+                    // Check if there are pending messages before doing DB work
+                    val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                    val dbPassphrase = keyManager.getDatabasePassphrase()
+                    val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@TorService, dbPassphrase)
+                    val currentMs = System.currentTimeMillis()
+                    val pendingCount = database.messageDao().getMessagesNeedingRetry(
+                        currentTimeMs = currentMs,
+                        giveupAfterDays = 365
+                    ).count { !it.messageDelivered && (it.nextRetryAtMs == null || it.nextRetryAtMs <= currentMs) }
+
+                    if (pendingCount > 0) {
+                        Log.i(TAG, "Fast retry: $pendingCount pending message(s), attempting phase-aware retry...")
+                        val messageService = MessageService(this@TorService)
+                        val ackTracker = MessageService.getAckTracker()
+
+                        val nowMs = System.currentTimeMillis()
+                        val allMessages = database.messageDao().getMessagesNeedingRetry(
+                            currentTimeMs = nowMs,
+                            giveupAfterDays = 365
+                        ).filter { !it.messageDelivered }
+                            .filter { it.nextRetryAtMs == null || it.nextRetryAtMs <= nowMs } // Respect backoff
+
+                        // Backpressure: max 2 messages per contact, 10 total per cycle
+                        val contactCounts = mutableMapOf<Long, Int>()
+                        val messages = allMessages.filter { msg ->
+                            val count = contactCounts.getOrDefault(msg.contactId, 0)
+                            if (count < 2) { contactCounts[msg.contactId] = count + 1; true } else false
+                        }.take(10)
+
+                        if (allMessages.size > messages.size) {
+                            Log.i(TAG, "Fast retry: backpressure capped ${allMessages.size} → ${messages.size} messages")
+                        }
+
+                        var retried = 0
+                        for (message in messages) {
+                            val contact = database.contactDao().getContactById(message.contactId) ?: continue
+                            val ackState = ackTracker.getState(message.messageId)
+
+                            try {
+                                when (ackState) {
+                                    com.shieldmessenger.models.AckState.NONE, com.shieldmessenger.models.AckState.PING_ACKED -> {
+                                        // Phase 1: No ACK or only PING_ACK — retry ping
+                                        // ALWAYS use sendPingForMessage (never resendPingWithWireBytes)
+                                        // because resendPingWithWireBytes doesn't re-register the signer
+                                        // in OUTGOING_PING_SIGNERS, causing PONG_SIG_REJECT on the response
+                                        Log.d(TAG, "Fast retry: PING for ${message.messageId} (phase=$ackState)")
+                                        val result = messageService.sendPingForMessage(message)
+                                        if (result.isSuccess) retried++
+                                    }
+                                    com.shieldmessenger.models.AckState.PONG_ACKED -> {
+                                        // Phase 2: PONG received — poll and send blob
+                                        Log.d(TAG, "Fast retry: PONG_ACK+BLOB for ${message.messageId}")
+                                        messageService.pollForPongsAndSendMessages()
+                                        retried++
+                                    }
+                                    com.shieldmessenger.models.AckState.MESSAGE_ACKED -> {
+                                        // Delivered — skip
+                                        Log.d(TAG, "Fast retry: already delivered ${message.messageId}")
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Log.d(TAG, "Fast retry: failed ${message.messageId} (phase=$ackState): ${e.message}")
+                                // Set nextRetryAtMs to prevent re-hammering on next cycle
+                                try {
+                                    val backoffMs = when {
+                                        message.retryCount < 3 -> 30_000L  // 30s for first 3 failures
+                                        message.retryCount < 6 -> 120_000L // 2min for next 3
+                                        else -> 600_000L                    // 10min cap
+                                    }
+                                    database.messageDao().updateRetryStateWithError(
+                                        message.id, message.retryCount + 1, nowMs, nowMs + backoffMs,
+                                        e.message?.take(256)
+                                    )
+                                } catch (dbErr: Exception) {
+                                    Log.e(TAG, "Fast retry: failed to update retry state", dbErr)
+                                }
+                            }
+                        }
+
+                        if (retried > 0) {
+                            Log.i(TAG, "Fast retry: processed $retried message(s)")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Fast retry loop error: ${e.message}")
+                }
+
+                kotlinx.coroutines.delay(intervalMs)
+            }
+
+            Log.i(TAG, "Fast retry loop stopped")
+        }
+    }
+
+    private fun stopFastRetryLoop() {
+        fastRetryJob?.cancel()
+        fastRetryJob = null
+        Log.i(TAG, "Fast retry loop stopped")
+    }
+
+    /**
+     * Monitor SOCKS proxy health and auto-restart if it dies
+     * Checks every 5 seconds, restarts immediately if dead
+     *
+     * CRITICAL: SOCKS failures (status 1) mean the proxy itself is down,
+     * not just that a remote host is unreachable. This needs aggressive monitoring.
+     */
+    private fun startSocksHealthMonitor() {
+        socksHealthJob?.cancel()
+        socksHealthJob = serviceScope.launch(Dispatchers.IO) {
+            Log.i(TAG, "Starting SOCKS proxy health monitor (5s interval)")
+
+            // NEVER-DIE MONITOR: Only exit on OFF/STOPPING (user-initiated shutdown).
+            // ERROR state is transient — wait and recover, don't die permanently.
+            // If the monitor dies, nothing reopens the TransportGate, and all
+            // messaging stops forever until app restart.
+            while (isActive && torState != TorState.OFF && torState != TorState.STOPPING) {
+                try {
+                    // If torState is ERROR, wait for recovery instead of exiting
+                    if (torState == TorState.ERROR) {
+                        Log.w(TAG, "SOCKS health monitor: torState=ERROR, waiting for recovery (not exiting)...")
+                        kotlinx.coroutines.delay(10_000) // Back off 10s during error state
+                        continue
+                    }
+
+                    val bootstrap = RustBridge.getBootstrapStatus()
+
+                    if (bootstrap < 100) {
+                        // Still bootstrapping — skip SOCKS check, failures are expected
+                        Log.d(TAG, "SOCKS health monitor: bootstrap at $bootstrap%, skipping check")
+                    } else {
+                        val socksAlive = RustBridge.isSocksProxyRunning()
+
+                        if (!socksAlive) {
+                            Log.w(TAG, "SOCKS proxy DEAD (bootstrap=$bootstrap%) - restarting immediately...")
+
+                            // Try to restart
+                            val restarted = RustBridge.startSocksProxy()
+                            if (restarted) {
+                                Log.i(TAG, "SOCKS proxy restarted successfully")
+                            } else {
+                                Log.e(TAG, "SOCKS proxy restart FAILED")
+                            }
+                        } else {
+                            Log.d(TAG, "SOCKS proxy health check: alive")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error checking SOCKS proxy health", e)
+                }
+
+                kotlinx.coroutines.delay(5000) // Check every 5 seconds
+            }
+
+            Log.i(TAG, "SOCKS health monitor stopped (torState=$torState)")
+        }
+    }
+
+    private fun stopSocksHealthMonitor() {
+        socksHealthJob?.cancel()
+        socksHealthJob = null
+        Log.i(TAG, "SOCKS health monitor stopped")
+    }
+
+    // ==================== DOWNLOAD WATCHDOG ====================
+
+    /**
+     * Background watchdog that recovers stuck message downloads.
+     * Runs every 30 seconds when gate is open, checks for:
+     * 1. DOWNLOAD_QUEUED pings stuck > 60s (process died mid-download) → release to FAILED_TEMP
+     * 2. FAILED_TEMP pings → reclaim and re-trigger DownloadMessageService
+     *
+     * Without this watchdog, a failed download stays stuck forever until the
+     * user manually deletes the thread (which clears PingInbox).
+     */
+    private fun startDownloadWatchdog() {
+        downloadWatchdogJob?.cancel()
+        downloadWatchdogJob = serviceScope.launch(Dispatchers.IO) {
+            Log.i(TAG, "Starting download watchdog (30s interval)")
+
+            // Initial delay — let system stabilize
+            kotlinx.coroutines.delay(15_000)
+
+            while (isActive && torState != TorState.OFF && torState != TorState.STOPPING) {
+                try {
+                    // Only run when gate is open (Tor healthy)
+                    if (!gate.isOpenNow()) {
+                        kotlinx.coroutines.delay(30_000)
+                        continue
+                    }
+
+                    // Skip if Device Protection is ON (user manages downloads manually)
+                    val securityPrefs = getSharedPreferences("security", MODE_PRIVATE)
+                    val deviceProtectionEnabled = securityPrefs.getBoolean(
+                        SecurityModeActivity.PREF_DEVICE_PROTECTION_ENABLED, false
+                    )
+                    if (deviceProtectionEnabled) {
+                        kotlinx.coroutines.delay(30_000)
+                        continue
+                    }
+
+                    val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                    val dbPassphrase = keyManager.getDatabasePassphrase()
+                    val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@TorService, dbPassphrase)
+                    val now = System.currentTimeMillis()
+
+                    // Step 1: Release DOWNLOAD_QUEUED pings stuck > 60s (process died or DownloadMessageService crashed)
+                    val stuckCutoff = now - 60_000
+                    val released = database.pingInboxDao().releaseStuckClaims(
+                        stuckCutoff = stuckCutoff,
+                        now = now,
+                        maxRetries = 5
+                    )
+                    if (released > 0) {
+                        Log.w(TAG, "Download watchdog: Released $released stuck DOWNLOAD_QUEUED claims (>60s)")
+                    }
+
+                    // Step 2: Find FAILED_TEMP pings and retry them
+                    val failedPings = database.pingInboxDao().getRetryablePings()
+                    if (failedPings.isNotEmpty()) {
+                        Log.i(TAG, "Download watchdog: Found ${failedPings.size} FAILED_TEMP pings to retry")
+                        for (ping in failedPings) {
+                            val contact = database.contactDao().getContactById(ping.contactId)
+                            val contactName = contact?.displayName ?: "Unknown"
+                            val reclaimed = database.pingInboxDao().reclaimForRetry(ping.pingId, now)
+                            if (reclaimed > 0) {
+                                Log.i(TAG, "Download watchdog: Reclaimed ${ping.pingId.take(8)} — starting DownloadMessageService")
+                                com.shieldmessenger.services.DownloadMessageService.start(
+                                    this@TorService,
+                                    ping.contactId,
+                                    contactName,
+                                    ping.pingId,
+                                    -1L // No active connection — DownloadMessageService will open a new one
+                                )
+                                // Small delay between retries to avoid flooding
+                                kotlinx.coroutines.delay(2_000)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Download watchdog error: ${e.message}")
+                }
+
+                kotlinx.coroutines.delay(30_000)
+            }
+
+            Log.i(TAG, "Download watchdog stopped")
+        }
+    }
+
+    private fun stopDownloadWatchdog() {
+        downloadWatchdogJob?.cancel()
+        downloadWatchdogJob = null
+    }
+
+    // ==================== SOCKS PROXY MANAGEMENT ====================
+
+    /**
+     * Start SOCKS proxy (single attempt)
+     * TODO: Port retry removed until RustBridge.startSocksProxy() accepts port parameter
+     * To implement port retry:
+     * 1. Add port parameter to Rust FFI: startSocksProxy(port: u16)
+     * 2. Update torrc SOCKSPort dynamically
+     * 3. Restore retry loop here
+     */
+    private suspend fun startSocksProxy(): Boolean = withContext(Dispatchers.IO) {
+        Log.w(TAG, "========== ATTEMPTING TO START SOCKS PROXY ==========")
+        try {
+            val success = RustBridge.startSocksProxy()
+            if (success) {
+                Log.w(TAG, "========== SOCKS PROXY STARTED ON PORT 9050 ==========")
+                return@withContext true
+            } else {
+                Log.e(TAG, "========== SOCKS PROXY FAILED TO START ==========")
+                return@withContext false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "========== SOCKS START ERROR: ${e.message} ==========", e)
+            return@withContext false
+        }
+    }
+
+    // VPN bandwidth (received from TorVpnService)
+    private var vpnBytesReceived = 0L
+    private var vpnBytesSent = 0L
+    private var vpnActive = false
+    private var vpnBroadcastReceiver: android.content.BroadcastReceiver? = null
+
+    // ========== ControlPort Event Monitoring (MVP) ==========
+
+    // Event ring buffer: last 50 events for debugging
+    private data class TorEvent(
+        val timestamp: Long,
+        val eventType: String,
+        val circId: String,
+        val reason: String,
+        val address: String,
+        val severity: String,
+        val message: String,
+        val progress: Int
+    )
+
+    private val eventRingBuffer = mutableListOf<TorEvent>()
+    private val MAX_EVENTS = 50
+
+    // Circuit failure tracking (NEWNYM trigger for excessive churn)
+    private var circFailureCount = 0
+    private var circFailureWindowStart = 0L
+    private val CIRC_FAILURE_NEWNYM_THRESHOLD = 20 // NEWNYM after 20 failures in window
+    private val CIRC_FAILURE_NEWNYM_WINDOW = 60_000L // 60 second window
+    private val NEWNYM_COOLDOWN_MS = 90_000L // 90s between circuit-failure NEWNYMs (was 5 min)
+    private var lastCircuitNewnymSentAt = 0L // Timestamp for circuit-failure path (handleCircuitFailed)
+    private val HEALTH_NEWNYM_COOLDOWN_MS = 30_000L // 30 seconds between health-triggered NEWNYMs
+    private var lastHealthNewnymSentAt = 0L // Timestamp for health-monitor path (onHealthSample)
+    // Global NEWNYM dedup: prevents both paths from firing within same 10s window
+    private var lastAnyNewnymSentAt = 0L
+    private val NEWNYM_GLOBAL_DEDUP_MS = 10_000L
+    // Adaptive escalation: after too many NEWNYMs, increase cooldown to prevent death spiral
+    private var recentNewnymCount = 0
+    private var newnymWindowStart = 0L
+    private val NEWNYM_ESCALATION_THRESHOLD = 5 // Escalate after 5 NEWNYMs
+    private val NEWNYM_ESCALATION_WINDOW = 10 * 60 * 1000L // in 10 minutes
+    private val NEWNYM_ESCALATED_COOLDOWN_MS = 5 * 60 * 1000L // Escalate to 5 minutes
+
+    /**
+     * Send NEWNYM from the circuit-failure path (90s cooldown, escalates to 5min after 5 NEWNYMs in 10min).
+     * Uses elapsedRealtime internally — immune to caller timebase.
+     */
+    private fun maybeSendCircuitNewnym() {
+        val elapsed = SystemClock.elapsedRealtime()
+
+        // Global dedup: don't fire if any NEWNYM was sent recently (prevents double-fire)
+        if (elapsed - lastAnyNewnymSentAt < NEWNYM_GLOBAL_DEDUP_MS) {
+            Log.d(TAG, "Circuit NEWNYM suppressed (global dedup: ${(NEWNYM_GLOBAL_DEDUP_MS - (elapsed - lastAnyNewnymSentAt)) / 1000}s)")
+            return
+        }
+
+        // Track NEWNYM frequency for adaptive escalation
+        if (elapsed - newnymWindowStart > NEWNYM_ESCALATION_WINDOW) {
+            recentNewnymCount = 0
+            newnymWindowStart = elapsed
+        }
+
+        val effectiveCooldown = if (recentNewnymCount >= NEWNYM_ESCALATION_THRESHOLD) {
+            NEWNYM_ESCALATED_COOLDOWN_MS
+        } else {
+            NEWNYM_COOLDOWN_MS
+        }
+
+        if (elapsed - lastCircuitNewnymSentAt < effectiveCooldown) {
+            Log.w(TAG, "Circuit NEWNYM suppressed (cooldown: ${(effectiveCooldown - (elapsed - lastCircuitNewnymSentAt)) / 1000}s remaining, escalated=${recentNewnymCount >= NEWNYM_ESCALATION_THRESHOLD})")
+            return
+        }
+        lastCircuitNewnymSentAt = elapsed
+        lastAnyNewnymSentAt = elapsed
+        recentNewnymCount++
+        Log.w(TAG, "Sending circuit-failure-triggered NEWNYM (count=$recentNewnymCount in window)")
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val result = RustBridge.sendNewnym()
+                Log.i(TAG, "Circuit NEWNYM: success=$result")
+            } catch (e: Exception) {
+                Log.e(TAG, "Circuit NEWNYM failed", e)
+            }
+        }
+    }
+
+    /**
+     * Send NEWNYM from the health-monitor / SOCKS-failure path (30s cooldown).
+     * Uses elapsedRealtime internally — immune to caller timebase.
+     */
+    private fun maybeSendHealthNewnym() {
+        val elapsed = SystemClock.elapsedRealtime()
+
+        // Global dedup: don't fire if any NEWNYM was sent recently (prevents double-fire)
+        if (elapsed - lastAnyNewnymSentAt < NEWNYM_GLOBAL_DEDUP_MS) {
+            Log.d(TAG, "Health NEWNYM suppressed (global dedup: ${(NEWNYM_GLOBAL_DEDUP_MS - (elapsed - lastAnyNewnymSentAt)) / 1000}s)")
+            return
+        }
+
+        if (elapsed - lastHealthNewnymSentAt < HEALTH_NEWNYM_COOLDOWN_MS) {
+            Log.d(TAG, "Health NEWNYM suppressed (cooldown: ${(HEALTH_NEWNYM_COOLDOWN_MS - (elapsed - lastHealthNewnymSentAt)) / 1000}s remaining)")
+            return
+        }
+        lastHealthNewnymSentAt = elapsed
+        lastAnyNewnymSentAt = elapsed
+        Log.w(TAG, "Sending health-triggered NEWNYM (circuits dead, SOCKS alive)")
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val result = RustBridge.sendNewnym()
+                Log.i(TAG, "Health NEWNYM: success=$result")
+            } catch (e: Exception) {
+                Log.e(TAG, "Health NEWNYM failed", e)
+            }
+        }
+    }
+
+    // HS descriptor failure tracking (for backoff + HUP recovery)
+    // IMPORTANT: Only tracks failures for OUR OWN onion addresses, NOT peer fetch failures.
+    // Peer descriptor fetch failures (contact offline) must NOT trigger HS health recovery.
+    private var hsDescFailureCount = 0
+    private var hsDescFailureWindowStart = 0L
+    private val HS_DESC_FAILURE_THRESHOLD = 3 // Mark unhealthy if 3 failures in 30 seconds
+    private val HS_DESC_FAILURE_WINDOW = 30000L // 30 second window
+    private var hsDescHealthy = true
+    @Volatile private var lastHsHupSentAt = 0L
+    private val HS_HUP_COOLDOWN_MS = 60_000L // Don't send HUP more than once per 60s
+
+    // HS descriptor upload deduplication (Tor uploads to 3 HSDirs, we only log first one)
+    private val lastHsDescUpload = mutableMapOf<String, Long>()
+    private val HS_DESC_DEDUPE_WINDOW_MS = 5000L // 5 seconds
+
+    // Cache of our own onion base addresses (populated eagerly in onTorReady, NOT in event handler)
+    @Volatile private var ownOnionBases: Set<String> = emptySet()
+
+    /** Populate ownOnionBases from KeyManager/TorManager. Call on lifecycle events, not in hot path. */
+    private fun refreshOwnOnionCache() {
+        try {
+            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val torManager = com.shieldmessenger.crypto.TorManager.getInstance(this)
+            val set = mutableSetOf<String>()
+            keyManager.getMessagingOnion()?.trim()?.lowercase()?.removeSuffix(".onion")?.let { set.add(it) }
+            keyManager.getFriendRequestOnion()?.trim()?.lowercase()?.removeSuffix(".onion")?.let { set.add(it) }
+            torManager.getVoiceOnionAddress()?.trim()?.lowercase()?.removeSuffix(".onion")?.let { set.add(it) }
+            ownOnionBases = set
+            Log.d(TAG, "Own onion cache refreshed: ${set.size} addresses")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to refresh own onion cache", e)
+        }
+    }
+
+    /** Check if an onion address belongs to us. Returns false if cache is empty (not ready yet). */
+    private fun isOwnOnion(address: String): Boolean {
+        if (address.isBlank() || ownOnionBases.isEmpty()) return false
+        val normalized = address.trim().lowercase().removeSuffix(".onion")
+        return ownOnionBases.contains(normalized)
+    }
+
+    companion object {
+        private const val TAG = "TorService"
+        private const val NOTIFICATION_ID = 1001
+        private const val RESTART_REQUEST_CODE = 1001
+        private const val CHANNEL_ID = "tor_service_channel"
+        private const val CHANNEL_NAME = "Tor Hidden Service"
+        private const val AUTH_CHANNEL_ID = "message_auth_channel_v2" // Changed to v2 to recreate with sound
+        private const val AUTH_CHANNEL_NAME = "Friend Requests & Messages"
+
+        // Network stabilization window - wait after network change before listener rebind
+        private const val NETWORK_STABILIZATION_WINDOW_MS = 45_000L // 45 seconds
+
+        // Tor warm-up window - wait after Tor instability before sending traffic
+        private const val TOR_WARMUP_WINDOW_MS = 10_000L // 10 seconds (TransportGate is the real guard)
+
+        // CRDT group ID length in bytes (GroupID is [u8; 32] in Rust)
+        private const val CRDT_GROUP_ID_LEN = 32
+
+        const val ACTION_START_TOR = "com.shieldmessenger.action.START_TOR"
+        const val ACTION_STOP_TOR = "com.shieldmessenger.action.STOP_TOR"
+        const val ACTION_KEEP_ALIVE = "com.shieldmessenger.action.KEEP_ALIVE"
+        const val ACTION_NOTIFICATION_DELETED = "com.shieldmessenger.action.NOTIFICATION_DELETED"
+        const val ACTION_ACCEPT_MESSAGE = "com.shieldmessenger.action.ACCEPT_MESSAGE"
+        const val ACTION_DECLINE_MESSAGE = "com.shieldmessenger.action.DECLINE_MESSAGE"
+        const val ACTION_VPN_BANDWIDTH_UPDATE = "com.shieldmessenger.action.VPN_BANDWIDTH_UPDATE"
+        const val EXTRA_PING_ID = "ping_id"
+        const val EXTRA_CONNECTION_ID = "connection_id"
+        const val EXTRA_VPN_RX_BYTES = "vpn_rx_bytes"
+        const val EXTRA_VPN_TX_BYTES = "vpn_tx_bytes"
+        const val EXTRA_VPN_ACTIVE = "vpn_active"
+        const val EXTRA_SENDER_NAME = "sender_name"
+
+        // Track service state
+        @Volatile
+        private var running = false
+
+        @Volatile
+        private var torConnected = false
+
+        @Volatile
+        private var listenersReady = false
+
+        @Volatile
+        private var instance: TorService? = null
+
+        fun isRunning(): Boolean = running
+
+        fun isTorConnected(): Boolean = torConnected
+
+        /**
+         * Get current Tor state for UI status indicators
+         */
+        fun getCurrentTorState(): TorState = instance?.torState ?: TorState.OFF
+
+        /**
+         * Get current bootstrap progress (0-100)
+         */
+        fun getBootstrapPercent(): Int = instance?.bootstrapPercent ?: 0
+
+        /**
+         * Get transport gate for network resilience checks
+         * All Tor operations must call awaitOpen() before proceeding
+         */
+        fun getTransportGate(): TransportGate? = instance?.gate
+
+        /**
+         * Check if Tor is warmed up and ready for traffic
+         * Returns null if TorService not running, otherwise returns remaining warmup time in ms
+         * (0 = ready, >0 = still warming up)
+         */
+        fun getTorWarmupRemainingMs(): Long? {
+            val service = instance ?: return null
+            val warmupMs = System.currentTimeMillis() - service.lastTorUnstableAt
+            val remaining = TOR_WARMUP_WINDOW_MS - warmupMs
+            return if (remaining > 0) remaining else 0
+        }
+
+        /**
+         * Notify service when app goes to foreground/background
+         * Adjusts bandwidth monitoring frequency (fast when open, slow when closed)
+         */
+        fun setForegroundState(inForeground: Boolean) {
+            instance?.setAppInForeground(inForeground)
+        }
+
+        /**
+         * Check if all listeners and pollers are ready for messaging
+         * This means:
+         * - Hidden service listener started (port 8080)
+         * - Tap listener started (port 9151)
+         * - ACK listener started (port 9153)
+         * - All pollers running
+         */
+        fun areListenersReady(): Boolean = listenersReady
+
+        /**
+         * Check if messaging is fully ready (Tor connected + listeners ready)
+         * Call this from SplashActivity to ensure 100% messaging functionality
+         */
+        fun isMessagingReady(): Boolean = torConnected && listenersReady
+
+        /**
+         * Start the Tor service
+         */
+        fun start(context: Context) {
+            val intent = Intent(context, TorService::class.java).apply {
+                action = ACTION_START_TOR
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        }
+
+        /**
+         * Stop the Tor service
+         */
+        fun stop(context: Context) {
+            val intent = Intent(context, TorService::class.java).apply {
+                action = ACTION_STOP_TOR
+            }
+            context.startService(intent)
+        }
+
+        /**
+         * Request Tor restart (idempotent, safe to call multiple times)
+         * Used by TorHealthMonitorWorker when Tor health degrades
+         *
+         * FIXED: Now routes to NEW state machine restart, not old daemon restart
+         */
+        fun requestRestart(reason: String) {
+            Log.i(TAG, "Restart requested from worker: $reason")
+            instance?.serviceScope?.launch {
+                instance?.restartTor("worker: $reason")
+            }
+        }
+
+        /**
+         * Report a SOCKS failure from MessageService or other components
+         * TorService will track failures and automatically restart Tor if needed
+         */
+        fun reportSocksFailure(context: Context) {
+            val intent = Intent(context, TorService::class.java).apply {
+                action = "com.shieldmessenger.action.REPORT_SOCKS_FAILURE"
+            }
+            context.startService(intent)
+        }
+
+        // Lock for atomic SharedPreferences writes (prevents concurrent clobbering)
+        private val prefsLock = Any()
+
+        const val ACTION_FRIEND_REQUEST_STATUS_CHANGED = "com.shieldmessenger.FRIEND_REQUEST_STATUS_CHANGED"
+
+        /**
+         * Send a friend request in the background via TorService's serviceScope.
+         * Survives Activity navigation — caller gets immediate return.
+         */
+        fun sendFriendRequestInBackground(
+            requestId: String,
+            recipientOnion: String,
+            encryptedPayload: ByteArray,
+            context: Context
+        ) {
+            val svc = instance
+            if (svc == null) {
+                Log.e(TAG, "sendFriendRequestInBackground: TorService not running, marking failed")
+                updatePendingRequestStatus(context, requestId, com.shieldmessenger.models.PendingFriendRequest.STATUS_FAILED)
+                context.sendBroadcast(Intent(ACTION_FRIEND_REQUEST_STATUS_CHANGED))
+                return
+            }
+
+            svc.serviceScope.launch(Dispatchers.IO) {
+                Log.i(TAG, "Background friend request send started (id=$requestId, target=$recipientOnion)")
+
+                val gateOpened = getTransportGate()?.awaitOpen(
+                    com.shieldmessenger.network.TransportGate.TIMEOUT_HANDSHAKE_MS
+                ) ?: false
+
+                val success = if (gateOpened) {
+                    try {
+                        com.shieldmessenger.crypto.RustBridge.sendFriendRequest(
+                            recipientOnion, encryptedPayload
+                        )
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Background friend request failed", e)
+                        false
+                    }
+                } else {
+                    Log.w(TAG, "Transport gate timed out for background friend request")
+                    false
+                }
+
+                val newStatus = if (success)
+                    com.shieldmessenger.models.PendingFriendRequest.STATUS_PENDING
+                else
+                    com.shieldmessenger.models.PendingFriendRequest.STATUS_FAILED
+
+                Log.i(TAG, "Background friend request finished (id=$requestId, success=$success, newStatus=$newStatus)")
+                updatePendingRequestStatus(context, requestId, newStatus)
+                context.sendBroadcast(Intent(ACTION_FRIEND_REQUEST_STATUS_CHANGED))
+            }
+        }
+
+        /**
+         * Accept a friend request (Phase 2) in the background via TorService's serviceScope.
+         * Same pattern as sendFriendRequestInBackground but uses sendFriendRequestAccepted.
+         */
+        fun acceptFriendRequestInBackground(
+            requestId: String,
+            recipientOnion: String,
+            encryptedAcceptance: ByteArray,
+            context: Context
+        ) {
+            val svc = instance
+            if (svc == null) {
+                Log.e(TAG, "acceptFriendRequestInBackground: TorService not running, marking failed")
+                updatePendingRequestStatus(context, requestId, com.shieldmessenger.models.PendingFriendRequest.STATUS_FAILED)
+                context.sendBroadcast(Intent(ACTION_FRIEND_REQUEST_STATUS_CHANGED))
+                return
+            }
+
+            svc.serviceScope.launch(Dispatchers.IO) {
+                Log.i(TAG, "Background Phase 2 accept started (id=$requestId, target=$recipientOnion)")
+
+                val gateOpened = getTransportGate()?.awaitOpen(
+                    com.shieldmessenger.network.TransportGate.TIMEOUT_HANDSHAKE_MS
+                ) ?: false
+
+                val success = if (gateOpened) {
+                    try {
+                        com.shieldmessenger.crypto.RustBridge.sendFriendRequestAccepted(
+                            recipientOnion, encryptedAcceptance
+                        )
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Background Phase 2 accept failed", e)
+                        false
+                    }
+                } else {
+                    Log.w(TAG, "Transport gate timed out for background Phase 2 accept")
+                    false
+                }
+
+                val newStatus = if (success)
+                    com.shieldmessenger.models.PendingFriendRequest.STATUS_PENDING
+                else
+                    com.shieldmessenger.models.PendingFriendRequest.STATUS_FAILED
+
+                Log.i(TAG, "Background Phase 2 accept finished (id=$requestId, success=$success, newStatus=$newStatus)")
+                updatePendingRequestStatus(context, requestId, newStatus)
+                context.sendBroadcast(Intent(ACTION_FRIEND_REQUEST_STATUS_CHANGED))
+            }
+        }
+
+        /**
+         * Atomically update a pending request's status by its ID.
+         * Thread-safe: synchronized on prefsLock to prevent concurrent clobbering.
+         */
+        fun updatePendingRequestStatus(context: Context, requestId: String, newStatus: String) {
+            synchronized(prefsLock) {
+                try {
+                    val prefs = context.getSharedPreferences("friend_requests", Context.MODE_PRIVATE)
+                    val pendingSet = prefs.getStringSet("pending_requests_v2", mutableSetOf()) ?: mutableSetOf()
+
+                    val updatedSet = mutableSetOf<String>()
+                    var found = false
+                    for (json in pendingSet) {
+                        try {
+                            val req = com.shieldmessenger.models.PendingFriendRequest.fromJson(json)
+                            if (req.id == requestId) {
+                                found = true
+                                val updated = req.copy(status = newStatus)
+                                updatedSet.add(updated.toJson())
+                            } else {
+                                updatedSet.add(json)
+                            }
+                        } catch (e: Exception) {
+                            updatedSet.add(json) // preserve unparseable entries
+                        }
+                    }
+
+                    if (!found) {
+                        Log.w(TAG, "updatePendingRequestStatus: request $requestId not found")
+                    }
+
+                    prefs.edit().putStringSet("pending_requests_v2", updatedSet).apply()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to update pending request status", e)
+                }
+            }
+        }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        Log.d(TAG, "TorService created")
+
+        // Set instance for static access
+        instance = this
+
+        // Initialize TorManager
+        torManager = TorManager.getInstance(this)
+
+        // Create notification channel
+        createNotificationChannel()
+
+        // Register VPN bandwidth broadcast receiver
+        setupVpnBroadcastReceiver()
+
+        // Acquire partial wake lock to keep CPU running
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "ShieldMessenger::TorServiceWakeLock"
+        ).apply {
+            setReferenceCounted(false)
+        }
+
+        // Initialize transport gate system (network resilience)
+        gate = TransportGate()
+        probe = TorProbe() // Still used for periodic health checks
+        rehydrator = TorRehydrator(
+            onRebindRequest = { handleRebindRequest() },
+            scope = serviceScope
+        )
+
+        // Start network watcher to detect Wi-Fi ↔ LTE switches and other network events
+        networkWatcher = NetworkWatcher(this) { event ->
+            handleNetworkEvent(event)
+        }
+        networkWatcher!!.start()
+
+        // Register Tor ControlPort event callback for fast reaction
+        registerTorEventCallback()
+
+        Log.i(TAG, "Transport gate system initialized")
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.d(TAG, "onStartCommand: ${intent?.action}")
+
+        // CRITICAL: Call startForeground() IMMEDIATELY to avoid ForegroundServiceDidNotStartInTimeException
+        // Android requires this within 5 seconds when service is started with startForegroundService()
+        // We must call this BEFORE launching any coroutines or async work
+        if (intent?.action != ACTION_STOP_TOR && intent?.action != ACTION_NOTIFICATION_DELETED &&
+            intent?.action != ACTION_ACCEPT_MESSAGE && intent?.action != ACTION_DECLINE_MESSAGE &&
+            intent?.action != "com.shieldmessenger.action.REPORT_SOCKS_FAILURE") {
+
+            // Start foreground IMMEDIATELY (before any async work)
+            val notification = createNotification("Starting Tor...")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+            Log.i(TAG, "startForeground() called immediately in onStartCommand")
+
+            // CRITICAL: Mark service as running so poller threads don't immediately exit.
+            // Previously only set in onTorReady() or deprecated startTorService(),
+            // but reconnection paths (KEEP_ALIVE + network change) bypass those methods.
+            isServiceRunning = true
+            running = true
+        }
+
+        // Check if recovering from Android 15 foreground service timeout
+        val recoveryPrefs = getSharedPreferences("tor_recovery", MODE_PRIVATE)
+        if (recoveryPrefs.getBoolean("timeout_recovery", false)) {
+            Log.i(TAG, "Recovering from Android 15 timeout (timed out at ${recoveryPrefs.getLong("timeout_at", 0)})")
+            recoveryPrefs.edit().putBoolean("timeout_recovery", false).apply()
+        }
+
+        when (intent?.action) {
+            ACTION_START_TOR -> {
+                if (startTorRequested.compareAndSet(false, true)) {
+                    serviceScope.launch { startTor() }
+                } else {
+                    Log.d(TAG, "START_TOR: startTor already requested; skipping")
+                }
+            }
+            ACTION_STOP_TOR -> {
+                // Stop using new state machine
+                serviceScope.launch { stopTor() }
+            }
+            ACTION_NOTIFICATION_DELETED -> handleNotificationDeleted()
+            ACTION_ACCEPT_MESSAGE -> handleAcceptMessage(intent)
+            ACTION_DECLINE_MESSAGE -> handleDeclineMessage(intent)
+            "com.shieldmessenger.action.REPORT_SOCKS_FAILURE" -> handleSocksFailure()
+            ACTION_KEEP_ALIVE -> {
+                // TorManager sends KEEP_ALIVE to get the foreground service running while it
+                // handles the GP TorService daemon separately. We still need to start the
+                // bootstrap monitor + event listener so onTorReady() fires and the gate opens.
+                // torManager.initializeAsync() inside startTor() guards against double-init.
+                if (startTorRequested.compareAndSet(false, true)) {
+                    Log.i(TAG, "KEEP_ALIVE: Starting bootstrap monitoring alongside TorManager")
+                    serviceScope.launch { startTor() }
+                } else {
+                    Log.i(TAG, "KEEP_ALIVE: startTor already requested; skipping")
+                }
+            }
+            else -> {
+                if (startTorRequested.compareAndSet(false, true)) {
+                    serviceScope.launch { startTor() }
+                } else {
+                    Log.d(TAG, "Default action: startTor already requested; skipping")
+                }
+            }
+        }
+
+        // Service should restart if killed by system
+        return START_STICKY
+    }
+
+    /**
+     * Android 15+: Handle foreground service timeout gracefully
+     * Called when the service exceeds its allotted time limit
+     */
+    override fun onTimeout(startId: Int) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            Log.w(TAG, "Foreground service timeout reached - stopping gracefully")
+
+            // Show notification to user
+            updateNotification("Service timeout - restarting...")
+
+            // Save state for recovery after START_STICKY restart
+            getSharedPreferences("tor_recovery", MODE_PRIVATE).edit()
+                .putBoolean("timeout_recovery", true)
+                .putLong("timeout_at", System.currentTimeMillis())
+                .apply()
+
+            // Clean up resources
+            startupCompleted.set(false) // Reset latch for START_STICKY restart
+            isServiceRunning = false
+            running = false
+            torConnected = false
+            pollerScope.cancel() // Clean shutdown of pollers
+            pollerJobs.clear()
+
+            // Stop the service gracefully
+            stopSelf(startId)
+        }
+    }
+
+    private fun handleAcceptMessage(intent: Intent) {
+        val pingId = intent.getStringExtra(EXTRA_PING_ID)
+        val connectionId = intent.getLongExtra(EXTRA_CONNECTION_ID, -1)
+        val senderName = intent.getStringExtra(EXTRA_SENDER_NAME) ?: "Unknown"
+
+        if (pingId == null || connectionId == -1L) {
+            Log.e(TAG, "Invalid accept message intent")
+            return
+        }
+
+        Log.i(TAG, "User accepted message from $senderName")
+
+        // Create encrypted Pong response (authenticated = true)
+        val encryptedPong = RustBridge.respondToPing(pingId, true)
+        if (encryptedPong == null) {
+            Log.e(TAG, "Failed to create Pong response")
+            ThemedToast.show(this, "Failed to accept message")
+            return
+        }
+
+        Log.i(TAG, "Created encrypted Pong: ${encryptedPong.size} bytes")
+
+        Log.i(TAG, "Sending Pong and waiting for incoming message...")
+        ThemedToast.show(this, "Accepting message from $senderName...")
+
+        // Send Pong back to sender and receive the message
+        // sendPongBytes() returns the encrypted message after sending the Pong
+        val encryptedMessage = RustBridge.sendPongBytes(connectionId, encryptedPong)
+
+        if (encryptedMessage != null && encryptedMessage.isNotEmpty()) {
+            Log.i(TAG, "Received encrypted message: ${encryptedMessage.size} bytes")
+            // Process the received message
+            processReceivedMessage(encryptedMessage, pingId, senderName)
+        } else {
+            Log.w(TAG, "No message received or empty message")
+            ThemedToast.show(this, "No message received from $senderName")
+        }
+
+        // Cancel the auth notification
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.cancel(connectionId.toInt())
+    }
+
+    private fun handleDeclineMessage(intent: Intent) {
+        val pingId = intent.getStringExtra(EXTRA_PING_ID)
+        val connectionId = intent.getLongExtra(EXTRA_CONNECTION_ID, -1)
+        val senderName = intent.getStringExtra(EXTRA_SENDER_NAME) ?: "Unknown"
+
+        if (pingId == null || connectionId == -1L) {
+            Log.e(TAG, "Invalid decline message intent")
+            return
+        }
+
+        Log.i(TAG, "User declined message from $senderName")
+
+        // Create encrypted Pong response (authenticated = false)
+        val encryptedPong = RustBridge.respondToPing(pingId, false)
+        if (encryptedPong != null) {
+            RustBridge.sendPongBytes(connectionId, encryptedPong)
+            Log.i(TAG, "Sent decline Pong to $senderName")
+        }
+
+        ThemedToast.show(this, "Declined message from $senderName")
+
+        // Cancel the auth notification
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.cancel(connectionId.toInt())
+    }
+
+    // ==================== REFACTORED TOR START/STOP/RESTART ====================
+
+    /**
+     * Start Tor with proper state machine
+     * Replaces old startTorService() with cleaner implementation
+     */
+    private suspend fun startTor() {
+        Log.w(TAG, "========== startTor() CALLED (torState=$torState) ==========")
+
+        // Guard: Don't start if already starting/running
+        if (torState == TorState.STARTING || torState == TorState.BOOTSTRAPPING || torState == TorState.RUNNING) {
+            Log.d(TAG, "startTor(): Already in state $torState, skipping")
+            return
+        }
+
+        // Guard: Enforce 10s cooldown after last shutdown to let :tor process fully exit
+        // Prevents SIGABRT from destroyed mutex when old :tor is still shutting down
+        try {
+            val shutdownFile = File(filesDir, "tor/last_shutdown_time")
+            if (shutdownFile.exists()) {
+                val lastShutdown = shutdownFile.readText().trim().toLongOrNull() ?: 0L
+                val elapsed = System.currentTimeMillis() - lastShutdown
+                if (elapsed in 1..10_000) {
+                    val waitMs = 10_000 - elapsed
+                    Log.w(TAG, "startTor(): Cooling down ${waitMs}ms after recent shutdown (${elapsed}ms ago)")
+                    kotlinx.coroutines.delay(waitMs)
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "startTor(): Error reading shutdown timestamp: ${e.message}")
+        }
+
+        setState(TorState.STARTING, "user requested")
+        bootstrapPercent = 0
+        lastBootstrapProgressMs = SystemClock.elapsedRealtime() // Reset watchdog timer
+        lastHealthyMs = SystemClock.elapsedRealtime() // Reset health timer
+
+        try {
+            // Stop any previous event listener before spawning a new one
+            // Prevents duplicate listeners when startTor() is called multiple times
+            RustBridge.stopBootstrapListener()
+
+            // Start bootstrap listener (Rust side) with ControlSocket path
+            val socketFile = java.io.File(dataDir, "app_TorService/data/ControlSocket")
+            Log.i(TAG, "ControlSocket exists: ${socketFile.exists()}")
+            // Pass path so Rust knows where to connect (GP tor-android creates this Unix socket)
+            RustBridge.startBootstrapListener(socketFile.absolutePath)
+
+            // Start bootstrap monitor (polls getBootstrapStatus)
+            startBootstrapMonitor()
+
+            // Start watchdog (detects stalled bootstrap)
+            startBootstrapWatchdog()
+
+            // Start health monitor (polls ControlPort for circuit health)
+            startHealthMonitor()
+
+            // Start PIN rotation monitor (auto-rotates PIN based on time/count)
+            startPinRotationMonitor()
+
+            // Start SOCKS health monitor (detects dead proxy, auto-restarts)
+            startSocksHealthMonitor()
+
+            // Start fast retry loop (gates on isOpenNow, safe to start early)
+            startFastRetryLoop()
+
+            // Start download watchdog (recovers stuck/failed downloads automatically)
+            startDownloadWatchdog()
+
+            // Initialize Tor (async, converts callback to suspend)
+            val onionAddress = suspendCancellableCoroutine<String?> { continuation ->
+                torManager.initializeAsync { success, address ->
+                    if (success && address != null) {
+                        continuation.resume(address)
+                    } else {
+                        continuation.resume(null)
+                    }
+                }
+            }
+
+            if (onionAddress != null) {
+                Log.i(TAG, "Tor hidden service initialized")
+
+                // Start SOCKS proxy
+                val socksStarted = startSocksProxy()
+                if (!socksStarted) {
+                    Log.e(TAG, "Failed to start SOCKS proxy")
+                    setState(TorState.ERROR, "SOCKS failed")
+                    return
+                }
+
+                // Bootstrap monitor will transition to RUNNING when ready
+                // onTorReady() will be called automatically
+            } else {
+                Log.e(TAG, "Tor initialization returned null onion address")
+                setState(TorState.ERROR, "init failed")
+                consecutiveBootstrapFailures++
+                scheduleReconnect("init returned null onion")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting Tor", e)
+            setState(TorState.ERROR, e.message ?: "unknown")
+            consecutiveBootstrapFailures++
+            scheduleReconnect("startTor exception: ${e.message}")
+        }
+    }
+
+    /**
+     * Stop Tor cleanly
+     */
+    private suspend fun stopTor() {
+        if (torState == TorState.OFF || torState == TorState.STOPPING) {
+            Log.d(TAG, "stopTor(): Already stopped/stopping")
+            return
+        }
+
+        setState(TorState.STOPPING, "shutdown")
+        startTorRequested.set(false)
+        startupCompleted.set(false) // Reset latch so ensureStartedOnce() runs again on restart
+        bootstrapWatchdogJob?.cancel()
+        stopFastRetryLoop()
+        stopDownloadWatchdog()
+        stopHealthMonitor()
+        stopSocksHealthMonitor()
+        RustBridge.stopBootstrapListener()
+
+        // Cancel all poller coroutines (cancel jobs, not the scope — scope is reused on restart)
+        for ((name, job) in pollerJobs) {
+            job.cancel()
+            Log.d(TAG, "Cancelled poller: $name")
+        }
+        pollerJobs.clear()
+
+        try {
+            // Stop SOCKS proxy
+            withContext(Dispatchers.IO) {
+                try {
+                    if (RustBridge.isSocksProxyRunning()) {
+                        RustBridge.stopSocksProxy()
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error stopping SOCKS proxy", e)
+                }
+            }
+
+            // KILL the actual tor process (GP TorService)
+            // Without this, a wedged tor daemon stays alive and the next start
+            // finds stale state: lock file, dead control socket, old cookie.
+            stopGpTorProcess()
+
+            // Reset TorManager init state so next startTor() does a fresh init
+            torManager.resetInitializationState()
+
+            // Clean up stale lock/socket files that block the next start
+            cleanupStaleTorFiles()
+
+            // Record shutdown timestamp for cooldown enforcement in startTor()
+            recordShutdownTimestamp()
+
+            setState(TorState.OFF, "stopped")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping Tor", e)
+            setState(TorState.OFF, "stopped with errors")
+        }
+    }
+
+    /**
+     * Send a command to Tor via ControlSocket (Unix domain socket).
+     * Uses empty auth (GP tor-android 0.4.9.5 uses --CookieAuthentication 0).
+     * Same pattern as TorManager.probeTorControl() and verifyBridgeUsage().
+     * @return true if command was acknowledged with 250 OK
+     */
+    private fun sendTorControlCommand(command: String): Boolean {
+        return try {
+            val controlSocketFile = File(dataDir, "app_TorService/data/ControlSocket")
+            if (!controlSocketFile.exists()) {
+                Log.w(TAG, "ControlSocket not found, cannot send: $command")
+                return false
+            }
+
+            val sock = android.net.LocalSocket()
+            sock.connect(android.net.LocalSocketAddress(
+                controlSocketFile.absolutePath,
+                android.net.LocalSocketAddress.Namespace.FILESYSTEM
+            ))
+            sock.soTimeout = 3000
+
+            val output = sock.outputStream
+            val input = sock.inputStream
+
+            // Empty auth (GP tor-android 0.4.9.5 uses --CookieAuthentication 0)
+            output.write("AUTHENTICATE\r\n".toByteArray())
+            output.flush()
+
+            val authBuf = ByteArray(256)
+            val authLen = input.read(authBuf)
+            if (authLen <= 0) {
+                Log.w(TAG, "Tor control: no auth response")
+                sock.close()
+                return false
+            }
+            val authResp = String(authBuf, 0, authLen)
+            if (!authResp.startsWith("250")) {
+                Log.w(TAG, "Tor control auth failed: $authResp")
+                sock.close()
+                return false
+            }
+
+            // Send the actual command
+            output.write("$command\r\n".toByteArray())
+            output.flush()
+
+            val replyBuf = ByteArray(256)
+            val replyLen = input.read(replyBuf)
+            val reply = if (replyLen > 0) String(replyBuf, 0, replyLen) else ""
+            val ok = reply.contains("250")
+            Log.i(TAG, "Tor control '$command' → ${reply.trim()}")
+
+            sock.close()
+            ok
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to send Tor control '$command': ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Stop the Guardian Project TorService (the actual tor daemon).
+     *
+     * KEY FIX: GP TorService runs Tor in-process via JNI. stopService() is async —
+     * it asks Android to call onDestroy() at its convenience, but the native Tor
+     * thread can outlive it. This caused "zombie Tor" holding ports while a new
+     * instance tried to start ("two connections" bug).
+     *
+     * Fix: Send SIGNAL SHUTDOWN via ControlSocket first, which tells the native
+     * Tor thread to exit from within. This is what force-stop effectively does
+     * (kills the process, which kills the thread) — but without killing the app.
+     *
+     * HS identity is preserved — it lives in key files, not the running process.
+     */
+    private suspend fun stopGpTorProcess() {
+        val controlSocket = File(dataDir, "app_TorService/data/ControlSocket")
+
+        try {
+            // Step 1: Tell Tor to exit gracefully via control protocol
+            if (controlSocket.exists()) {
+                val shutdownOk = withContext(Dispatchers.IO) {
+                    sendTorControlCommand("SIGNAL SHUTDOWN")
+                }
+
+                if (shutdownOk) {
+                    Log.i(TAG, "SIGNAL SHUTDOWN accepted — waiting for native Tor thread to exit")
+                } else {
+                    // SHUTDOWN failed (maybe control socket wedged) — try HALT (immediate, non-graceful)
+                    Log.w(TAG, "SIGNAL SHUTDOWN failed — trying HALT (immediate)")
+                    withContext(Dispatchers.IO) {
+                        sendTorControlCommand("SIGNAL HALT")
+                    }
+                }
+
+                // Wait for ControlSocket to disappear (confirms native thread exited)
+                val maxWaitMs = 8_000L
+                val pollIntervalMs = 200L
+                var waited = 0L
+                while (controlSocket.exists() && waited < maxWaitMs) {
+                    delay(pollIntervalMs)
+                    waited += pollIntervalMs
+                }
+
+                if (controlSocket.exists()) {
+                    Log.e(TAG, "ControlSocket persists after SHUTDOWN+HALT and ${waited}ms — Tor truly wedged")
+                } else {
+                    Log.i(TAG, "Tor exited cleanly after ${waited}ms (via SIGNAL SHUTDOWN)")
+                }
+            } else {
+                Log.d(TAG, "ControlSocket already gone — Tor not running")
+            }
+
+            // Step 2: Stop the Android service wrapper (cleanup, even if native thread already exited)
+            val gpStopIntent = Intent(this, org.torproject.jni.TorService::class.java)
+            stopService(gpStopIntent)
+            Log.i(TAG, "Sent stopService to GP TorService")
+
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to stop GP TorService: ${e.message}")
+            // Fallback: still try stopService even if control commands failed
+            try {
+                stopService(Intent(this, org.torproject.jni.TorService::class.java))
+            } catch (_: Exception) {}
+        }
+    }
+
+    /**
+     * Delete stale lock file and control socket that prevent clean restarts.
+     * MUST be called AFTER stopGpTorProcess() has verified the process is gone.
+     * Does NOT touch hidden service key directories (identity is preserved).
+     */
+    private fun cleanupStaleTorFiles() {
+        val torDataPath = File(dataDir, "app_TorService/data")
+        val lockFile = File(torDataPath, "lock")
+        val controlSocket = File(torDataPath, "ControlSocket")
+
+        if (lockFile.exists()) {
+            lockFile.delete()
+            Log.i(TAG, "Deleted stale Tor lock file")
+        }
+        if (controlSocket.exists()) {
+            controlSocket.delete()
+            Log.i(TAG, "Deleted stale ControlSocket (leftover after stop)")
+        }
+    }
+
+    /**
+     * Nuclear cleanup: wipe the entire tor data directory EXCEPT hidden service keys.
+     * Only called after consecutive bootstrap failures when something is deeply broken.
+     * Preserves .onion identity (messaging_hidden_service, friend_request_hidden_service).
+     */
+    private fun nuclearCleanupTorData() {
+        val torDataPath = File(dataDir, "app_TorService/data")
+        if (!torDataPath.exists()) return
+
+        val preserveDirs = setOf("messaging_hidden_service", "friend_request_hidden_service")
+        var deletedCount = 0
+
+        torDataPath.listFiles()?.forEach { file ->
+            if (file.name !in preserveDirs) {
+                if (file.isDirectory) {
+                    file.deleteRecursively()
+                } else {
+                    file.delete()
+                }
+                deletedCount++
+            }
+        }
+        Log.w(TAG, "NUCLEAR CLEANUP: deleted $deletedCount items from tor data dir (preserved HS keys)")
+    }
+
+    /**
+     * Record shutdown timestamp so startTor() can enforce a cooldown
+     * to let the :tor process fully exit (prevents SIGABRT from destroyed mutex).
+     */
+    private fun recordShutdownTimestamp() {
+        try {
+            val torDir = File(filesDir, "tor")
+            torDir.mkdirs()
+            File(torDir, "last_shutdown_time").writeText(System.currentTimeMillis().toString())
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to write shutdown timestamp: ${e.message}")
+        }
+    }
+
+    /** Track consecutive bootstrap failures for nuclear option */
+    @Volatile private var consecutiveBootstrapFailures: Int = 0
+
+    /** Single-flight: prevents overlapping stop→start cycles from stacking */
+    private val restartMutex = Mutex()
+
+    /**
+     * Restart Tor (clean stop + start) with debouncing.
+     * Single pipeline — ALL reconnection must go through here.
+     * Allows restart from any state except STOPPING (in-progress shutdown).
+     *
+     * Single-flight: if a restart is already running (stop→start takes ~10s with
+     * SIGNAL SHUTDOWN), additional callers bail immediately. This prevents health
+     * monitor + network callback + worker from stacking 3 restarts on one incident.
+     */
+    private suspend fun restartTor(reason: String) {
+        // Guard 0: Single-flight — if already restarting, drop this request
+        if (!restartMutex.tryLock()) {
+            Log.d(TAG, "restartTor skipped (already in progress): $reason")
+            return
+        }
+
+        try {
+            // Guard 1: Don't restart during active shutdown
+            if (torState == TorState.STOPPING) {
+                Log.d(TAG, "Ignoring restart request (currently STOPPING): $reason")
+                return
+            }
+
+            // Guard 2: Debounce restarts (min 15 seconds between restarts, prevents restart storms)
+            val now = SystemClock.elapsedRealtime()
+            val timeSinceLastRestart = now - lastRestartMs
+            if (timeSinceLastRestart < 15_000) {
+                Log.d(TAG, "Ignoring restart request (too soon: ${timeSinceLastRestart}ms): $reason")
+                return
+            }
+
+            Log.w(TAG, "Restarting Tor from state=$torState (failures=$consecutiveBootstrapFailures): $reason")
+            lastRestartMs = now
+            lastTorUnstableAt = System.currentTimeMillis() // Mark Tor as unstable
+
+            // Reset reconnect state
+            isReconnecting = false
+            reconnectHandler.removeCallbacksAndMessages(null)
+
+            stopTor()
+
+            // Nuclear option: after 2 consecutive bootstrap failures, wipe tor data
+            // (preserving HS keys so .onion identity is stable)
+            if (consecutiveBootstrapFailures >= 2) {
+                Log.w(TAG, "NUCLEAR RESTART: $consecutiveBootstrapFailures consecutive failures — wiping tor data (preserving HS keys)")
+                nuclearCleanupTorData()
+                consecutiveBootstrapFailures = 0 // Reset after nuclear
+            }
+
+            kotlinx.coroutines.delay(1_500) // 1.5s for native :tor to release mutex (prevents SIGABRT)
+            startTor()
+        } finally {
+            restartMutex.unlock()
+        }
+    }
+
+    // ==================== OLD IMPLEMENTATION (DISABLED) ====================
+
+    /**
+     * OLD IMPLEMENTATION (DISABLED) - Legacy Tor service start
+     *
+     * WHY DISABLED: Was called from onStartCommand and legacy restartTor().
+     * Mixed old service lifecycle with new state machine.
+     * onStartCommand now calls startTor() directly.
+     */
+    @Deprecated("Use startTor() instead", level = DeprecationLevel.ERROR)
+    private fun startTorService() {
+        Log.w(TAG, "========== OLD startTorService() CALLED BUT DISABLED ==========")
+        Log.w(TAG, "onStartCommand should call startTor() directly now")
+        // DISABLED - onStartCommand now uses startTor() through serviceScope.launch
+
+        // Rest of old function kept for service/notification setup
+        // TODO: Move foreground service setup to onCreate() or separate function
+
+        // Start as foreground service with notification IMMEDIATELY to avoid ANR
+        val notification = createNotification("Connecting to Tor...")
+        Log.d(TAG, "Notification created")
+
+        // Android 14+ requires specifying foreground service type
+        // Using SPECIAL_USE for Tor connectivity (24/7 operation required for message protocol)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            Log.d(TAG, "Using Android 14+ startForeground with SPECIAL_USE service type")
+            startForeground(
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            )
+            Log.i(TAG, "startForeground called successfully (Android 14+, SPECIAL_USE)")
+        } else {
+            Log.d(TAG, "Using legacy startForeground")
+            startForeground(NOTIFICATION_ID, notification)
+            Log.i(TAG, "startForeground called successfully (legacy)")
+        }
+
+        // Acquire wake lock
+        wakeLock?.acquire()
+
+        isServiceRunning = true
+        running = true
+
+        // Schedule AlarmManager backup for service restart
+        scheduleServiceRestart()
+
+        // Initialize Tor in BACKGROUND THREAD to avoid ANR
+        Thread {
+            try {
+                // Check if this is a restart due to bridge configuration change
+                val prefs = getSharedPreferences("tor_settings", MODE_PRIVATE)
+                val bridgeConfigChanged = prefs.getBoolean("bridge_config_changed", false)
+
+                if (bridgeConfigChanged) {
+                    Log.i(TAG, "Bridge configuration changed - forcing Tor re-initialization")
+                    prefs.edit().putBoolean("bridge_config_changed", false).apply()
+                    // Force re-initialization even if Tor was previously initialized
+                }
+
+                if (!torManager.isInitialized() || bridgeConfigChanged) {
+                    Log.d(TAG, "Tor not initialized (or bridge config changed), initializing now...")
+                    torManager.initializeAsync { success, onionAddress ->
+                        if (success && onionAddress != null) {
+                            Log.i(TAG, "Tor initialized successfully")
+
+                            // Reset reconnection state on success
+                            isReconnecting = false
+                            reconnectAttempts = 0
+                            torConnected = true
+
+                            // Ensure SOCKS proxy is running for outgoing connections
+                            ensureSocksProxyRunning()
+
+                            // REMOVED: testSocksConnectivityAtStartup() - was forcing restarts on normal failures
+                            // Tor health is handled by state machine, not end-to-end external tests
+
+                            // Start listening for incoming Ping tokens
+                            startIncomingListener()
+
+                            // Schedule background message retry worker (15-min safety net)
+                            com.shieldmessenger.workers.MessageRetryWorker.schedule(this@TorService)
+                            Log.d(TAG, "Message retry worker scheduled")
+
+                            // PHASE 6: Send taps to all contacts to notify them we're online
+                            sendTapsToAllContacts()
+
+                            updateNotification("Connected to Tor")
+                        } else {
+                            Log.e(TAG, "Tor initialization failed - scheduling retry")
+                            torConnected = false
+                            updateNotification("Connection failed - Retrying...")
+
+                            // Schedule retry with exponential backoff
+                            consecutiveBootstrapFailures++
+                            scheduleReconnect("legacy init failed")
+                        }
+                    }
+                } else {
+                    val onionAddress = torManager.getOnionAddress()
+                    Log.d(TAG, "Tor already initialized")
+
+                    // Check if Tor is actually still running (e.g., after app restart)
+                    val isTorActuallyRunning = try {
+                        RustBridge.getBootstrapStatus() >= 100
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to check bootstrap status: ${e.message}")
+                        false
+                    }
+
+                    if (isTorActuallyRunning) {
+                        // Tor is still running, just restore state
+                        Log.i(TAG, "Tor already running - restoring service state")
+                        torConnected = true
+                        updateNotification("Connected to Tor")
+
+                        // Ensure SOCKS proxy is running for outgoing connections
+                        ensureSocksProxyRunning()
+
+                        // Ensure listener is started (in case service was restarted)
+                        startIncomingListener()
+
+                        // Schedule background message retry worker (15-min safety net)
+                        com.shieldmessenger.workers.MessageRetryWorker.schedule(this@TorService)
+                        Log.d(TAG, "Message retry worker scheduled")
+
+                        // PHASE 6: Send taps to all contacts to notify them we're online
+                        sendTapsToAllContacts()
+                    } else {
+                        // Tor not running - need to reconnect
+                        Log.d(TAG, "Tor not running - triggering reconnection")
+                        updateNotification("Connecting to Tor...")
+                        scheduleReconnect("KEEP_ALIVE: tor not running")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during Tor initialization", e)
+                torConnected = false
+                updateNotification("Error - Retrying...")
+                consecutiveBootstrapFailures++
+                scheduleReconnect("legacy init exception: ${e.message}")
+            }
+        }.start()
+    }
+
+    private fun startIncomingListener() {
+        Log.i(TAG, "===== startIncomingListener() CALLED =====")
+        try {
+            // PHASE 1: Start ACK listener FIRST (port 9153)
+            // CRITICAL: Must ALWAYS start ACK listener, even if main listener is already running
+            // This initializes ACK_TX channel so any ACKs arriving on port 8080 can be routed
+            Log.d(TAG, "Starting ACK listener on port 9153...")
+            val ackSuccess = RustBridge.startAckListener(9153)
+            if (ackSuccess) {
+                Log.i(TAG, "ACK listener started successfully - ACK_TX channel initialized")
+            } else {
+                Log.w(TAG, "ACK listener already running")
+            }
+
+            // Start polling for incoming ACKs
+            startAckPoller()
+
+            // Check if listener is already running - if so, just start pollers
+            if (isListenerRunning) {
+                Log.d(TAG, "Listener already running, skipping restart")
+                startPingPoller()
+                startMessagePoller()
+                startVoicePoller()
+                startTapPoller()
+                startSessionCleanup()
+
+                // CRITICAL: Always initialize voice service when listener is running
+                // Voice streaming server needs to be started on every app launch
+                Log.i(TAG, "Listener already running - initializing voice service...")
+                startVoiceService()
+
+                // Start poller watchdog to auto-restart any dead pollers
+                startPollerWatchdog()
+                return
+            }
+
+            // PHASE 2: Now safe to start main listener on port 8080
+            Log.d(TAG, "Starting hidden service listener on port 8080...")
+            val success = RustBridge.startHiddenServiceListener(8080)
+            if (success) {
+                Log.i(TAG, "Hidden service listener started successfully on port 8080")
+                isListenerRunning = true
+            } else {
+                // CRITICAL: Rust listener start FAILED (bind error, not idempotency)
+                // DO NOT mark as running, DO NOT start pollers, DO NOT open gate
+                Log.e(TAG, "FATAL: Hidden service listener FAILED to start on port 8080")
+                Log.e(TAG, "Check Rust logs for bind errors (EADDRINUSE, permission denied, etc.)")
+                Log.e(TAG, "Messaging will NOT work until listener starts successfully")
+
+                // Schedule retry after delay
+                serviceScope.launch {
+                    kotlinx.coroutines.delay(5000) // Wait 5 seconds before retry
+                    Log.w(TAG, "Retrying listener start after failure...")
+                    startIncomingListener()
+                }
+                return // EXIT - do not continue with pollers/gate
+            }
+
+            // Start polling for incoming Pings, MESSAGEs, and VOICE (only if listener started successfully)
+            startPingPoller()
+            startMessagePoller()
+            startVoicePoller()
+
+            // PHASE 3: Start tap listener on port 9151
+            Log.d(TAG, "Starting tap listener on port 9151...")
+            val tapSuccess = RustBridge.startTapListener(9151)
+            if (tapSuccess) {
+                Log.i(TAG, "Tap listener started successfully")
+            } else {
+                Log.w(TAG, "Tap listener already running")
+            }
+
+            // Start polling for incoming taps
+            startTapPoller()
+
+            // Start polling for incoming friend requests
+            // Both share port 9151, routed by message type in Rust
+            startFriendRequestPoller()
+
+            // PONGs arrive at main listener (port 8080) and are routed by message type
+            // Start polling for incoming pongs from main listener queue
+            startPongPoller()
+
+            // Schedule periodic Tor health monitor (detect failures, trigger auto-restart)
+            TorHealthMonitorWorker.schedulePeriodicCheck(this)
+
+            // Start periodic session cleanup (5-minute intervals)
+            startSessionCleanup()
+
+            // Ensure SOCKS proxy is running for outgoing connections
+            ensureSocksProxyRunning()
+
+            // Verify SOCKS proxy is actually running
+            if (RustBridge.isSocksProxyRunning()) {
+                // All listeners, pollers, and SOCKS proxy ready - mark as ready for messaging
+                listenersReady = true
+                Log.i(TAG, "All listeners, pollers, and SOCKS proxy (9050) ready - messaging enabled")
+
+                // Open transport gate - allow all Tor operations to proceed
+                gate.open()
+                Log.i(TAG, "Transport gate opened - Tor is fully operational")
+
+                // Start bandwidth monitoring now that Tor is fully operational
+                startBandwidthMonitoring()
+
+                // Initialize voice service
+                startVoiceService()
+            } else {
+                Log.w(TAG, "SOCKS proxy not running - messaging may not work for outgoing messages")
+                listenersReady = true // Still mark as ready since incoming works
+
+                // Open gate anyway - outgoing may still work if listener is running
+                gate.open()
+
+                // Start bandwidth monitoring anyway
+                startBandwidthMonitoring()
+
+                // Initialize voice service anyway
+                startVoiceService()
+            }
+
+            // Start poller watchdog to auto-restart any dead pollers
+            startPollerWatchdog()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting listener", e)
+            // Mark as running anyway to prevent restart attempts
+            isListenerRunning = true
+            // Try to start Ping poller anyway in case listener is already running
+            startPingPoller()
+            // Try to start tap poller
+            try {
+                startTapPoller()
+            } catch (e2: Exception) {
+                Log.e(TAG, "Error starting tap poller", e2)
+            }
+            // Try to start ACK poller
+            try {
+                startAckPoller()
+            } catch (e4: Exception) {
+                Log.e(TAG, "Error starting ACK poller", e4)
+            }
+            // Mark as ready even if some pollers failed (best effort)
+            listenersReady = true
+            Log.w(TAG, "Listeners ready with some errors - messaging may be limited")
+
+            // Start poller watchdog even on errors (best effort)
+            startPollerWatchdog()
+        }
+    }
+
+    /**
+     * Handle rebind request from TorRehydrator (called on network changes)
+     *
+     * Design: Only rebind if gate is closed OR circuits are unhealthy
+     * Don't destroy working circuits just because network changed
+     *
+     * Stabilization window: After network change, wait 45s before any listener restart
+     * This prevents flapping when circuits briefly dip to 0 during transitions
+     */
+    private suspend fun handleRebindRequest() {
+        Log.i(TAG, "=== REBIND REQUEST FROM REHYDRATOR ===")
+
+        // Check if we're in stabilization window (45s after last network change)
+        val now = System.currentTimeMillis()
+        val timeSinceNetworkChangeMs = now - lastNetworkChangeMs
+        if (timeSinceNetworkChangeMs < NETWORK_STABILIZATION_WINDOW_MS) {
+            Log.i(TAG, "In stabilization window (${timeSinceNetworkChangeMs}ms / ${NETWORK_STABILIZATION_WINDOW_MS}ms) - allowing Tor to settle, no rebind")
+            return
+        }
+
+        // Check Tor health via ControlPort (no external probes)
+        val bootstrapPercent = RustBridge.getBootstrapStatus()
+        val circuitsEstablished = RustBridge.getCircuitEstablished()
+        val isTorHealthy = bootstrapPercent == 100 && circuitsEstablished >= 1
+
+        // If gate is open AND Tor is healthy → no rebind needed
+        if (gate.isOpenNow() && isTorHealthy) {
+            Log.i(TAG, "Gate open + Tor healthy (bootstrap=$bootstrapPercent%, circuits=$circuitsEstablished) - no rebind needed")
+            return
+        }
+
+        // If gate is closed but Tor unhealthy → wait for Tor to recover
+        if (!isTorHealthy) {
+            Log.w(TAG, "Tor not healthy (bootstrap=$bootstrapPercent%, circuits=$circuitsEstablished) - waiting for recovery, no rebind")
+            return
+        }
+
+        // Gate is closed but Tor is healthy → reopen gate (no listener restart needed)
+        Log.i(TAG, "Gate closed but Tor healthy - reopening gate without listener restart")
+        gate.open()
+    }
+
+    /**
+     * Launch a named poller coroutine with auto-restart on failure.
+     * Replaces raw Thread pollers that exit permanently on isServiceRunning flicker.
+     */
+    private fun launchPoller(name: String, intervalMs: Long = 1000L, block: suspend () -> Unit) {
+        pollerJobs[name]?.cancel()
+        pollerJobs[name] = pollerScope.launch {
+            Log.d(TAG, "$name poller coroutine started")
+            while (isActive) {
+                try {
+                    block()
+                } catch (e: CancellationException) {
+                    throw e // Don't catch cancellation
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in $name poller", e)
+                }
+                delay(intervalMs)
+            }
+            Log.d(TAG, "$name poller coroutine exited")
+        }
+    }
+
+    /**
+     * Watchdog that checks every 30s if any poller died unexpectedly and relaunches it.
+     */
+    private fun startPollerWatchdog() {
+        pollerScope.launch {
+            while (isActive) {
+                delay(30_000) // Check every 30 seconds
+                for ((name, job) in pollerJobs) {
+                    if (!job.isActive && isServiceRunning) {
+                        Log.w(TAG, "Poller '$name' died — relaunching")
+                        when (name) {
+                            "Ping" -> startPingPoller()
+                            "Message" -> startMessagePoller()
+                            "Voice" -> startVoicePoller()
+                            "Tap" -> startTapPoller()
+                            "FriendRequest" -> startFriendRequestPoller()
+                            "Pong" -> startPongPoller()
+                            "ACK" -> startAckPoller()
+                            "SessionCleanup" -> startSessionCleanup()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun startPingPoller() {
+        // Check if already running
+        if (isPingPollerRunning) {
+            Log.d(TAG, "Ping poller already running, skipping")
+            return
+        }
+
+        var pollCount = 0
+        launchPoller("Ping", intervalMs = 0L) {
+            val pingBytes = RustBridge.pollIncomingPingBlocking()
+            if (pingBytes != null) {
+                Log.i(TAG, "Received incoming Ping token: ${pingBytes.size} bytes")
+                // CRITICAL FIX: Launch handleIncomingPing in coroutine to avoid blocking the poller
+                serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                    try {
+                        handleIncomingPing(pingBytes)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error in handleIncomingPing coroutine", e)
+                    }
+                }
+            } else {
+                // Log every ~60 seconds to confirm poller is running (5s timeout per poll)
+                pollCount++
+                if (pollCount % 12 == 0) {
+                    Log.d(TAG, "Ping poller alive (poll #$pollCount, no ping)")
+                }
+            }
+        }
+    }
+
+    /**
+     * Start MESSAGE poller for direct routing of TEXT/VOICE/IMAGE/PAYMENT messages
+     * Polls MESSAGE channel instead of trying trial decryption on PING channel
+     */
+    private fun startMessagePoller() {
+        if (isMessagePollerRunning) {
+            Log.d(TAG, "MESSAGE poller already running, skipping")
+            return
+        }
+
+        var pollCount = 0
+        launchPoller("Message", intervalMs = 0L) {
+            val messageBytes = RustBridge.pollIncomingMessageBlocking()
+            if (messageBytes != null) {
+                Log.i(TAG, "Received incoming MESSAGE: ${messageBytes.size} bytes")
+                handleIncomingMessage(messageBytes)
+            } else {
+                pollCount++
+                if (pollCount % 12 == 0) {
+                    Log.d(TAG, "MESSAGE poller alive (poll #$pollCount, no message)")
+                }
+            }
+        }
+    }
+
+    /**
+     * Start VOICE poller for call signaling (CALL_OFFER/ANSWER/REJECT/END/BUSY)
+     * Completely separate from MESSAGE channel to allow simultaneous text messaging during voice calls
+     */
+    private fun startVoicePoller() {
+        if (isVoicePollerRunning) {
+            Log.d(TAG, "VOICE poller already running, skipping")
+            return
+        }
+
+        var pollCount = 0
+        launchPoller("Voice", intervalMs = 0L) {
+            val voiceBytes = RustBridge.pollVoiceMessageBlocking()
+            if (voiceBytes != null) {
+                Log.i(TAG, "Received incoming VOICE call signaling: ${voiceBytes.size} bytes")
+                handleIncomingVoiceMessage(voiceBytes)
+            } else {
+                pollCount++
+                if (pollCount % 12 == 0) {
+                    Log.d(TAG, "VOICE poller alive (poll #$pollCount, no call signaling)")
+                }
+            }
+        }
+    }
+
+    /**
+     * PHASE 7: Start tap poller with bidirectional handling
+     */
+    private fun startTapPoller() {
+        if (isTapPollerRunning) {
+            Log.d(TAG, "Tap poller already running, skipping")
+            return
+        }
+
+        launchPoller("Tap", intervalMs = 0L) {
+            val tapBytes = RustBridge.pollIncomingTapBlocking()
+            if (tapBytes != null) {
+                Log.i(TAG, "Received incoming tap: ${tapBytes.size} bytes")
+                handleIncomingTap(tapBytes)
+            }
+        }
+    }
+
+    /**
+     * PHASE 7.5: Start friend request poller (separate from TAP)
+     * Polls for incoming friend request wire protocol messages (0x07 FRIEND_REQUEST, 0x08 FRIEND_REQUEST_ACCEPTED)
+     */
+    private fun startFriendRequestPoller() {
+        if (isFriendRequestPollerRunning) {
+            Log.d(TAG, "Friend request poller already running, skipping")
+            return
+        }
+
+        launchPoller("FriendRequest", intervalMs = 0L) {
+            val friendRequestBytes = RustBridge.pollFriendRequestBlocking()
+            if (friendRequestBytes != null) {
+                Log.i(TAG, "Received incoming friend request: ${friendRequestBytes.size} bytes")
+                handleIncomingFriendRequest(friendRequestBytes)
+            }
+        }
+    }
+
+    /**
+     * PHASE 8: Start pong poller
+     * Polls for incoming PONGs from contacts who are downloading messages
+     */
+    private fun startPongPoller() {
+        if (isPongPollerRunning) {
+            Log.d(TAG, "Pong poller already running, skipping")
+            return
+        }
+
+        var pollCount = 0
+        launchPoller("Pong", intervalMs = 0L) {
+            val pongBytes = RustBridge.pollIncomingPongBlocking()
+            if (pongBytes != null) {
+                Log.i(TAG, "Received incoming Pong: ${pongBytes.size} bytes")
+                handleIncomingPong(pongBytes)
+            } else {
+                pollCount++
+                if (pollCount % 12 == 0) {
+                    Log.d(TAG, "Pong poller alive (poll #$pollCount, no pong)")
+                }
+            }
+        }
+    }
+
+    /**
+     * PHASE 7: Handle incoming tap with bidirectional retry logic
+     * When we receive a tap from Contact X, we check:
+     * 1. Do we have a pending Ping FROM them? → Send Pong
+     * 2. Do we have pending messages TO them? → Retry Ping
+     */
+    private fun handleIncomingTap(tapWireBytes: ByteArray) {
+        try {
+            Log.i(TAG, "Handling incoming tap (${tapWireBytes.size} bytes)")
+
+            // Decrypt tap to get sender's X25519 public key
+            val senderX25519PubKey = RustBridge.decryptIncomingTap(tapWireBytes)
+            if (senderX25519PubKey == null) {
+                Log.e(TAG, "Failed to decrypt tap")
+                return
+            }
+
+            Log.i(TAG, "Tap decrypted, sender X25519: ${android.util.Base64.encodeToString(senderX25519PubKey, android.util.Base64.NO_WRAP)}")
+
+            // Look up contact by X25519 public key
+            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val dbPassphrase = keyManager.getDatabasePassphrase()
+            val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
+
+            val senderX25519Base64 = android.util.Base64.encodeToString(senderX25519PubKey, android.util.Base64.NO_WRAP)
+            val contact = database.contactDao().getContactByX25519PublicKey(senderX25519Base64)
+
+            if (contact == null) {
+                Log.w(TAG, "Tap from unknown contact (not in database)")
+                return
+            }
+
+            Log.i(TAG, "Tap from contact: ${contact.displayName} (ID: ${contact.id})")
+
+            // Send TAP_ACK to confirm we received the TAP (with retry logic)
+            serviceScope.launch {
+                sendAckWithRetry(
+                    connectionId = null, // No existing connection from TAP
+                    itemId = System.currentTimeMillis().toString(),
+                    ackType = "TAP_ACK",
+                    contactId = contact.id,
+                    maxRetries = 3,
+                    initialDelayMs = 1000L
+                )
+            }
+
+            // ==== BIDIRECTIONAL HANDLING ====
+
+            // CHECK 1: Do we have pending Pings FROM them? (Check ping_inbox database)
+            serviceScope.launch(Dispatchers.IO) {
+                try {
+                    val pendingPingsCount = database.pingInboxDao().countPendingByContact(contact.id)
+
+                    if (pendingPingsCount > 0) {
+                        Log.i(TAG, "Found $pendingPingsCount pending Ping(s) from ${contact.displayName} in inbox")
+
+                        // Get all pending pings from this contact
+                        val pendingPings = database.pingInboxDao().getPendingByContact(contact.id)
+
+                        // Send PING_ACK for each ping we haven't acknowledged yet
+                        for (ping in pendingPings) {
+                            if (ping.pingAckedAt == null) {
+                                try {
+                                    // Send PING_ACK to acknowledge we saw the ping
+                                    sendAckWithRetry(
+                                        connectionId = null,
+                                        itemId = ping.pingId,
+                                        ackType = "PING_ACK",
+                                        contactId = contact.id,
+                                        maxRetries = 3,
+                                        initialDelayMs = 1000L
+                                    )
+
+                                    // Update ping_inbox to mark PING_ACK sent
+                                    database.pingInboxDao().updatePingAckTime(ping.pingId, System.currentTimeMillis())
+                                    Log.i(TAG, "Sent PING_ACK for incoming ping ${ping.pingId.take(8)}... from ${contact.displayName}")
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "Failed to send PING_ACK for ${ping.pingId}", e)
+                                }
+                            } else {
+                                Log.d(TAG, "PING_ACK already sent for ${ping.pingId.take(8)}... at ${ping.pingAckedAt}")
+                            }
+                        }
+
+                        // Note: Auto-download is handled in handleIncomingPing() after PING_ACK
+                        // If Device Protection is enabled, user must manually click download button
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error checking ping_inbox for ${contact.displayName}", e)
+                }
+            }
+
+            // CHECK 2: Do we have pending messages TO them?
+            // TAP = "I'm online" heartbeat, so check ALL message phases and take appropriate action
+            serviceScope.launch(Dispatchers.IO) {
+                try {
+                    // Query ALL pending/failed messages (not just awaiting pong)
+                    val pendingMessages = database.messageDao().getPendingMessages()
+                        .filter { it.contactId == contact.id }
+
+                    // Also include messages awaiting pong
+                    val awaitingPong = database.messageDao().getMessagesAwaitingPong()
+                        .filter { it.contactId == contact.id }
+
+                    val allMessages = (pendingMessages + awaitingPong).distinctBy { it.id }
+
+                    if (allMessages.isEmpty()) {
+                        Log.d(TAG, "No pending messages to ${contact.displayName}")
+                        return@launch
+                    }
+
+                    Log.i(TAG, "Found ${allMessages.size} pending message(s) to ${contact.displayName} (${pendingMessages.size} unsent, ${awaitingPong.size} awaiting pong) - checking phases")
+
+                    val messageService = com.shieldmessenger.services.MessageService(this@TorService)
+
+                    for (message in allMessages) {
+                        // ============ ACK-BASED FLOW CONTROL FOR TAP ============
+                        // Contact is online - check what phase each message is in and take action
+
+                        // PHASE 4: MESSAGE_ACK received → Skip (already delivered)
+                        if (message.messageDelivered) {
+                            Log.d(TAG, "${message.messageId}: MESSAGE_ACK received, skip")
+                            continue
+                        }
+
+                        // PHASE 3: PONG_ACK received → Receiver is downloading, just wait
+                        if (message.pongDelivered) {
+                            Log.d(TAG, "${message.messageId}: PONG_ACK received, receiver downloading, skip")
+                            continue
+                        }
+
+                        // PHASE 2: PING_ACK received → They got notification, check for Pong
+                        if (message.pingDelivered) {
+                            Log.i(TAG, "${message.messageId}: PING_ACK received - checking for Pong (contact online)")
+                            // Poll for Pong - contact might have sent it
+                            val pongResult = messageService.pollForPongsAndSendMessages()
+                            if (pongResult.isSuccess) {
+                                val sentCount = pongResult.getOrNull() ?: 0
+                                if (sentCount > 0) {
+                                    Log.i(TAG, "Pong received and message blob sent!")
+                                }
+                            }
+                            continue
+                        }
+
+                        // PHASE 1: No PING_ACK → Check for Pong first, then retry Ping if needed
+                        Log.i(TAG, "→ ${message.messageId}: No PING_ACK yet - checking for Pong first (PING_ACK may have been lost)")
+
+                        // CRITICAL: Poll for Pong even without PING_ACK
+                        // Reason: PING_ACK might have been lost in transit, but receiver may have sent PONG
+                        // This prevents download stalls where receiver is waiting for blob but sender never checked for Pong
+                        val pongResult = messageService.pollForPongsAndSendMessages()
+                        if (pongResult.isSuccess) {
+                            val sentCount = pongResult.getOrNull() ?: 0
+                            if (sentCount > 0) {
+                                Log.i(TAG, "Pong found and message blob sent (PING_ACK was lost but Pong arrived)!")
+                                continue // Skip Ping retry - Pong was found
+                            }
+                        }
+
+                        // No Pong found - retry Ping since contact is online
+                        Log.i(TAG, "→ ${message.messageId}: No Pong found - retrying Ping (contact online via TAP)")
+                        try {
+                            val result = messageService.sendPingForMessage(message)
+                            if (result.isSuccess) {
+                                // CRITICAL: Use partial update to avoid overwriting delivery status
+                                // (fixes race where MESSAGE_ACK sets delivered=true between read and write)
+                                database.messageDao().updateRetryState(
+                                    message.id,
+                                    message.retryCount + 1,
+                                    System.currentTimeMillis()
+                                )
+                                Log.i(TAG, "Retried Ping for ${message.messageId} after TAP")
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to retry Ping for ${message.messageId}", e)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error checking pending messages during TAP", e)
+                }
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling tap", e)
+        }
+    }
+
+    /**
+     * Handle incoming friend request (Phase 1 or Phase 2)
+     * Phase 1 (0x07): PIN-encrypted minimal info
+     * Phase 2 (0x08): X25519-encrypted full ContactCard
+     */
+    private fun handleIncomingFriendRequest(encryptedBytes: ByteArray) {
+        try {
+            Log.i(TAG, "Handling incoming friend request (${encryptedBytes.size} bytes)")
+
+            // Wire format: [type byte][encrypted payload]
+            // Type byte was prepended by Rust routing layer
+            if (encryptedBytes.isEmpty()) {
+                Log.e(TAG, "Empty friend request data")
+                return
+            }
+
+            val typeByte = encryptedBytes[0]
+            val encryptedPayload = encryptedBytes.copyOfRange(1, encryptedBytes.size)
+
+            Log.d(TAG, "Friend request type: 0x${String.format("%02X", typeByte)}")
+            Log.d(TAG, "Encrypted payload: ${encryptedPayload.size} bytes")
+
+            when (typeByte.toInt()) {
+                0x07 -> handlePhase1FriendRequest(encryptedPayload)
+                0x08 -> {
+                    // 0x08 is used for both Phase 2 and Phase 3
+                    // Determine which by checking pending request direction
+                    val prefs = getSharedPreferences("friend_requests", MODE_PRIVATE)
+                    val pendingRequestsSet = prefs.getStringSet("pending_requests_v2", mutableSetOf()) ?: mutableSetOf()
+
+                    var hasOutgoingPhase1 = false
+                    var hasOutgoingPhase2 = false
+
+                    for (requestJson in pendingRequestsSet) {
+                        try {
+                            val request = com.shieldmessenger.models.PendingFriendRequest.fromJson(requestJson)
+                            if (request.direction == com.shieldmessenger.models.PendingFriendRequest.DIRECTION_OUTGOING) {
+                                val json = org.json.JSONObject(request.contactCardJson ?: "{}")
+                                // Phase 2 saved state has "hybrid_shared_secret", Phase 1 doesn't
+                                if (json.has("hybrid_shared_secret")) {
+                                    hasOutgoingPhase2 = true
+                                } else if (json.has("username")) {
+                                    hasOutgoingPhase1 = true
+                                }
+                            }
+                        } catch (e: Exception) {
+                            // Ignore parse errors
+                        }
+                    }
+
+                    when {
+                        hasOutgoingPhase1 -> handlePhase2FriendRequest(encryptedPayload) // We sent Phase 1, this is Phase 2
+                        hasOutgoingPhase2 -> handlePhase3Acknowledgment(encryptedPayload) // We sent Phase 2, this is Phase 3
+                        else -> Log.e(TAG, "Received 0x08 but no matching outgoing request found")
+                    }
+                }
+                else -> {
+                    Log.e(TAG, "Unknown friend request type: 0x${String.format("%02X", typeByte)}")
+                }
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling friend request", e)
+        }
+    }
+
+    /**
+     * Handle Phase 1 friend request (PIN-encrypted)
+     * Payload: {"username": "...", "friendRequestOnion": "...", "x25519PublicKey": "..."}
+     */
+    private fun handlePhase1FriendRequest(encryptedPayload: ByteArray) {
+        try {
+            Log.i(TAG, "Processing Phase 1 friend request (PIN-encrypted)")
+
+            // Retrieve user's own PIN from secure storage
+            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val myPin = keyManager.getContactPin()
+
+            if (myPin == null) {
+                Log.e(TAG, "User's contact PIN not found in storage")
+                Log.e(TAG, "User must generate their contact card first before receiving friend requests")
+                return
+            }
+
+            Log.d(TAG, "Retrieved user's PIN from secure storage")
+
+            val cardManager = ContactCardManager(this)
+
+            // Dual-PIN decryption: try current PIN first, then previous (grace period)
+            var decryptedJson: String? = null
+            var usedCurrentPin = false
+
+            try {
+                decryptedJson = cardManager.decryptWithPin(encryptedPayload, myPin)
+                usedCurrentPin = true
+                Log.i(TAG, "Phase 1 decrypted with current PIN")
+            } catch (e: Exception) {
+                Log.d(TAG, "Current PIN failed, trying previous PIN...")
+                val previousPin = keyManager.getPreviousPin()
+                if (previousPin != null) {
+                    try {
+                        decryptedJson = cardManager.decryptWithPin(encryptedPayload, previousPin)
+                        Log.i(TAG, "Phase 1 decrypted with previous PIN (grace period)")
+                    } catch (e2: Exception) {
+                        Log.e(TAG, "Both current and previous PIN failed")
+                    }
+                }
+            }
+
+            if (decryptedJson == null) {
+                Log.e(TAG, "Failed to decrypt Phase 1 — sender used wrong PIN or data corrupted")
+
+                // Save as failed request so recipient sees "Invalid PIN" in their UI
+                val failedRequest = com.shieldmessenger.models.PendingFriendRequest(
+                    displayName = "Unknown",
+                    ipfsCid = "",
+                    direction = com.shieldmessenger.models.PendingFriendRequest.DIRECTION_INCOMING,
+                    status = com.shieldmessenger.models.PendingFriendRequest.STATUS_INVALID_PIN,
+                    timestamp = System.currentTimeMillis()
+                )
+                savePendingFriendRequest(failedRequest)
+                showFriendRequestNotification("Someone (wrong PIN)")
+                val broadcastIntent = android.content.Intent("com.shieldmessenger.FRIEND_REQUEST_RECEIVED")
+                broadcastIntent.setPackage(packageName)
+                sendBroadcast(broadcastIntent)
+                return
+            }
+
+            // Track decrypt count for PIN rotation (only on current PIN)
+            if (usedCurrentPin) {
+                keyManager.incrementPinDecryptCount()
+            }
+
+            // Check if PIN should rotate after this decryption
+            val securityPrefs = getSharedPreferences("security_prefs", android.content.Context.MODE_PRIVATE)
+            val intervalMs = securityPrefs.getLong("pin_rotation_interval_ms", 24 * 60 * 60 * 1000L)
+            val maxDecrypts = securityPrefs.getInt("pin_max_uses", 5)
+            keyManager.rotatePinIfNeeded(cardManager, intervalMs, maxDecrypts)
+
+            Log.i(TAG, "Phase 1 decrypted successfully: $decryptedJson")
+
+            // Parse the JSON to extract friend request data
+            val json = org.json.JSONObject(decryptedJson)
+            val username = json.getString("username")
+            val friendRequestOnion = json.getString("friend_request_onion")
+            val x25519PublicKey = json.getString("x25519_public_key")
+
+            Log.i(TAG, "Phase 1 Friend Request from: $username")
+            Log.i(TAG, "Friend Request .onion: $friendRequestOnion")
+            Log.i(TAG, "X25519 Public Key: $x25519PublicKey")
+
+            // Store as pending friend request
+            val pendingRequest = com.shieldmessenger.models.PendingFriendRequest(
+                displayName = username,
+                ipfsCid = friendRequestOnion, // Store the .onion address in ipfsCid field
+                direction = com.shieldmessenger.models.PendingFriendRequest.DIRECTION_INCOMING,
+                status = com.shieldmessenger.models.PendingFriendRequest.STATUS_PENDING,
+                timestamp = System.currentTimeMillis(),
+                contactCardJson = decryptedJson // Store Phase 1 data for later use
+            )
+
+            savePendingFriendRequest(pendingRequest)
+
+            // Show system notification
+            showFriendRequestNotification(username)
+
+            // Send broadcast to update UI badge (explicit broadcast for Android 8.0+)
+            val broadcastIntent = android.content.Intent("com.shieldmessenger.FRIEND_REQUEST_RECEIVED")
+            broadcastIntent.setPackage(packageName)
+            sendBroadcast(broadcastIntent)
+
+            Log.i(TAG, "Phase 1 friend request saved, notification shown, and broadcast sent")
+
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing Phase 1 friend request", e)
+        }
+    }
+
+    /**
+     * Handle Phase 2 friend request (X25519-encrypted)
+     * Payload: Full ContactCard JSON encrypted with X25519
+     * This is received when someone accepts OUR outgoing friend request
+     */
+    private fun handlePhase2FriendRequest(encryptedPayload: ByteArray) {
+        try {
+            Log.i(TAG, "Processing Phase 2 friend request (X25519-encrypted)")
+
+            // Find matching outgoing Phase 1 request to get sender's X25519 public key
+            val prefs = getSharedPreferences("friend_requests", MODE_PRIVATE)
+            val pendingRequestsSet = prefs.getStringSet("pending_requests_v2", mutableSetOf()) ?: mutableSetOf()
+
+            var senderX25519PublicKey: ByteArray? = null
+            var matchingRequest: com.shieldmessenger.models.PendingFriendRequest? = null
+
+            for (requestJson in pendingRequestsSet) {
+                try {
+                    val request = com.shieldmessenger.models.PendingFriendRequest.fromJson(requestJson)
+                    // Look for outgoing requests with Phase 1 data
+                    if (request.direction == com.shieldmessenger.models.PendingFriendRequest.DIRECTION_OUTGOING &&
+                        request.contactCardJson != null) {
+
+                        val phase1Json = org.json.JSONObject(request.contactCardJson)
+                        val x25519Base64 = phase1Json.opt("x25519_public_key") as? String
+
+                        if (x25519Base64 != null) {
+                            senderX25519PublicKey = android.util.Base64.decode(x25519Base64, android.util.Base64.NO_WRAP)
+                            matchingRequest = request
+                            Log.d(TAG, "Found matching outgoing request to: ${request.displayName}")
+                            break
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to parse pending request", e)
+                }
+            }
+
+            if (senderX25519PublicKey == null || matchingRequest == null) {
+                Log.e(TAG, "No matching outgoing friend request found for Phase 2")
+                return
+            }
+
+            // Decrypt with sender's X25519 public key
+            val decryptedJson = RustBridge.decryptMessage(
+                encryptedPayload,
+                senderX25519PublicKey,
+                ByteArray(32) // privateKey parameter is deprecated/unused
+            )
+
+            if (decryptedJson == null) {
+                Log.e(TAG, "Failed to decrypt Phase 2 ContactCard")
+                return
+            }
+
+            Log.i(TAG, "Phase 2 decrypted successfully")
+
+            // Try to parse as NEW Phase 2 format with signature (v2.1+)
+            var contactCard: com.shieldmessenger.models.ContactCard? = null
+            var kyberCiphertext: ByteArray? = null
+
+            try {
+                val phase2Obj = org.json.JSONObject(decryptedJson)
+                if (phase2Obj.has("phase") && phase2Obj.getInt("phase") == 2) {
+                    // NEW Phase 2 format with signature
+                    Log.d(TAG, "Parsing NEW Phase 2 format with signature...")
+
+                    // Verify Ed25519 signature
+                    if (phase2Obj.has("signature") && phase2Obj.has("ed25519_public_key")) {
+                        val signature = android.util.Base64.decode(phase2Obj.getString("signature"), android.util.Base64.NO_WRAP)
+                        val senderEd25519PublicKey = android.util.Base64.decode(phase2Obj.getString("ed25519_public_key"), android.util.Base64.NO_WRAP)
+
+                        // Reconstruct unsigned JSON
+                        val unsignedJson = org.json.JSONObject().apply {
+                            put("contact_card", phase2Obj.getJSONObject("contact_card"))
+                            if (phase2Obj.has("kyber_ciphertext")) {
+                                put("kyber_ciphertext", phase2Obj.getString("kyber_ciphertext"))
+                            }
+                            put("phase", 2)
+                        }.toString()
+
+                        val signatureValid = RustBridge.verifySignature(
+                            unsignedJson.toByteArray(Charsets.UTF_8),
+                            signature,
+                            senderEd25519PublicKey
+                        )
+
+                        if (!signatureValid) {
+                            Log.e(TAG, "Phase 2 signature verification FAILED - rejecting (possible MitM)")
+                            return
+                        }
+                        Log.i(TAG, "Phase 2 signature verified (Ed25519)")
+                    }
+
+                    // Extract contact card and kyber ciphertext
+                    val contactCardJson = phase2Obj.getJSONObject("contact_card").toString()
+                    contactCard = com.shieldmessenger.models.ContactCard.fromJson(contactCardJson)
+
+                    if (phase2Obj.has("kyber_ciphertext")) {
+                        val ciphertextBase64 = phase2Obj.getString("kyber_ciphertext")
+                        kyberCiphertext = android.util.Base64.decode(ciphertextBase64, android.util.Base64.NO_WRAP)
+                        Log.i(TAG, "Phase 2 with Kyber ciphertext (${kyberCiphertext.size} bytes)")
+                    }
+                } else {
+                    // OLD Phase 2 format (plain ContactCard)
+                    contactCard = com.shieldmessenger.models.ContactCard.fromJson(decryptedJson)
+                }
+            } catch (e: org.json.JSONException) {
+                // Fallback: Try parsing as plain ContactCard (old format)
+                Log.d(TAG, "Not Phase 2 wrapper, trying plain ContactCard format...")
+                contactCard = com.shieldmessenger.models.ContactCard.fromJson(decryptedJson)
+            }
+
+            if (contactCard == null) {
+                Log.e(TAG, "Failed to parse ContactCard from Phase 2")
+                return
+            }
+
+            Log.i(TAG, "Friend request accepted by: ${contactCard.displayName}")
+
+            // Add to contacts database (WITHOUT key chain - we'll initialize it below)
+            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val dbPassphrase = keyManager.getDatabasePassphrase()
+            val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
+
+            val contact = com.shieldmessenger.database.entities.Contact(
+                displayName = contactCard.displayName,
+                solanaAddress = contactCard.solanaAddress,
+                publicKeyBase64 = android.util.Base64.encodeToString(contactCard.solanaPublicKey, android.util.Base64.NO_WRAP),
+                x25519PublicKeyBase64 = android.util.Base64.encodeToString(contactCard.x25519PublicKey, android.util.Base64.NO_WRAP),
+                kyberPublicKeyBase64 = android.util.Base64.encodeToString(contactCard.kyberPublicKey, android.util.Base64.NO_WRAP),
+                friendRequestOnion = contactCard.friendRequestOnion,
+                messagingOnion = contactCard.messagingOnion,
+                voiceOnion = contactCard.voiceOnion,
+                contactPin = contactCard.contactPin,
+                ipfsCid = contactCard.ipfsCid,
+                addedTimestamp = System.currentTimeMillis(),
+                friendshipStatus = com.shieldmessenger.database.entities.Contact.FRIENDSHIP_CONFIRMED
+            )
+
+            val contactId = kotlinx.coroutines.runBlocking {
+                database.contactDao().insertContact(contact)
+            }
+
+            Log.i(TAG, "Contact added to database: ${contactCard.displayName} (ID: $contactId)")
+
+            // Initialize key chain with kyber ciphertext if present
+            serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    val ourMessagingOnion = torManager.getOnionAddress()
+                    val theirMessagingOnion = contactCard.messagingOnion
+                    if (ourMessagingOnion.isNullOrEmpty() || theirMessagingOnion.isNullOrEmpty()) {
+                        Log.e(TAG, "Cannot initialize key chain: missing onion address")
+                    } else if (kyberCiphertext != null) {
+                        // Device A path: Decapsulate the ciphertext from Phase 2
+                        com.shieldmessenger.crypto.KeyChainManager.initializeKeyChain(
+                            context = this@TorService,
+                            contactId = contactId,
+                            theirX25519PublicKey = contactCard.x25519PublicKey,
+                            theirKyberPublicKey = contactCard.kyberPublicKey,
+                            ourMessagingOnion = ourMessagingOnion,
+                            theirMessagingOnion = theirMessagingOnion,
+                            kyberCiphertext = kyberCiphertext
+                        )
+                        Log.i(TAG, "Key chain initialized for ${contactCard.displayName} (quantum - decapsulated)")
+                    } else {
+                        // Legacy path without Kyber
+                        Log.w(TAG, "No Kyber ciphertext - key chain will be initialized without quantum parameters")
+                        com.shieldmessenger.crypto.KeyChainManager.initializeKeyChain(
+                            context = this@TorService,
+                            contactId = contactId,
+                            theirX25519PublicKey = contactCard.x25519PublicKey,
+                            theirKyberPublicKey = contactCard.kyberPublicKey,
+                            ourMessagingOnion = ourMessagingOnion,
+                            theirMessagingOnion = theirMessagingOnion
+                        )
+                        Log.i(TAG, "Key chain initialized for ${contactCard.displayName} (legacy)")
+                    }
+
+                    // Auto-send our profile picture to the new contact (if we have one set)
+                    val prefs = this@TorService.getSharedPreferences("shield_messenger_settings", android.content.Context.MODE_PRIVATE)
+                    val myPhotoBase64 = prefs.getString("profile_photo_base64", null)
+                    if (!myPhotoBase64.isNullOrBlank()) {
+                        kotlinx.coroutines.delay(3_000L)
+                        try {
+                            val messageService = com.shieldmessenger.services.MessageService(this@TorService)
+                            messageService.sendProfileUpdate(contactId, myPhotoBase64)
+                            Log.i(TAG, "Profile picture auto-sent to new contact: ${contactCard.displayName}")
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to auto-send profile picture to ${contactCard.displayName}", e)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to initialize key chain for ${contactCard.displayName}", e)
+                }
+            }
+
+            // Remove pending outgoing request
+            removePendingRequest(matchingRequest)
+
+            // Show "Friend request accepted" notification
+            showFriendRequestAcceptedNotification(contactCard.displayName)
+
+            Log.i(TAG, "Phase 2 complete - ${contactCard.displayName} added to contacts")
+
+            // Send Phase 3 ACK back to sender's friend-request .onion
+            sendPhase3Acknowledgment(contactCard)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing Phase 2 friend request", e)
+        }
+    }
+
+    /**
+     * Send Phase 3 ACK to confirm friend request is complete
+     */
+    private fun sendPhase3Acknowledgment(contactCard: com.shieldmessenger.models.ContactCard) {
+        try {
+            Log.i(TAG, "Sending Phase 3 ACK to ${contactCard.displayName}")
+
+            // Build ACK payload with OUR full ContactCard so they can add us
+            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val torManager = TorManager.getInstance(this@TorService)
+            val ownContactCard = com.shieldmessenger.models.ContactCard(
+                displayName = keyManager.getUsername() ?: "Unknown",
+                solanaPublicKey = keyManager.getSolanaPublicKey(),
+                x25519PublicKey = keyManager.getEncryptionPublicKey(),
+                kyberPublicKey = keyManager.getKyberPublicKey(),
+                solanaAddress = keyManager.getSolanaAddress(),
+                friendRequestOnion = keyManager.getFriendRequestOnion() ?: "",
+                messagingOnion = keyManager.getMessagingOnion() ?: "",
+                voiceOnion = torManager.getVoiceOnionAddress() ?: "",
+                contactPin = keyManager.getContactPin() ?: "",
+                ipfsCid = keyManager.getIPFSCID(),
+                timestamp = System.currentTimeMillis() / 1000
+            )
+            val ackPayload = ownContactCard.toJson()
+
+            // Encrypt with their X25519 public key
+            val encryptedAck = com.shieldmessenger.crypto.RustBridge.encryptMessage(
+                plaintext = ackPayload,
+                recipientX25519PublicKey = contactCard.x25519PublicKey
+            )
+
+            // Send to their friend-request .onion (reuse Phase 2 function - same wire format)
+            serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                val success = com.shieldmessenger.crypto.RustBridge.sendFriendRequestAccepted(
+                    recipientOnion = contactCard.friendRequestOnion,
+                    encryptedAcceptance = encryptedAck
+                )
+
+                if (success) {
+                    Log.i(TAG, "Phase 3 ACK sent to ${contactCard.displayName}")
+                } else {
+                    Log.e(TAG, "Failed to send Phase 3 ACK to ${contactCard.displayName}")
+                }
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending Phase 3 ACK", e)
+        }
+    }
+
+    /**
+     * Handle Phase 3 acknowledgment (X25519-encrypted)
+     * Payload: Simple confirmation that they received and processed Phase 2
+     */
+    private fun handlePhase3Acknowledgment(encryptedPayload: ByteArray) {
+        try {
+            Log.i(TAG, "Processing Phase 3 acknowledgment (X25519-encrypted)")
+
+            // Find matching pending request (the one we're waiting for)
+            val prefs = getSharedPreferences("friend_requests", MODE_PRIVATE)
+            val pendingRequestsSet = prefs.getStringSet("pending_requests_v2", mutableSetOf()) ?: mutableSetOf()
+
+            var matchingRequest: com.shieldmessenger.models.PendingFriendRequest? = null
+            var senderX25519PublicKey: ByteArray? = null
+
+            for (requestJson in pendingRequestsSet) {
+                try {
+                    val request = com.shieldmessenger.models.PendingFriendRequest.fromJson(requestJson)
+                    // Look for outgoing pending requests (we sent Phase 2, waiting for ACK)
+                    if (request.direction == com.shieldmessenger.models.PendingFriendRequest.DIRECTION_OUTGOING &&
+                        request.status == com.shieldmessenger.models.PendingFriendRequest.STATUS_PENDING &&
+                        request.contactCardJson != null) {
+
+                        val partialJson = org.json.JSONObject(request.contactCardJson)
+                        val x25519Base64 = partialJson.opt("x25519_public_key") as? String
+
+                        if (x25519Base64 != null) {
+                            senderX25519PublicKey = android.util.Base64.decode(x25519Base64, android.util.Base64.NO_WRAP)
+                            matchingRequest = request
+                            Log.d(TAG, "Found matching pending request for: ${request.displayName}")
+                            break
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to parse pending request", e)
+                }
+            }
+
+            if (senderX25519PublicKey == null || matchingRequest == null) {
+                Log.e(TAG, "No matching pending request found for Phase 3 ACK")
+                return
+            }
+
+            // Decrypt ACK
+            val decryptedJson = com.shieldmessenger.crypto.RustBridge.decryptMessage(
+                encryptedPayload,
+                senderX25519PublicKey,
+                ByteArray(32) // privateKey parameter is deprecated/unused
+            )
+
+            if (decryptedJson == null) {
+                Log.e(TAG, "Failed to decrypt Phase 3 ACK")
+                return
+            }
+
+            Log.i(TAG, "Phase 3 ACK decrypted successfully")
+
+            // Parse the full ContactCard from the ACK
+            val contactCard = com.shieldmessenger.models.ContactCard.fromJson(decryptedJson)
+            Log.i(TAG, "Friend request fully confirmed by: ${contactCard.displayName}")
+
+            // Add to contacts database and initialize key chain (both in coroutine)
+            serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    // Add contact to database first
+                    val contactId = addContactToDatabase(contactCard)
+
+                    if (contactId == null) {
+                        Log.e(TAG, "Failed to add contact to database")
+                        return@launch
+                    }
+
+                    // Extract precomputed shared secret from saved Phase 2 state
+                    val savedJson = org.json.JSONObject(matchingRequest.contactCardJson ?: "{}")
+                    val precomputedSharedSecret = if (savedJson.has("hybrid_shared_secret")) {
+                        val sharedSecretBase64 = savedJson.getString("hybrid_shared_secret")
+                        android.util.Base64.decode(sharedSecretBase64, android.util.Base64.NO_WRAP)
+                    } else null
+
+                    val torManager = com.shieldmessenger.crypto.TorManager.getInstance(this@TorService)
+                    val ourMessagingOnion = torManager.getOnionAddress()
+                    val theirMessagingOnion = contactCard.messagingOnion
+
+                    if (ourMessagingOnion.isNullOrEmpty() || theirMessagingOnion.isNullOrEmpty()) {
+                        Log.e(TAG, "Cannot initialize key chain: missing onion address")
+                        return@launch
+                    }
+
+                    if (precomputedSharedSecret != null) {
+                        // Device B path: Use shared secret from Phase 2 encapsulation
+                        com.shieldmessenger.crypto.KeyChainManager.initializeKeyChain(
+                            context = this@TorService,
+                            contactId = contactId,
+                            theirX25519PublicKey = contactCard.x25519PublicKey,
+                            theirKyberPublicKey = contactCard.kyberPublicKey,
+                            ourMessagingOnion = ourMessagingOnion,
+                            theirMessagingOnion = theirMessagingOnion,
+                            precomputedSharedSecret = precomputedSharedSecret
+                        )
+                        Log.i(TAG, "Key chain initialized for ${contactCard.displayName} (quantum - precomputed secret)")
+                    } else {
+                        // Legacy path without quantum parameters
+                        Log.w(TAG, "No precomputed shared secret - initializing key chain in legacy mode")
+                        com.shieldmessenger.crypto.KeyChainManager.initializeKeyChain(
+                            context = this@TorService,
+                            contactId = contactId,
+                            theirX25519PublicKey = contactCard.x25519PublicKey,
+                            theirKyberPublicKey = contactCard.kyberPublicKey,
+                            ourMessagingOnion = ourMessagingOnion,
+                            theirMessagingOnion = theirMessagingOnion
+                        )
+                        Log.i(TAG, "Key chain initialized for ${contactCard.displayName} (legacy)")
+                    }
+
+                    // Auto-send our profile picture to the new contact (if we have one set)
+                    val prefs = this@TorService.getSharedPreferences("shield_messenger_settings", android.content.Context.MODE_PRIVATE)
+                    val myPhotoBase64 = prefs.getString("profile_photo_base64", null)
+                    if (!myPhotoBase64.isNullOrBlank()) {
+                        kotlinx.coroutines.delay(3_000L)
+                        try {
+                            val messageService = com.shieldmessenger.services.MessageService(this@TorService)
+                            messageService.sendProfileUpdate(contactId, myPhotoBase64)
+                            Log.i(TAG, "Profile picture auto-sent to new contact: ${contactCard.displayName}")
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to auto-send profile picture to ${contactCard.displayName}", e)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to add contact or initialize key chain for ${contactCard.displayName}", e)
+                }
+            }
+
+            // Remove the pending request
+            removePendingRequest(matchingRequest)
+
+            // Show "Friend added" notification
+            showFriendRequestAcceptedNotification(contactCard.displayName)
+
+            // Send broadcast to update UI
+            val broadcastIntent = android.content.Intent("com.shieldmessenger.FRIEND_REQUEST_COMPLETED")
+            broadcastIntent.setPackage(packageName)
+            sendBroadcast(broadcastIntent)
+
+            Log.i(TAG, "Phase 3 complete - ACK received from ${contactCard.displayName}")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error processing Phase 3 acknowledgment", e)
+        }
+    }
+
+    /**
+     * Add ContactCard to contacts database
+     * Returns the inserted contact ID, or null on error
+     */
+    private suspend fun addContactToDatabase(contactCard: com.shieldmessenger.models.ContactCard): Long? {
+        return try {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                val dbPassphrase = keyManager.getDatabasePassphrase()
+                val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@TorService, dbPassphrase)
+
+                val contact = com.shieldmessenger.database.entities.Contact(
+                    displayName = contactCard.displayName,
+                    solanaAddress = contactCard.solanaAddress,
+                    publicKeyBase64 = android.util.Base64.encodeToString(contactCard.solanaPublicKey, android.util.Base64.NO_WRAP),
+                    x25519PublicKeyBase64 = android.util.Base64.encodeToString(contactCard.x25519PublicKey, android.util.Base64.NO_WRAP),
+                    kyberPublicKeyBase64 = android.util.Base64.encodeToString(contactCard.kyberPublicKey, android.util.Base64.NO_WRAP),
+                    friendRequestOnion = contactCard.friendRequestOnion,
+                    messagingOnion = contactCard.messagingOnion,
+                    voiceOnion = contactCard.voiceOnion,
+                    contactPin = contactCard.contactPin,
+                    ipfsCid = contactCard.ipfsCid,
+                    addedTimestamp = System.currentTimeMillis(),
+                    friendshipStatus = com.shieldmessenger.database.entities.Contact.FRIENDSHIP_CONFIRMED
+                )
+
+                val contactId = database.contactDao().insertContact(contact)
+                Log.i(TAG, "Contact added to database: ${contact.displayName} (ID: $contactId)")
+
+                // NOTE: Key chain initialization is handled by the caller (Phase 2/3 handlers)
+                // Do NOT initialize here without quantum parameters - causes encryption mismatch!
+
+                contactId
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to add contact to database", e)
+            null
+        }
+    }
+
+    /**
+     * Remove pending friend request
+     */
+    private fun removePendingRequest(request: com.shieldmessenger.models.PendingFriendRequest) {
+        try {
+            val prefs = getSharedPreferences("friend_requests", MODE_PRIVATE)
+            val pendingRequestsSet = prefs.getStringSet("pending_requests_v2", mutableSetOf()) ?: mutableSetOf()
+
+            val newSet = pendingRequestsSet.filter { requestJson ->
+                try {
+                    val existingRequest = com.shieldmessenger.models.PendingFriendRequest.fromJson(requestJson)
+                    existingRequest.ipfsCid != request.ipfsCid
+                } catch (e: Exception) {
+                    true
+                }
+            }.toMutableSet()
+
+            prefs.edit()
+                .putStringSet("pending_requests_v2", newSet)
+                .apply()
+
+            Log.i(TAG, "Removed pending request for ${request.displayName}")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to remove pending request", e)
+        }
+    }
+
+    /**
+     * Save pending friend request to SharedPreferences
+     */
+    private fun savePendingFriendRequest(request: com.shieldmessenger.models.PendingFriendRequest) {
+        try {
+            val prefs = getSharedPreferences("friend_requests", MODE_PRIVATE)
+            val pendingRequestsSet = prefs.getStringSet("pending_requests_v2", mutableSetOf()) ?: mutableSetOf()
+
+            // Add new request
+            val newSet = pendingRequestsSet.toMutableSet()
+            newSet.add(request.toJson())
+
+            prefs.edit()
+                .putStringSet("pending_requests_v2", newSet)
+                .apply()
+
+            Log.i(TAG, "Saved pending friend request for ${request.displayName}")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save pending friend request", e)
+        }
+    }
+
+    /**
+     * PHASE 8: Handle incoming PONG from listener
+     * When receiver taps Download, they send PONG to our listener port 9152
+     * We decrypt it, store it, and immediately send the message payload
+     */
+    private fun handleIncomingPong(pongWireBytes: ByteArray) {
+        try {
+            Log.i(TAG, "Handling incoming Pong (${pongWireBytes.size} bytes)")
+
+            // Decrypt and store Pong in GLOBAL_PONG_SESSIONS
+            val success = RustBridge.decryptAndStorePongFromListener(pongWireBytes)
+            if (!success) {
+                Log.e(TAG, "Failed to decrypt and store Pong")
+                return
+            }
+
+            Log.i(TAG, "Pong decrypted and stored successfully")
+
+            // IMMEDIATELY trigger sending the message payload (don't wait for retry worker!)
+            serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    val messageService = MessageService(this@TorService)
+                    val result = messageService.pollForPongsAndSendMessages()
+
+                    if (result.isSuccess) {
+                        val sentCount = result.getOrNull() ?: 0
+                        if (sentCount > 0) {
+                            Log.i(TAG, "Sent $sentCount message payload(s) immediately after Pong")
+                        } else {
+                            Log.d(TAG, "No pending messages found for this Pong")
+                        }
+                    } else {
+                        Log.e(TAG, "Failed to send message payload: ${result.exceptionOrNull()?.message}")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error sending message payload after Pong", e)
+                }
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling Pong", e)
+        }
+    }
+
+    /**
+     * PHASE 9: Start ACK poller for receiving delivery confirmations
+     */
+    private fun startAckPoller() {
+        if (isAckPollerRunning) {
+            Log.d(TAG, "ACK poller already running, skipping")
+            return
+        }
+
+        launchPoller("ACK", intervalMs = 0L) {
+            val ackBytes = RustBridge.pollIncomingAckBlocking()
+            if (ackBytes != null) {
+                Log.i(TAG, "Received incoming ACK via listener: ${ackBytes.size} bytes")
+
+                // Decrypt and verify ACK signature (Rust handles Ed25519 verification)
+                // Returns JSON: {"item_id","ack_type","fallback":bool,"sender_ed25519":"hex"}
+                // When fallback=true, Rust did NOT commit the ACK to GLOBAL_ACK_SESSIONS —
+                // Kotlin must cross-check sender identity before processing.
+                val ackJson = RustBridge.decryptAndStoreAckFromListener(ackBytes)
+                if (ackJson != null) {
+                    try {
+                        val jsonObj = org.json.JSONObject(ackJson)
+                        val itemId = jsonObj.getString("item_id")
+                        val ackType = jsonObj.getString("ack_type")
+                        val usedFallback = jsonObj.optBoolean("fallback", false)
+
+                        Log.i(TAG, "ACK decrypted: type=$ackType, item=$itemId, fallback=$usedFallback")
+
+                        if (usedFallback) {
+                            // Cross-restart fallback: Rust verified the signature using
+                            // the embedded sender pubkey, but did NOT commit the ACK.
+                            // We must cross-check the sender's identity against our contact DB.
+                            val senderEd25519Hex = jsonObj.getString("sender_ed25519")
+                            if (verifySenderIdentityFromAck(ackBytes, senderEd25519Hex)) {
+                                Log.i(TAG, "ACK_IDENTITY_OK: Sender verified via contact DB (fallback path) for $ackType item=$itemId")
+                                handleIncomingAck(itemId, ackType)
+                            } else {
+                                Log.e(TAG, "ACK_IDENTITY_REJECT: Sender identity cross-check failed for $ackType item=$itemId — dropping")
+                            }
+                        } else {
+                            // Fast path: trusted from OUTGOING_PING_SIGNERS, already committed
+                            handleIncomingAck(itemId, ackType)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to parse ACK JSON: $ackJson", e)
+                    }
+                } else {
+                    Log.e(TAG, "Failed to decrypt and store ACK")
+                }
+            }
+        }
+    }
+
+    /**
+     * Start periodic session cleanup timer (every 5 minutes)
+     * Cleans up orphaned Ping/Pong/ACK sessions from crashes/failures as safety net
+     */
+    private fun startSessionCleanup() {
+        if (isSessionCleanupRunning) {
+            Log.d(TAG, "Session cleanup already running, skipping")
+            return
+        }
+
+        launchPoller("SessionCleanup", intervalMs = 5 * 60 * 1000L) {
+            // Call Rust cleanup for expired sessions (older than 5 minutes)
+            RustBridge.cleanupExpiredSessions()
+            Log.i(TAG, "Periodic Rust session cleanup completed")
+
+            // CRITICAL FIX: Clean up old received_ids entries to prevent table bloat
+            // Delete entries older than 7 days (604800000 ms)
+            // This prevents duplicate detection from blocking legitimate new messages
+            try {
+                val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                val dbPassphrase = keyManager.getDatabasePassphrase()
+                val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@TorService, dbPassphrase)
+
+                val cutoffTimestamp = System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000L)
+                kotlinx.coroutines.runBlocking {
+                    val deletedCount = database.receivedIdDao().deleteOldIds(cutoffTimestamp)
+                    if (deletedCount > 0) {
+                        Log.i(TAG, "Cleaned up $deletedCount old received_ids entries (older than 7 days)")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error cleaning up old received_ids", e)
+            }
+        }
+    }
+
+    /**
+     * Cross-check sender identity from a fallback-verified ACK against our contact DB.
+     *
+     * Security chain:
+     * 1. ECDH decryption already authenticated the sender's X25519 key
+     *    (only the real holder of the X25519 private key could encrypt for our shared secret)
+     * 2. Extract sender's X25519 pubkey from wire bytes [1..33]
+     *    (wire format: [type_byte 0x06 (1)] [sender_x25519 (32)] [encrypted_payload])
+     * 3. Look up contact by X25519 pubkey in DB -> get trusted Ed25519 signing pubkey
+     * 4. Compare trusted Ed25519 with the sender_ed25519 claimed in the ACK
+     * 5. If match: sender is authentic. If mismatch: possible forgery, drop.
+     *
+     * Note: Rust fallback ACKs are NOT committed to GLOBAL_ACK_SESSIONS until this
+     * cross-check passes. handleIncomingAck() is the gate.
+     */
+    private fun verifySenderIdentityFromAck(ackWireBytes: ByteArray, senderEd25519Hex: String): Boolean {
+        try {
+            // Wire format: [type_byte (1 byte)] [sender_x25519 (32 bytes)] [encrypted...]
+            val ACK_WIRE_MIN_LEN = 33 // 1 (type) + 32 (x25519 pubkey)
+            val ACK_TYPE_DELIVERY_CONFIRMATION = 0x06
+            val SENDER_X25519_OFFSET = 1
+            val SENDER_X25519_LEN = 32
+
+            if (ackWireBytes.size < ACK_WIRE_MIN_LEN) {
+                Log.e(TAG, "ACK_IDENTITY: Wire bytes too short: ${ackWireBytes.size} < $ACK_WIRE_MIN_LEN")
+                return false
+            }
+
+            // Sanity check: verify the type byte matches our ACK frame type
+            val typeByte = ackWireBytes[0].toInt() and 0xFF
+            if (typeByte != ACK_TYPE_DELIVERY_CONFIRMATION) {
+                Log.e(TAG, "ACK_IDENTITY: Unexpected type byte 0x${typeByte.toString(16)}, expected 0x06")
+                return false
+            }
+
+            // Extract sender's X25519 public key from wire bytes [1..33]
+            val senderX25519Bytes = ackWireBytes.sliceArray(SENDER_X25519_OFFSET until SENDER_X25519_OFFSET + SENDER_X25519_LEN)
+            val senderX25519Base64 = android.util.Base64.encodeToString(senderX25519Bytes, android.util.Base64.NO_WRAP)
+
+            Log.d(TAG, "ACK_IDENTITY: typeByte=0x06, sender X25519=${senderX25519Base64.take(12)}...")
+
+            // Look up contact by X25519 pubkey in DB
+            // TODO: cache DB instance on TorService to avoid repeated passphrase derivation
+            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val dbPassphrase = keyManager.getDatabasePassphrase()
+            val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
+            val contact = database.contactDao().getContactByX25519PublicKey(senderX25519Base64)
+
+            if (contact == null) {
+                Log.e(TAG, "ACK_IDENTITY: No contact found for X25519=${senderX25519Base64.take(12)}...")
+                return false
+            }
+
+            Log.d(TAG, "ACK_IDENTITY: Found contact '${contact.displayName}' for X25519 lookup")
+
+            // Get contact's trusted Ed25519 signing pubkey and compare (case-insensitive hex)
+            val trustedEd25519Bytes = android.util.Base64.decode(contact.publicKeyBase64, android.util.Base64.NO_WRAP)
+            val trustedEd25519Hex = trustedEd25519Bytes.joinToString("") { "%02x".format(it) }
+
+            if (!trustedEd25519Hex.equals(senderEd25519Hex, ignoreCase = true)) {
+                Log.e(TAG, "ACK_IDENTITY: Ed25519 MISMATCH! " +
+                    "ACK claims ${senderEd25519Hex.take(16)}... " +
+                    "but contact '${contact.displayName}' has ${trustedEd25519Hex.take(16)}...")
+                return false
+            }
+
+            Log.d(TAG, "ACK_IDENTITY: Ed25519 cross-check PASSED for contact '${contact.displayName}'")
+            return true
+        } catch (e: Exception) {
+            Log.e(TAG, "ACK_IDENTITY: Error during sender identity verification", e)
+            return false
+        }
+    }
+
+    /**
+     * Handle incoming ACK to update delivery status
+     * @param itemId The ping_id or message_id that was acknowledged
+     * @param ackType The type of ACK: PING_ACK, MESSAGE_ACK, TAP_ACK, or PONG_ACK
+     */
+    private fun handleIncomingAck(itemId: String, ackType: String) {
+        try {
+            // CRITICAL: PONG_ACK must go through the state machine!
+            // Previously, PONG_ACK was being ignored (early return), causing state to stay PING_ACKED
+            // This made MESSAGE_ACK fail validation (trying PING_ACKED → MESSAGE_ACK instead of PONG_ACKED → MESSAGE_ACK)
+            //
+            // PONG_ACK is received by the sender after sending PING
+            // The sender waits for receiver's PONG, then ACKs with PONG_ACK before sending message blob
+            // This ACK must update the state machine: PING_ACKED → PONG_ACKED
+
+            serviceScope.launch(Dispatchers.IO) {
+                // Skip blob_ transport ACKs - we use pingId-based MESSAGE_ACK for delivery confirmation
+                if (ackType == "MESSAGE_ACK" && itemId.startsWith("blob_")) {
+                    Log.d(TAG, "Ignoring transport MESSAGE_ACK for blob session: $itemId")
+                    return@launch
+                }
+
+                // RECEIVER-SIDE SKIP: Short-circuit PONG_ACK on receiver
+                // If this device is the receiver (pingId exists in ping_inbox), skip processing.
+                // PONG_ACK is sent by sender to receiver, but receiver has no action to take.
+                // The message row doesn't exist yet on receiver (sender hasn't sent MESSAGE_ACK),
+                // so this is expected behavior, not an error.
+                if (ackType == "PONG_ACK") {
+                    try {
+                        val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                        val dbPassphrase = keyManager.getDatabasePassphrase()
+                        val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@TorService, dbPassphrase)
+
+                        val isReceiver = database.pingInboxDao().exists(itemId)
+                        if (isReceiver) {
+                            Log.v(TAG, "⊘ Receiver ignoring inbound PONG_ACK for pingId=$itemId (expected behavior)")
+                            return@launch
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Error checking ping_inbox for PONG_ACK skip: ${e.message}")
+                        // Continue with normal processing if skip check fails (may be sender-side PONG_ACK)
+                    }
+                }
+
+                // Retry finding the message up to 5 times with exponential backoff
+                // This handles the race condition where ACK arrives before DB update completes
+                var retryCount = 0
+                val maxRetries = 6
+                var message: com.shieldmessenger.database.entities.Message? = null
+
+                // Determine lookup method based on ACK type
+                val lookupByPingId = (ackType == "PING_ACK" || ackType == "PONG_ACK" || ackType == "TAP_ACK" || ackType == "MESSAGE_ACK")
+
+                while (retryCount < maxRetries && message == null) {
+                    try {
+                        val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                        val dbPassphrase = keyManager.getDatabasePassphrase()
+                        val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@TorService, dbPassphrase)
+
+                        // All ACK types use pingId for lookup (item_id from wire is always a pingId)
+                        message = if (lookupByPingId) {
+                            database.messageDao().getMessageByPingId(itemId)
+                        } else {
+                            database.messageDao().getMessageByMessageId(itemId)
+                        }
+
+                        if (message == null && retryCount < maxRetries - 1) {
+                            // Message not found yet - wait and retry (ACK may have arrived before DB update)
+                            val delayMs = (100L * (1 shl retryCount)) // 100ms, 200ms, 400ms, 800ms, 1600ms
+                            Log.d(TAG, "$ackType for $itemId: message not found in DB yet, retry ${retryCount + 1}/$maxRetries after ${delayMs}ms...")
+                            kotlinx.coroutines.delay(delayMs)
+                            retryCount++
+                        } else {
+                            break
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error looking up message for $ackType (retry $retryCount)", e)
+                        break
+                    }
+                }
+
+                try {
+                    val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                    val dbPassphrase = keyManager.getDatabasePassphrase()
+                    val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@TorService, dbPassphrase)
+
+                    if (message != null) {
+                        // CRITICAL: Check ACK state machine BEFORE processing
+                        // This prevents duplicate ACKs from changing state and ensures strict ordering
+                        val ackTracker = MessageService.getAckTracker()
+                        if (!ackTracker.processAck(message.messageId, ackType)) {
+                            // ACK was rejected (duplicate or out-of-order)
+                            Log.w(TAG, "ACK rejected by state machine: ${message.messageId}/$ackType (duplicate or out-of-order)")
+                            return@launch
+                        }
+
+                        // ACK accepted by state machine - safe to process
+                        Log.d(TAG, "ACK accepted by state machine: ${message.messageId}/$ackType")
+
+                        // Update appropriate field based on ACK type
+                        val updatedMessage = when (ackType) {
+                            "PING_ACK" -> {
+                                Log.i(TAG, "Received PING_ACK for message ${message.messageId} (pingId: $itemId) after $retryCount retries")
+                                // Use targeted DAO update to prevent race with other delivery status changes
+                                database.messageDao().updatePingDeliveredStatus(message.id, true, com.shieldmessenger.database.entities.Message.STATUS_PING_SENT)
+                                // Broadcast to update sender's UI (show single checkmark)
+                                val intent = Intent("com.shieldmessenger.MESSAGE_RECEIVED")
+                                intent.setPackage(packageName)
+                                intent.putExtra("CONTACT_ID", message.contactId)
+                                sendBroadcast(intent)
+                                Log.i(TAG, "Broadcast MESSAGE_RECEIVED for PING_ACK (contact ${message.contactId})")
+                                null // Already updated via targeted DAO call
+                            }
+                            "MESSAGE_ACK" -> {
+                                Log.i(TAG, "Received MESSAGE_ACK for message ${message.messageId}")
+
+                                // Clean up ReceivedId tracking entries (Ping/Pong/Message) after successful delivery
+                                // This prevents ReceivedId table bloat while keeping failed deliveries indefinitely
+                                // (in case user is offline for months/years)
+                                val pingId = message.pingId
+                                if (pingId != null) {
+                                    try {
+                                        val deletedPing = database.receivedIdDao().deleteById(pingId)
+                                        val deletedPong = database.receivedIdDao().deleteById("pong_$pingId")
+                                        val deletedMsg = database.receivedIdDao().deleteById(message.messageId)
+                                        val totalDeleted = deletedPing + deletedPong + deletedMsg
+                                        if (totalDeleted > 0) {
+                                            Log.d(TAG, "Cleaned up $totalDeleted ReceivedId entries (Ping/Pong/Message) after successful delivery")
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.w(TAG, "Failed to clean up ReceivedId entries (non-critical)", e)
+                                    }
+
+                                    // Ping tracking cleanup handled by ping_inbox DB (MSG_STORED state)
+                                    Log.d(TAG, "Ping $pingId delivery confirmed (DB state = MSG_STORED)")
+                                }
+
+                                // Use targeted DAO update to prevent race with other delivery status changes
+                                database.messageDao().updateMessageDeliveredStatus(message.id, true, com.shieldmessenger.database.entities.Message.STATUS_DELIVERED)
+                                // Broadcast to update sender's UI (show double checkmark / delivered)
+                                val intent = Intent("com.shieldmessenger.MESSAGE_RECEIVED")
+                                intent.setPackage(packageName)
+                                intent.putExtra("CONTACT_ID", message.contactId)
+                                sendBroadcast(intent)
+                                Log.i(TAG, "Broadcast MESSAGE_RECEIVED to update sender UI (delivered) for contact ${message.contactId}")
+                                null // Already updated via targeted DAO call
+                            }
+                            "PONG_ACK" -> {
+                                // PONG_ACK is state machine transition: PING_ACKED → PONG_ACKED
+                                // The sender has received PONG from receiver and will now send message blob
+                                Log.i(TAG, "Received PONG_ACK for message ${message.messageId} - sender will now send message blob")
+                                // Use targeted DAO update to prevent race with other delivery status changes
+                                database.messageDao().updatePongDelivered(message.id, true)
+                                // Broadcast to update sender UI
+                                val intent = Intent("com.shieldmessenger.MESSAGE_RECEIVED")
+                                intent.setPackage(packageName)
+                                intent.putExtra("CONTACT_ID", message.contactId)
+                                sendBroadcast(intent)
+                                Log.i(TAG, "Broadcast MESSAGE_RECEIVED to update sender UI (PONG received) for contact ${message.contactId}")
+                                null // Already updated via targeted DAO call
+                            }
+                            "TAP_ACK" -> {
+                                Log.i(TAG, "Received TAP_ACK - contact ${message.contactId} confirmed online! Triggering retry for all pending messages")
+
+                                // TAP_ACK means peer is online and ready to receive - retry all pending messages
+                                serviceScope.launch(Dispatchers.IO) {
+                                    try {
+                                        // Query ALL pending/failed messages for this contact
+                                        val pendingMessages = database.messageDao().getPendingMessages()
+                                            .filter { it.contactId == message.contactId }
+                                        val awaitingPong = database.messageDao().getMessagesAwaitingPong()
+                                            .filter { it.contactId == message.contactId }
+                                        val allMessages = (pendingMessages + awaitingPong).distinctBy { it.id }
+
+                                        if (allMessages.isNotEmpty()) {
+                                            Log.i(TAG, "Found ${allMessages.size} pending messages to retry after TAP_ACK")
+                                            val messageService = com.shieldmessenger.services.MessageService(this@TorService)
+
+                                            for (msg in allMessages) {
+                                                try {
+                                                    // Skip if already delivered
+                                                    if (msg.messageDelivered) continue
+
+                                                    // Retry based on phase
+                                                    if (msg.pongDelivered) {
+                                                        // PONG received - receiver downloading
+                                                        Log.d(TAG, "${msg.messageId}: PONG received, waiting for download")
+                                                    } else if (msg.pingDelivered) {
+                                                        // PING delivered - poll for PONG
+                                                        Log.d(TAG, "${msg.messageId}: PING_ACK received, polling for PONG")
+                                                        messageService.pollForPongsAndSendMessages()
+                                                    } else {
+                                                        // No PING_ACK - retry PING
+                                                        Log.i(TAG, "${msg.messageId}: Retrying PING after TAP_ACK")
+                                                        messageService.sendPingForMessage(msg)
+                                                        // CRITICAL: Use partial update to avoid overwriting delivery status
+                                                        // (fixes race where MESSAGE_ACK sets delivered=true between read and write)
+                                                        database.messageDao().updateRetryState(
+                                                            msg.id,
+                                                            msg.retryCount + 1,
+                                                            System.currentTimeMillis()
+                                                        )
+                                                    }
+                                                } catch (e: Exception) {
+                                                    Log.e(TAG, "Failed to retry message ${msg.messageId} after TAP_ACK", e)
+                                                }
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Error processing TAP_ACK retry logic", e)
+                                    }
+                                }
+
+                                // Use targeted DAO update to prevent race with other delivery status changes
+                                database.messageDao().updateTapDelivered(message.id, true)
+                                null // Already updated via targeted DAO call
+                            }
+                            else -> {
+                                Log.w(TAG, "Unknown ACK type: $ackType")
+                                null
+                            }
+                        }
+
+                        // Safety net: all known ACK types now use targeted DAO updates and return null.
+                        // This block only fires if a future ACK type returns a non-null updatedMessage.
+                        if (updatedMessage != null) {
+                            database.messageDao().updateMessage(updatedMessage)
+                            Log.i(TAG, "Updated message ${message.messageId} for $ackType (full-entity fallback)")
+                        }
+                    } else {
+                        Log.w(TAG, "Could not find message for $ackType item_id: $itemId")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error updating message delivery status for $ackType", e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling incoming $ackType", e)
+        }
+    }
+
+    /**
+     * Handle incoming MESSAGE from MESSAGE channel (direct routing, no trial decryption needed)
+     * Wire format: [connection_id (8 bytes LE)][encrypted_message_blob]
+     */
+    private fun handleIncomingMessage(encodedData: ByteArray) {
+        try {
+            // Wire format: [connection_id (8 bytes LE)][encrypted_message_blob]
+            if (encodedData.size < 8) {
+                Log.e(TAG, "Invalid MESSAGE data: too short")
+                return
+            }
+
+            // Extract connection_id (first 8 bytes, little-endian)
+            val connectionId = java.nio.ByteBuffer.wrap(encodedData, 0, 8)
+                .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                .long
+
+            // Extract encrypted message blob (rest of bytes)
+            val encryptedMessageBlob = encodedData.copyOfRange(8, encodedData.size)
+
+            Log.i(TAG, "Received MESSAGE on connection $connectionId via direct routing: ${encryptedMessageBlob.size} bytes")
+
+            // Process message blob directly (no trial decryption needed!)
+            handleIncomingMessageBlob(encryptedMessageBlob)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling incoming MESSAGE", e)
+        }
+    }
+
+    /**
+     * Handle incoming VOICE call signaling from VOICE channel
+     * Wire format: [connection_id (8 bytes LE)][Sender X25519 Public Key (32 bytes)][Encrypted Payload]
+     * Completely separate from MESSAGE to allow simultaneous text messaging during voice calls
+     */
+    private fun handleIncomingVoiceMessage(encodedData: ByteArray) {
+        try {
+            // Wire format: [Type byte][connection_id (8 bytes LE)][Sender X25519 key (32 bytes)][Encrypted payload]
+            if (encodedData.size < 41) { // 1 (type) + 8 + 32 minimum
+                Log.e(TAG, "Invalid VOICE data: too short (${encodedData.size} bytes)")
+                return
+            }
+
+            // Extract connection_id (skip type byte, then read 8 bytes, little-endian)
+            val connectionId = java.nio.ByteBuffer.wrap(encodedData, 1, 8)
+                .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                .long
+
+            // Extract sender X25519 public key (after type + connection_id)
+            val senderX25519PublicKey = encodedData.copyOfRange(9, 41)
+
+            // Extract encrypted payload (rest of bytes)
+            val encryptedPayload = encodedData.copyOfRange(41, encodedData.size)
+
+            Log.i(TAG, "Received VOICE call signaling on connection $connectionId: ${encryptedPayload.size} bytes")
+
+            // Look up contact by X25519 public key to get onion address
+            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val dbPassphrase = keyManager.getDatabasePassphrase()
+            val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
+
+            val contact = kotlinx.coroutines.runBlocking {
+                database.contactDao().getContactByX25519PublicKey(
+                    android.util.Base64.encodeToString(senderX25519PublicKey, android.util.Base64.NO_WRAP)
+                )
+            }
+
+            if (contact == null) {
+                Log.w(TAG, "Cannot process VOICE call signaling - contact not found for X25519 key")
+                return
+            }
+
+            val senderOnion = contact.messagingOnion ?: ""
+            if (senderOnion.isEmpty()) {
+                Log.w(TAG, "Cannot process VOICE call signaling - no onion address for contact ${contact.id}")
+                return
+            }
+
+            // Process call signaling through MessageService
+            kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+                try {
+                    val messageService = MessageService(this@TorService)
+                    val encryptedPayloadBase64 = android.util.Base64.encodeToString(encryptedPayload, android.util.Base64.NO_WRAP)
+
+                    // Call existing handler (it will decrypt, parse, and route to IncomingCallActivity)
+                    messageService.handleCallSignaling(
+                        encryptedData = encryptedPayloadBase64,
+                        senderPublicKey = senderX25519PublicKey,
+                        senderOnionAddress = senderOnion,
+                        contactId = contact.id // Pass contact ID to avoid redundant lookup
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error processing VOICE call signaling", e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling incoming VOICE call signaling", e)
+        }
+    }
+
+    private suspend fun handleIncomingPing(encodedData: ByteArray) {
+        try {
+            // Wire format: [connection_id (8 bytes LE)][encrypted_ping_wire]
+            if (encodedData.size < 8) {
+                Log.e(TAG, "Invalid ping data: too short")
+                return
+            }
+
+            // Extract connection_id (first 8 bytes, little-endian)
+            val connectionId = java.nio.ByteBuffer.wrap(encodedData, 0, 8)
+                .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                .long
+
+            // Extract encrypted ping wire message (rest of bytes)
+            val encryptedPingWire = encodedData.copyOfRange(8, encodedData.size)
+
+            Log.i(TAG, "Received Ping on connection $connectionId: ${encryptedPingWire.size} bytes")
+
+            // Get database instance for tracking and deduplication
+            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val dbPassphrase = keyManager.getDatabasePassphrase()
+            val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
+
+            // STRICT PARSING: PING handler must parse as PingToken ONLY (no fallback)
+            // Fallback parsing masked framing bugs where legacy packets (missing type byte)
+            // had random pubkey first bytes that passed validation (~5% chance of 0x01-0x0D)
+            val pingId: String? = try {
+                RustBridge.decryptIncomingPing(encryptedPingWire)
+            } catch (e: Exception) {
+                // Classify error properly: FRAMING vs PAYLOAD
+                val errorType = when {
+                    e.message?.contains("FRAMING_PROTOCOL_VIOLATION") == true -> "FRAMING_PROTOCOL_VIOLATION"
+                    e.message?.contains("PAYLOAD_PARSE_FAILURE") == true -> "PAYLOAD_PARSE_FAILURE"
+                    else -> "UNKNOWN_ERROR"
+                }
+
+                Log.e(TAG, "$errorType: Packet routed as PING failed")
+                Log.e(TAG, "Reason: ${e.message}")
+                Log.e(TAG, "Wire length: ${encryptedPingWire.size} bytes")
+                Log.e(TAG, "First 4 bytes: ${encryptedPingWire.take(4).joinToString(" ") { "%02x".format(it) }}")
+                Log.e(TAG, "Dropping packet")
+                return
+            }
+
+            if (pingId == null) {
+                Log.e(TAG, "FRAMING_PROTOCOL_VIOLATION: decryptIncomingPing returned null")
+                Log.e(TAG, "Dropping packet (parse failed)")
+                return
+            }
+
+            // Successfully decrypted as Ping
+            Log.i(TAG, "Decrypted as Ping. Ping ID: $pingId")
+
+            // Get sender information from the Ping token
+            val senderPublicKey = RustBridge.getPingSenderPublicKey(pingId)
+
+            // Look up sender in contacts database
+            val contactInfo = if (senderPublicKey != null) {
+                val publicKeyBase64 = android.util.Base64.encodeToString(senderPublicKey, android.util.Base64.NO_WRAP)
+                withContext(Dispatchers.IO) {
+                    database.contactDao().getContactByPublicKey(publicKeyBase64)
+                }
+            } else {
+                null
+            }
+
+            val contactId = contactInfo?.id
+            val senderName = contactInfo?.displayName ?: "Unknown Contact"
+            Log.i(TAG, "Incoming message request from: $senderName (contactId=$contactId)")
+
+            if (contactId == null) {
+                Log.w(TAG, "Ping from unknown contact - ignoring")
+                return
+            }
+
+            // PING INBOX STATE TRACKING: Check current state
+            Log.d(TAG, "PING INBOX CHECK: pingId=$pingId ")
+            val existingPing = withContext(Dispatchers.IO) {
+                database.pingInboxDao().getByPingId(pingId)
+            }
+
+            val now = System.currentTimeMillis()
+            var shouldNotify = false
+            var shouldRetryDownload = false // Re-trigger auto-download for stuck/failed pings
+
+            when {
+                existingPing != null && existingPing.state == com.shieldmessenger.database.entities.PingInbox.STATE_MSG_STORED -> {
+                    // Message already stored - just update retry tracking
+                    Log.i(TAG, "Message $pingId already stored (state=MSG_STORED)")
+                    Log.i(TAG, "→ Updating retry tracking and sending PING_ACK (idempotent)")
+                    withContext(Dispatchers.IO) {
+                        database.pingInboxDao().updatePingRetry(pingId, now)
+                    }
+                    // No notification or download needed
+                }
+
+                existingPing != null -> {
+                    // PING seen before but message not stored yet - update retry tracking
+                    val state = existingPing.state
+                    Log.i(TAG, "PING $pingId seen before (state=$state, attempt=${existingPing.attemptCount + 1})")
+                    withContext(Dispatchers.IO) {
+                        database.pingInboxDao().updatePingRetry(pingId, now)
+                    }
+
+                    // FIX: Re-trigger auto-download for stuck/failed downloads
+                    // Without this, a failed download is stuck forever — sender keeps retrying
+                    // PINGs but we never re-attempt the PONG→MESSAGE handshake.
+                    // Retryable states: FAILED_TEMP, DOWNLOAD_QUEUED (stuck), PONG_SENT (stale)
+                    val retryableStates = setOf(
+                        com.shieldmessenger.database.entities.PingInbox.STATE_FAILED_TEMP,
+                        com.shieldmessenger.database.entities.PingInbox.STATE_DOWNLOAD_QUEUED,
+                        com.shieldmessenger.database.entities.PingInbox.STATE_PONG_SENT,
+                        com.shieldmessenger.database.entities.PingInbox.STATE_MANUAL_REQUIRED
+                    )
+                    if (state in retryableStates) {
+                        Log.i(TAG, "→ Ping in retryable state ($state) — will re-trigger auto-download")
+                        shouldRetryDownload = true
+                    } else {
+                        Log.i(TAG, "→ Updated retry tracking, sending PING_ACK (state=$state, no retry needed)")
+                    }
+                }
+
+                else -> {
+                    // New PING - insert into ping_inbox as PING_SEEN
+                    Log.i(TAG, "NEW PING $pingId - inserting as PING_SEEN")
+                    val pingInbox = com.shieldmessenger.database.entities.PingInbox(
+                        pingId = pingId,
+                        contactId = contactId,
+                        state = com.shieldmessenger.database.entities.PingInbox.STATE_PING_SEEN,
+                        firstSeenAt = now,
+                        lastUpdatedAt = now,
+                        lastPingAt = now,
+                        pingAckedAt = null, // Will update after sending ACK
+                        attemptCount = 1,
+                        pingWireBytesBase64 = android.util.Base64.encodeToString(encryptedPingWire, android.util.Base64.NO_WRAP)
+                    )
+
+                    val inserted = withContext(Dispatchers.IO) {
+                        try {
+                            database.pingInboxDao().insert(pingInbox)
+                            true
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to insert ping_inbox entry", e)
+                            false
+                        }
+                    }
+
+                    if (inserted) {
+                        // DB insert is the single source of truth (ping_inbox with pingWireBytesBase64)
+                        shouldNotify = true
+                        Log.i(TAG, "→ Will show notification and send PING_ACK")
+                    }
+                }
+            }
+
+            // Show notification for new pings only
+            // When auto-download is active (Device Protection OFF), defer notification to
+            // DownloadMessageService which shows type-specific notifications (e.g. "New voice clip")
+            // and suppresses notifications for hidden types like profile updates (0x0F).
+            // Profile updates (0x0F wire type) are completely silent — no notification, no broadcast.
+            val isProfileUpdate = encryptedPingWire.isNotEmpty() && (encryptedPingWire[0].toInt() and 0xFF) == 0x0F
+            if (shouldNotify) {
+                if (!isProfileUpdate) {
+                    val securityPrefs = getSharedPreferences("security", MODE_PRIVATE)
+                    val deviceProtectionEnabled = securityPrefs.getBoolean(
+                        SecurityModeActivity.PREF_DEVICE_PROTECTION_ENABLED, false
+                    )
+                    if (deviceProtectionEnabled) {
+                        // Device Protection ON — user must manually download, show generic notification
+                        showNewMessageNotification()
+
+                        // Broadcast to update chat list immediately (user needs to see pending message)
+                        val intent = Intent("com.shieldmessenger.NEW_PING")
+                        intent.setPackage(packageName)
+                        intent.putExtra("CONTACT_ID", contactId)
+                        sendBroadcast(intent)
+                        Log.d(TAG, "Sent NEW_PING broadcast for contactId=$contactId")
+                    } else {
+                        // Auto-download active — defer ALL UI signals (notification + chat list)
+                        // to DownloadMessageService after message is fully downloaded.
+                        // This prevents "false alarm" where user opens chat before content is ready.
+                        Log.d(TAG, "Deferring notification + UI update to DownloadMessageService (auto-download active)")
+                    }
+                } else {
+                    Log.d(TAG, "Profile update ping $pingId — suppressing notification and UI broadcast")
+                }
+            }
+
+            // Send PING_ACK (always, regardless of state - "I saw your ping")
+            serviceScope.launch {
+                try {
+                    sendAckWithRetry(
+                        connectionId = connectionId,
+                        itemId = pingId,
+                        ackType = "PING_ACK",
+                        contactId = contactId,
+                        maxRetries = 10,
+                        initialDelayMs = 2000L
+                    )
+
+                    // Update pingAckedAt timestamp
+                    withContext(Dispatchers.IO) {
+                        database.pingInboxDao().updatePingAckTime(pingId, System.currentTimeMillis())
+                    }
+
+                    Log.d(TAG, "PING_ACK sent for pingId=$pingId")
+
+                    // AUTO-DOWNLOAD: Trigger for new pings AND retryable stuck pings
+                    if (shouldNotify || shouldRetryDownload) {
+                        val securityPrefs = getSharedPreferences("security", MODE_PRIVATE)
+                        val deviceProtectionEnabled = securityPrefs.getBoolean(
+                            SecurityModeActivity.PREF_DEVICE_PROTECTION_ENABLED, false
+                        )
+
+                        if (!deviceProtectionEnabled) {
+                            val reason = if (shouldRetryDownload) "retry stuck download" else "new ping"
+                            Log.i(TAG, "Auto-download ($reason) - triggering download for ping $pingId from $senderName")
+                            try {
+                                val claimed = withContext(Dispatchers.IO) {
+                                    val ts = System.currentTimeMillis()
+                                    if (shouldRetryDownload) {
+                                        // Reclaim from any stuck state → DOWNLOAD_QUEUED
+                                        val r = database.pingInboxDao().reclaimForRetry(pingId, ts)
+                                        if (r > 0) r else database.pingInboxDao().reclaimFromManual(pingId, ts)
+                                    } else {
+                                        // New ping: claim from PING_SEEN
+                                        database.pingInboxDao().claimForAutoDownload(pingId, ts)
+                                    }
+                                }
+                                if (claimed > 0) {
+                                    Log.i(TAG, "Claimed ping $pingId for auto-download ($reason) - starting DownloadMessageService")
+                                    com.shieldmessenger.services.DownloadMessageService.start(
+                                        this@TorService,
+                                        contactId,
+                                        senderName,
+                                        pingId,
+                                        connectionId
+                                    )
+                                } else {
+                                    Log.d(TAG, "Ping $pingId claim failed (state may have changed) - skipping auto-download")
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Auto-download failed for ping $pingId", e)
+                            }
+                        } else {
+                            Log.d(TAG, "Device Protection ON - waiting for manual download for ping $pingId")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to send PING_ACK", e)
+                }
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling incoming Ping", e)
+        }
+    }
+
+    /**
+     * Safely inserts a received ID into the database with error handling.
+     * Returns 0L (treat as new) on database failure to prevent app crashes.
+     * This is better than crashing - a ghost duplicate (~0.0001% risk) is acceptable.
+     *
+     * CRITICAL FIX: Now a suspend function to avoid blocking the ping handler thread
+     *
+     * @param database The ShieldMessenger database instance
+     * @param receivedId The ReceivedId entity to insert
+     * @param itemType The type of item ("PING", "PONG", "MESSAGE") for logging
+     * @return Row ID on success, -1L if duplicate, 0L on database failure
+     */
+    private suspend fun tryInsertReceivedId(
+        database: com.shieldmessenger.database.ShieldMessengerDatabase,
+        receivedId: com.shieldmessenger.database.entities.ReceivedId,
+        itemType: String
+    ): Long {
+        return try {
+            withContext(Dispatchers.IO) {
+                Log.d(TAG, "Attempting to insert $itemType ID into received_ids table...")
+                val result = database.receivedIdDao().insertReceivedId(receivedId)
+                Log.d(TAG, "Insert result: rowId=$result (${if (result == -1L) "DUPLICATE" else "NEW"})")
+                result
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "DATABASE INSERT FAILED! This $itemType will be processed (GHOST RISK!)", e)
+            Log.e(TAG, "Exception details: ${e.javaClass.simpleName}: ${e.message}")
+            0L // Treat as new if database fails (will cause ghosts but better than crash)
+        }
+    }
+
+    /**
+     * Sends ACK with automatic retry logic.
+     * Tries existing connection first, falls back to new connection, then retries with backoff.
+     * This prevents sender from having to retry the entire PING/PONG/MESSAGE.
+     *
+     * @param connectionId The connection ID from the incoming message
+     * @param itemId The ping ID or message ID to acknowledge
+     * @param ackType "PING_ACK", "PONG_ACK", or "MESSAGE_ACK"
+     * @param contactId The contact database ID
+     * @param maxRetries Maximum number of retry attempts (default: 3)
+     * @param initialDelayMs Initial delay between retries in milliseconds (default: 1000ms)
+     */
+    private suspend fun sendAckWithRetry(
+        connectionId: Long? = null, // Optional - null if no existing connection available
+        itemId: String,
+        ackType: String,
+        contactId: Long,
+        maxRetries: Int = 3,
+        initialDelayMs: Long = 1000L
+    ) {
+        // Wait for transport gate (quick timeout — ACKs are best-effort, retryable)
+        Log.d(TAG, "ACK send: waiting for transport gate to open...")
+        gate.awaitOpen(com.shieldmessenger.network.TransportGate.TIMEOUT_QUICK_MS)
+        Log.d(TAG, "ACK send: transport gate check done, proceeding with $ackType")
+
+        val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+        val dbPassphrase = keyManager.getDatabasePassphrase()
+        val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
+        val contact = database.contactDao().getContactById(contactId) ?: run {
+            Log.w(TAG, "Could not find contact with ID $contactId to send $ackType")
+            return
+        }
+
+        val senderX25519Pubkey = android.util.Base64.decode(
+            contact.x25519PublicKeyBase64,
+            android.util.Base64.NO_WRAP
+        )
+        val senderEd25519Pubkey = android.util.Base64.decode(
+            contact.publicKeyBase64,
+            android.util.Base64.NO_WRAP
+        )
+
+        var attempt = 0
+        var delayMs = initialDelayMs
+
+        while (attempt < maxRetries) {
+            try {
+                var ackSuccess = false
+
+                // PATH 1: DISABLED - Connection reuse for ACKs
+                //
+                // ARCHITECTURAL DECISION: All ACKs MUST go to dedicated port 9153 for clean separation.
+                // Connection reuse optimization is disabled because:
+                // 1. Reusing connections sends ACKs to port 8080 (wrong port)
+                // 2. Causes routing confusion between PING/PONG and ACK handlers
+                // 3. Performance difference (~200ms) is negligible for background confirmations
+                // 4. Clean architecture > micro-optimization
+                //
+                // Connection reuse code preserved below but disabled:
+                if (false && connectionId != null) {
+                    ackSuccess = RustBridge.sendAckOnConnection(
+                        connectionId!!, // Safe because null check above
+                        itemId,
+                        ackType,
+                        senderX25519Pubkey
+                    )
+
+                    if (ackSuccess) {
+                        Log.i(TAG, "$ackType sent successfully on existing connection for $itemId (attempt ${attempt + 1})")
+                        return // Success!
+                    }
+                    Log.d(TAG, "Connection closed, falling back to new connection for $ackType (attempt ${attempt + 1})")
+                }
+
+                // All ACKs now use PATH 2 (new connection to port 9153)
+                Log.d(TAG, "Sending $ackType via new connection to port 9153 (connection reuse disabled)")
+
+                // PATH 2: Open new connection (always available)
+                val onionAddress = contact.messagingOnion ?: ""
+                ackSuccess = RustBridge.sendDeliveryAck(
+                    itemId,
+                    ackType,
+                    senderEd25519Pubkey,
+                    senderX25519Pubkey,
+                    onionAddress
+                )
+
+                if (ackSuccess) {
+                    Log.i(TAG, "$ackType sent successfully via new connection for $itemId (attempt ${attempt + 1})")
+                    return // Success!
+                }
+
+                // Both paths failed
+                attempt++
+                if (attempt < maxRetries) {
+                    Log.w(TAG, "$ackType send failed (attempt $attempt/$maxRetries), retrying in ${delayMs}ms...")
+                    kotlinx.coroutines.delay(delayMs)
+                    delayMs = (delayMs * 2).coerceAtMost(30_000L) // Exponential backoff capped at 30s
+                } else {
+                    Log.e(TAG, "$ackType send FAILED after $maxRetries attempts for $itemId")
+                    Log.e(TAG, "→ Sender will retry ${if (ackType == "PING_ACK") "PING" else if (ackType == "PONG_ACK") "PONG" else "MESSAGE"}, which is acceptable")
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception during $ackType send (attempt ${attempt + 1}/$maxRetries)", e)
+                attempt++
+                if (attempt < maxRetries) {
+                    kotlinx.coroutines.delay(delayMs)
+                    delayMs = (delayMs * 2).coerceAtMost(30_000L)
+                }
+            }
+        }
+    }
+
+    /**
+     * Handle incoming message blob
+     * Wire format: [Sender X25519 Public Key - 32 bytes][Encrypted Message]
+     */
+    private fun handleIncomingMessageBlob(encryptedMessageWire: ByteArray) {
+        try {
+            // Wire format: [Type byte][Sender X25519 - 32 bytes][Encrypted Message]
+            // Type byte is kept by Rust listener (not stripped) to prevent offset mismatch
+
+            Log.i(TAG, "")
+            Log.i(TAG, "INCOMING MESSAGE BLOB (${encryptedMessageWire.size} bytes)")
+            Log.i(TAG, "")
+
+            if (encryptedMessageWire.size < 33) { // 1 (type) + 32 (pubkey)
+                Log.e(TAG, "Message blob too short - minimum 33 bytes required")
+                return
+            }
+
+            // Intercept CRDT wire types (0x30, 0x32, 0x33) BEFORE decryption.
+            // CRDT messages are NOT per-member X25519 encrypted — they are:
+            //   - Ed25519-signed (integrity + authorship in op envelopes)
+            //   - XChaCha20 group-secret encrypted (message content confidentiality)
+            //   - Tor .onion encrypted (transport)
+            // Wire format from sendMessageBlob: [type][senderX25519:32][payload...]
+            // The senderX25519 is always prepended by Rust sendMessageBlob — we skip it here.
+            //   0x30 CRDT_OPS:      payload = [groupId:32][packedOps]
+            //   0x32 SYNC_REQUEST:  payload = [groupId:32][afterLamport:u64 BE][limit:u32 BE]
+            //   0x33 SYNC_CHUNK:    payload = [groupId:32][packedOps]
+            val wireType = encryptedMessageWire[0].toInt() and 0xFF
+            if (wireType == 0x30 || wireType == 0x32 || wireType == 0x33 || wireType == 0x35 || wireType == 0x36) {
+                val minSize = 1 + 32 + CRDT_GROUP_ID_LEN // type(1) + X25519(32) + groupId(32) = 65
+                if (encryptedMessageWire.size < minSize) {
+                    Log.e(TAG, "CRDT wire 0x${"%02x".format(wireType)} too short: ${encryptedMessageWire.size} bytes (need >= $minSize)")
+                    return
+                }
+                // Sender X25519 pubkey at [1..33] — needed for 0x32 reply
+                val senderX25519 = encryptedMessageWire.copyOfRange(1, 33)
+                // Body starts after type(1) + X25519(32) = 33
+                val crdtBody = encryptedMessageWire.copyOfRange(33, encryptedMessageWire.size)
+                val groupIdHex = crdtBody.copyOfRange(0, CRDT_GROUP_ID_LEN)
+                    .joinToString("") { "%02x".format(it) }
+                val rest = crdtBody.copyOfRange(CRDT_GROUP_ID_LEN, crdtBody.size)
+
+                when (wireType) {
+                    0x30 -> {
+                        // CRDT_OPS: apply ops + notify UI
+                        Log.i(TAG, "CRDT_OPS intercepted: group=${groupIdHex.take(16)}... payload=${rest.size} bytes")
+                        serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            try {
+                                val mgr = CrdtGroupManager.getInstance(this@TorService)
+                                val (applied, rejected) = mgr.applyReceivedOps(groupIdHex, rest)
+                                Log.i(TAG, "CRDT_OPS applied=$applied rejected=$rejected group=${groupIdHex.take(16)}...")
+                                sendBroadcast(android.content.Intent("com.shieldmessenger.NEW_GROUP_MESSAGE").apply {
+                                    setPackage(packageName)
+                                    putExtra("GROUP_ID", groupIdHex)
+                                })
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error processing CRDT_OPS", e)
+                            }
+                        }
+                    }
+                    0x32 -> {
+                        // SYNC_REQUEST: peer wants ops after a lamport cursor
+                        Log.i(TAG, "SYNC_REQUEST: group=${groupIdHex.take(16)}... payload=${rest.size} bytes")
+                        serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            try {
+                                // Look up sender's onion by X25519 pubkey (Contact → GroupPeer fallback)
+                                val senderX25519B64 = android.util.Base64.encodeToString(senderX25519, android.util.Base64.NO_WRAP)
+                                val mgr = CrdtGroupManager.getInstance(this@TorService)
+                                val senderOnion = mgr.resolveOnionByX25519(senderX25519B64, groupIdHex)
+                                if (senderOnion.isNullOrEmpty()) {
+                                    Log.w(TAG, "SYNC_REQUEST from unknown peer — no onion to reply")
+                                    return@launch
+                                }
+                                mgr.handleSyncRequest(groupIdHex, rest, senderOnion)
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error handling SYNC_REQUEST", e)
+                            }
+                        }
+                    }
+                    0x33 -> {
+                        // SYNC_CHUNK: receive ops from sync peer — same as 0x30
+                        Log.i(TAG, "SYNC_CHUNK: group=${groupIdHex.take(16)}... payload=${rest.size} bytes")
+                        serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            try {
+                                val mgr = CrdtGroupManager.getInstance(this@TorService)
+                                val (applied, rejected) = mgr.applyReceivedOps(groupIdHex, rest)
+                                Log.i(TAG, "SYNC_CHUNK applied=$applied rejected=$rejected group=${groupIdHex.take(16)}...")
+                                sendBroadcast(android.content.Intent("com.shieldmessenger.NEW_GROUP_MESSAGE").apply {
+                                    setPackage(packageName)
+                                    putExtra("GROUP_ID", groupIdHex)
+                                })
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error processing SYNC_CHUNK", e)
+                            }
+                        }
+                    }
+                    0x35 -> {
+                        // ROUTING_UPDATE: store peer routing entries + flush pending deliveries
+                        Log.i(TAG, "ROUTING_UPDATE: group=${groupIdHex.take(16)}... payload=${rest.size} bytes")
+                        serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            try {
+                                val mgr = CrdtGroupManager.getInstance(this@TorService)
+                                mgr.handleRoutingUpdate(groupIdHex, rest)
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error processing ROUTING_UPDATE", e)
+                            }
+                        }
+                    }
+                    0x36 -> {
+                        // ROUTING_REQUEST: peer needs routing info — respond with ROUTING_UPDATE
+                        Log.i(TAG, "ROUTING_REQUEST: group=${groupIdHex.take(16)}... payload=${rest.size} bytes")
+                        serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            try {
+                                val mgr = CrdtGroupManager.getInstance(this@TorService)
+                                val senderX25519B64 = android.util.Base64.encodeToString(senderX25519, android.util.Base64.NO_WRAP)
+                                val senderOnion = mgr.resolveOnionByX25519(senderX25519B64, groupIdHex)
+                                if (senderOnion != null) {
+                                    mgr.handleRoutingRequest(groupIdHex, rest, senderOnion)
+                                } else {
+                                    Log.w(TAG, "ROUTING_REQUEST: can't resolve sender onion — cannot reply")
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error processing ROUTING_REQUEST", e)
+                            }
+                        }
+                    }
+                }
+                return
+            }
+
+            // Extract sender's X25519 public key (skip type byte at offset 0)
+            val senderX25519PublicKey = encryptedMessageWire.copyOfRange(1, 33)
+            val encryptedPayload = encryptedMessageWire.copyOfRange(33, encryptedMessageWire.size)
+
+            // Diagnostic: Verify extraction worked correctly
+            Log.e(TAG, "EXTRACT pubkey len=${senderX25519PublicKey.size} head=${senderX25519PublicKey.take(8).joinToString("") { "%02x".format(it) }}")
+            Log.e(TAG, "EXTRACT payload len=${encryptedPayload.size} head=${encryptedPayload.take(8).joinToString("") { "%02x".format(it) }}")
+
+            Log.d(TAG, "Sender X25519 pubkey: ${android.util.Base64.encodeToString(senderX25519PublicKey, android.util.Base64.NO_WRAP).take(16)}...")
+            Log.d(TAG, "Encrypted payload: ${encryptedPayload.size} bytes")
+
+            // Look up contact by X25519 public key to see if sender is known
+            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val dbPassphrase = keyManager.getDatabasePassphrase()
+            val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
+
+            val senderX25519Base64 = android.util.Base64.encodeToString(senderX25519PublicKey, android.util.Base64.NO_WRAP)
+            val contact = database.contactDao().getContactByX25519PublicKey(senderX25519Base64)
+
+            if (contact == null) {
+                // Unknown sender - check if we have a pending outgoing request
+                // If yes, this is a FRIEND_REQUEST_ACCEPTED notification
+                // If no, this is a new incoming FRIEND_REQUEST
+                val prefs = getSharedPreferences("friend_requests", MODE_PRIVATE)
+                val pendingRequestsV2 = prefs.getStringSet("pending_requests_v2", mutableSetOf()) ?: mutableSetOf()
+                val hasPendingOutgoingRequest = pendingRequestsV2.any { requestJson ->
+                    try {
+                        val request = com.shieldmessenger.models.PendingFriendRequest.fromJson(requestJson)
+                        request.direction == com.shieldmessenger.models.PendingFriendRequest.DIRECTION_OUTGOING
+                        // Note: We can't match by X25519 key here since we don't have their card yet
+                        // We'll handle this inside handleFriendRequestAcceptedFromPending
+                    } catch (e: Exception) {
+                        false
+                    }
+                }
+
+                if (hasPendingOutgoingRequest) {
+                    Log.i(TAG, "→ Unknown sender with pending outgoing request - treating as FRIEND_REQUEST_ACCEPTED")
+                    handleFriendRequestAcceptedFromPending(senderX25519PublicKey, encryptedPayload)
+                } else {
+                    Log.i(TAG, "→ Unknown sender - treating as FRIEND_REQUEST")
+                    handleFriendRequest(senderX25519PublicKey, encryptedPayload)
+                }
+                return
+            }
+
+            // Known contact - check if this is a FRIEND_REQUEST_ACCEPTED notification
+            if (contact.friendshipStatus == com.shieldmessenger.database.entities.Contact.FRIENDSHIP_PENDING_SENT) {
+                Log.i(TAG, "→ Known contact with PENDING status - treating as FRIEND_REQUEST_ACCEPTED")
+                handleFriendRequestAccepted(contact, senderX25519PublicKey, encryptedPayload)
+                return
+            }
+
+            // Known contact - this is a regular message
+            // All message types (TEXT, VOICE, IMAGES, PAYMENTS) come through this handler
+            Log.i(TAG, "Processing message from: ${contact.displayName}")
+
+            val ourEd25519PublicKey = keyManager.getSigningPublicKey()
+            val ourPrivateKey = keyManager.getSigningKeyBytes()
+
+            // Message type is INSIDE the plaintext (after decryption), not in ciphertext headers.
+            var messageType = com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_TEXT
+            var voiceDuration: Int? = null
+            val actualEncryptedMessage = encryptedPayload // Raw ciphertext — pubkey already stripped from wire
+            var voiceFilePath: String? = null
+
+            Log.d(TAG, "Received encrypted message: ${encryptedPayload.size} bytes (will decrypt first, then parse type)")
+
+            // Get key chain for progressive ephemeral key evolution
+            val keyChain = kotlinx.coroutines.runBlocking {
+                com.shieldmessenger.crypto.KeyChainManager.getKeyChain(this@TorService, contact.id)
+            }
+
+            if (keyChain == null) {
+                Log.e(TAG, "Key chain not found for contact ${contact.displayName} (ID: ${contact.id})")
+                return
+            }
+
+            Log.d(TAG, "Decrypting ${actualEncryptedMessage.size} bytes with receiveCounter=${keyChain.receiveCounter}")
+
+            // ====== DECRYPTION WITH PER-CONTACT MUTEX + LOOKAHEAD RECOVERY ======
+            // This section is protected by a per-contact mutex to prevent race conditions
+            // when multiple messages arrive concurrently for the same contact.
+            //
+            // FIX #1: Per-contact receive mutex prevents "out-of-order" errors from concurrent processing
+            // FIX #2: Lookahead window (expected to expected+32) recovers from missed messages over Tor
+            // FIX #3: Only fall back to legacy X25519 for actual legacy packets (not evolution counter mismatch)
+
+            var result: RustBridge.DecryptionResult? = null
+            var plaintext: String = "" // Will be set by decryption (evolution or legacy)
+            var finalReceiveCounter: Long = keyChain.receiveCounter
+            var usedLegacyDecryption = false // Track if we used non-evolution decryption
+            var evolvedChainKey: ByteArray? = null // Store evolved key for later
+
+            // Get the per-contact mutex (create if first time)
+            val receiveMutex = receiveMutexByContact.getOrPut(contact.id) { Mutex() }
+
+            // Acquire mutex for this contact's decrypt+DB+counter update
+            val decryptResult = kotlinx.coroutines.runBlocking {
+                receiveMutex.withLock {
+                    // Re-load key chain inside mutex to get latest counter
+                    val freshKeyChain = com.shieldmessenger.crypto.KeyChainManager.getKeyChain(this@TorService, contact.id)
+                    if (freshKeyChain == null) {
+                        Log.e(TAG, "Key chain disappeared while waiting for mutex")
+                        return@withLock null
+                    }
+
+                    val expected = freshKeyChain.receiveCounter
+                    val MAX_LOOKAHEAD = 32L // Try up to 32 counters ahead
+
+                    Log.d(TAG, "MUTEX LOCKED: Attempting decryption for contact ${contact.id}, expected counter: $expected")
+
+                    // Try decryption at expected counter first
+                    var decryptedResult: RustBridge.DecryptionResult? = null
+                    var usedCounter: Long = expected
+
+                    try {
+                        decryptedResult = RustBridge.decryptMessageWithEvolution(
+                            actualEncryptedMessage,
+                            freshKeyChain.receiveChainKeyBytes,
+                            expected
+                        )
+                        if (decryptedResult != null) {
+                            Log.d(TAG, "Decryption succeeded at expected counter $expected")
+                        }
+                    } catch (e: Exception) {
+                        val errorMsg = e.message ?: ""
+                        if (errorMsg.contains("Out of order") || errorMsg.contains("out of order") || errorMsg.contains("Decryption failed")) {
+                            Log.w(TAG, "Decryption failed at expected counter $expected: $errorMsg")
+                        } else {
+                            Log.e(TAG, "Non-recoverable decryption error: $errorMsg", e)
+                            throw e
+                        }
+                    }
+
+                    // If failed at expected, try lookahead window
+                    if (decryptedResult == null) {
+                        Log.w(TAG, "Attempting lookahead recovery (counters ${expected + 1} to ${expected + MAX_LOOKAHEAD})...")
+
+                        // Get onion addresses for direction mapping (needed for deriveReceiveKeyAtSequence)
+                        val keyMgr = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                        val ourOnion = keyMgr.getMessagingOnion()
+                        val theirOnion = contact.messagingOnion
+
+                        if (ourOnion == null || theirOnion == null) {
+                            Log.e(TAG, "Cannot perform lookahead recovery: missing onion addresses")
+                            return@withLock null
+                        }
+
+                        // Try counters ahead (expected+1 to expected+MAX_LOOKAHEAD)
+                        for (c in (expected + 1)..(expected + MAX_LOOKAHEAD)) {
+                            // Derive key at counter c from root key
+                            val derivedKey = try {
+                                RustBridge.deriveReceiveKeyAtSequence(
+                                    freshKeyChain.rootKeyBytes,
+                                    c,
+                                    ourOnion,
+                                    theirOnion
+                                )
+                            } catch (e: Exception) {
+                                Log.d(TAG, "Failed to derive key at counter $c: ${e.message}")
+                                continue
+                            }
+
+                            if (derivedKey == null) continue
+
+                            // Try decrypting with derived key
+                            val attempt = try {
+                                RustBridge.decryptMessageWithEvolution(
+                                    actualEncryptedMessage,
+                                    derivedKey,
+                                    c
+                                )
+                            } catch (e: Exception) {
+                                null // Keep trying next counter
+                            }
+
+                            if (attempt != null) {
+                                decryptedResult = attempt
+                                usedCounter = c
+                                Log.i(TAG, "Lookahead recovery SUCCESS at counter $c (gap: ${c - expected})")
+                                break
+                            }
+                        }
+
+                        if (decryptedResult == null) {
+                            Log.w(TAG, "Lookahead recovery FAILED for counters $expected to ${expected + MAX_LOOKAHEAD}")
+                        }
+                    }
+
+                    // If still null, this is NOT an out-of-order issue - might be legacy packet
+                    if (decryptedResult == null) {
+                        return@withLock Triple<RustBridge.DecryptionResult?, Long, ByteArray?>(null, expected, null)
+                    }
+
+                    // Decryption succeeded - update key chain in DB while still holding mutex
+                    val newCounter = usedCounter + 1
+                    val keyMgrForUpdate = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                    val dbPassphraseForUpdate = keyMgrForUpdate.getDatabasePassphrase()
+                    val databaseForUpdate = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@TorService, dbPassphraseForUpdate)
+
+                    // Update receive chain key and counter atomically
+                    databaseForUpdate.contactKeyChainDao().updateReceiveChainKey(
+                        contactId = contact.id,
+                        newReceiveChainKeyBase64 = android.util.Base64.encodeToString(decryptedResult.evolvedChainKey, android.util.Base64.NO_WRAP),
+                        newReceiveCounter = newCounter,
+                        timestamp = System.currentTimeMillis()
+                    )
+
+                    // Verify the update
+                    val verifyKeyChain = databaseForUpdate.contactKeyChainDao().getKeyChainByContactId(contact.id)
+                    if (verifyKeyChain?.receiveCounter != newCounter) {
+                        Log.e(TAG, "CRITICAL: Counter update failed! Expected $newCounter, got ${verifyKeyChain?.receiveCounter}")
+                    } else {
+                        Log.d(TAG, "Counter updated: $expected -> $newCounter (used: $usedCounter)")
+                    }
+
+                    Triple(decryptedResult, usedCounter, decryptedResult.evolvedChainKey)
+                }
+            }
+
+            // Process decrypt result outside mutex
+            if (decryptResult != null && decryptResult.first != null) {
+                result = decryptResult.first
+                finalReceiveCounter = decryptResult.second
+                evolvedChainKey = decryptResult.third
+                Log.d(TAG, "Decryption completed: counter=$finalReceiveCounter")
+            }
+
+            // If evolution decryption failed, check if this is a LEGACY packet (not just counter mismatch)
+            // Only fall back to legacy X25519 for packets that look like legacy format
+            // DO NOT fall back for evolution packets that just have wrong counter
+            if (result == null) {
+                // Check if packet has evolution header (version byte 0x01, valid sequence)
+                val hasEvolutionHeader = actualEncryptedMessage.size >= 9 &&
+                    actualEncryptedMessage[0].toInt() == 0x01
+
+                if (hasEvolutionHeader) {
+                    // This is an evolution packet - lookahead exhausted means key chain is badly desync'd
+                    // DO NOT try legacy decrypt - it will just add noise
+                    Log.e(TAG, "Evolution packet decryption failed after lookahead window exhausted")
+                    Log.e(TAG, "Key chains may be out of sync - contact may need key re-exchange")
+                    return
+                }
+
+                // Not an evolution packet - try legacy X25519 decryption (for PING/PONG, GROUP messages)
+                Log.w(TAG, "Non-evolution packet detected, trying legacy X25519 decryption...")
+
+                    // Fallback: Try legacy X25519 decryption (used by PING/PONG, GROUP messages)
+                    val legacyDecrypted = try {
+                        RustBridge.decryptMessage(
+                            actualEncryptedMessage,
+                            ourEd25519PublicKey,
+                            ourPrivateKey
+                        )
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Legacy decryption exception", e)
+                        null
+                    }
+
+                    if (legacyDecrypted != null) {
+                        Log.i(TAG, "Legacy X25519 decryption succeeded (likely PING/PONG or GROUP message)")
+                        usedLegacyDecryption = true
+
+                        // Parse plaintext[0] for message type
+                        val legacyPlaintextBytes = legacyDecrypted.toByteArray(Charsets.ISO_8859_1)
+                        if (legacyPlaintextBytes.isEmpty()) {
+                            Log.e(TAG, "Legacy decrypted plaintext is empty")
+                            return
+                        }
+
+                        val legacyAppType = legacyPlaintextBytes[0].toInt() and 0xFF
+                        val legacyBody = if (legacyPlaintextBytes.size > 1) legacyPlaintextBytes.copyOfRange(1, legacyPlaintextBytes.size) else ByteArray(0)
+
+                        when (legacyAppType) {
+                            0x0E -> {
+                                // STICKER (legacy X25519 path): [0x0E][assetPathUtf8...]
+                                Log.i(TAG, "Message type: STICKER (legacy X25519, from plaintext)")
+                                // Keep 0x0E prefix in plaintext so the modern appType parser
+                                // correctly routes to the STICKER handler (line ~4641)
+                                plaintext = String(legacyPlaintextBytes, Charsets.ISO_8859_1)
+                                // Fall through to modern appType parser which handles 0x0E → STICKER
+                            }
+                            0x20 -> {
+                                // Legacy GROUP_INVITE — superseded by CRDT (0x30). Ignore.
+                                Log.w(TAG, "Ignoring legacy GROUP_INVITE (0x20) — use CRDT groups")
+                                return
+                            }
+                            0x21 -> {
+                                // Legacy GROUP_MESSAGE — superseded by CRDT (0x30). Ignore.
+                                Log.w(TAG, "Ignoring legacy GROUP_MESSAGE (0x21) — use CRDT groups")
+                                return
+                            }
+                            0x30 -> {
+                                // CRDT_OPS: [type=0x30][32-byte groupId][packed ops...]
+                                Log.i(TAG, "Message type: CRDT_OPS (legacy path)")
+                                if (legacyBody.size < CRDT_GROUP_ID_LEN) {
+                                    Log.e(TAG, "CRDT_OPS too short: ${legacyBody.size} bytes (need >= $CRDT_GROUP_ID_LEN)")
+                                    return
+                                }
+                                val groupIdHex = legacyBody.copyOfRange(0, CRDT_GROUP_ID_LEN).joinToString("") { "%02x".format(it) }
+                                val packedOps = legacyBody.copyOfRange(CRDT_GROUP_ID_LEN, legacyBody.size)
+                                serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                                    try {
+                                        val mgr = CrdtGroupManager.getInstance(this@TorService)
+                                        val (applied, rejected) = mgr.applyReceivedOps(groupIdHex, packedOps)
+                                        Log.i(TAG, "CRDT_OPS applied=$applied rejected=$rejected group=${groupIdHex.take(16)}...")
+                                        val intent = android.content.Intent("com.shieldmessenger.NEW_GROUP_MESSAGE")
+                                        intent.setPackage(packageName)
+                                        intent.putExtra("GROUP_ID", groupIdHex)
+                                        sendBroadcast(intent)
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Error processing CRDT_OPS", e)
+                                    }
+                                }
+                                return
+                            }
+                            else -> {
+                                Log.w(TAG, "Legacy decryption succeeded but unknown appType=0x${String.format("%02X", legacyAppType)}")
+                                // Try treating as legacy text message
+                                Log.d(TAG, "Treating as legacy TEXT message (no key evolution)")
+                                plaintext = String(legacyPlaintextBytes, Charsets.UTF_8)
+                                messageType = com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_TEXT
+                                // Skip to message type parsing (no key evolution for legacy)
+                            }
+                        }
+                    } else {
+                        Log.e(TAG, "All decryption methods failed (including legacy)")
+                        return
+                    }
+            }
+
+            // If we got here with evolution decryption, extract plaintext
+            // (Counter was already updated inside the mutex)
+            if (result != null && !usedLegacyDecryption) {
+                plaintext = result.plaintext
+                Log.d(TAG, "Evolution decryption successful, counter=${finalReceiveCounter}")
+            }
+
+            // NEW: Parse message type from DECRYPTED plaintext[0], not from ciphertext
+            // This is the only stable design - crypto headers can change, but app framing is inside plaintext
+            val plaintextBytes = plaintext.toByteArray(Charsets.ISO_8859_1)
+            if (plaintextBytes.isEmpty()) {
+                Log.e(TAG, "Decrypted plaintext is empty")
+                return
+            }
+
+            val appType = plaintextBytes[0].toInt() and 0xFF
+            val body = if (plaintextBytes.size > 1) plaintextBytes.copyOfRange(1, plaintextBytes.size) else ByteArray(0)
+            Log.d(TAG, "Parsed appType=0x${String.format("%02X", appType)} from plaintext[0], body=${body.size} bytes")
+
+            // Variable to hold the actual message content (after stripping type/metadata)
+            var messageContent: String = plaintext // Default: use full plaintext
+
+            when (appType) {
+                0x00 -> {
+                    // TEXT: [type=0x00][utf8 text bytes...]
+                    messageType = com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_TEXT
+                    messageContent = String(body, Charsets.UTF_8)
+                    Log.d(TAG, "Message type: TEXT (from plaintext), content length: ${messageContent.length}")
+                }
+
+                0x01 -> {
+                    // VOICE: [type=0x01][duration:4 BE][audioBytes...]
+                    if (body.size < 4) {
+                        Log.e(TAG, "VOICE plaintext too short (missing duration), body size: ${body.size}")
+                        return
+                    }
+                    messageType = com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_VOICE
+                    voiceDuration =
+                        ((body[0].toInt() and 0xFF) shl 24) or
+                        ((body[1].toInt() and 0xFF) shl 16) or
+                        ((body[2].toInt() and 0xFF) shl 8) or
+                        (body[3].toInt() and 0xFF)
+                    val audioBytes = body.copyOfRange(4, body.size)
+                    // Store audio bytes as ISO_8859_1 string for later processing
+                    messageContent = String(audioBytes, Charsets.ISO_8859_1)
+                    Log.d(TAG, "Message type: VOICE (from plaintext), duration: ${voiceDuration}s, audio: ${audioBytes.size} bytes")
+                }
+
+                0x02 -> {
+                    // IMAGE: [type=0x02][imageBytes...]
+                    messageType = com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_IMAGE
+                    // Store image bytes as ISO_8859_1 string for later processing
+                    messageContent = String(body, Charsets.ISO_8859_1)
+                    Log.d(TAG, "Message type: IMAGE (from plaintext), image: ${body.size} bytes")
+                }
+
+                0x0A -> {
+                    // PAYMENT_REQUEST: [type=0x0A][jsonBytes...]
+                    messageType = com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_PAYMENT_REQUEST
+                    messageContent = String(body, Charsets.UTF_8)
+                    Log.d(TAG, "Message type: PAYMENT_REQUEST (from plaintext)")
+                }
+
+                0x0B -> {
+                    // PAYMENT_SENT: [type=0x0B][jsonBytes...]
+                    messageType = com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_PAYMENT_SENT
+                    messageContent = String(body, Charsets.UTF_8)
+                    Log.d(TAG, "Message type: PAYMENT_SENT (from plaintext)")
+                }
+
+                0x0C -> {
+                    // PAYMENT_ACCEPTED: [type=0x0C][jsonBytes...]
+                    messageType = com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_PAYMENT_ACCEPTED
+                    messageContent = String(body, Charsets.UTF_8)
+                    Log.d(TAG, "Message type: PAYMENT_ACCEPTED (from plaintext)")
+                }
+
+                0x0E -> {
+                    // STICKER: [type=0x0E][assetPathUtf8...]
+                    messageType = com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_STICKER
+                    messageContent = String(body, Charsets.UTF_8)
+                    Log.d(TAG, "Message type: STICKER (from plaintext), path: $messageContent")
+                }
+
+                0x0F -> {
+                    // PROFILE_UPDATE: [type=0x0F][photoBytes...]
+                    Log.i(TAG, "Message type: PROFILE_UPDATE (from plaintext)")
+                    val photoBytes = body
+
+                    serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        try {
+                            val dbPassphrase = keyManager.getDatabasePassphrase()
+                            val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@TorService, dbPassphrase)
+
+                            if (photoBytes.isEmpty()) {
+                                // Empty body = photo removal
+                                database.contactDao().updateContactPhoto(contact.id, null)
+                                Log.i(TAG, "Profile photo removed for ${contact.displayName}")
+                            } else {
+                                val photoBase64 = android.util.Base64.encodeToString(photoBytes, android.util.Base64.NO_WRAP)
+                                database.contactDao().updateContactPhoto(contact.id, photoBase64)
+                                Log.i(TAG, "Profile photo updated for ${contact.displayName} (${photoBytes.size} bytes)")
+                            }
+
+                            // Broadcast to refresh any open contact views
+                            val refreshIntent = android.content.Intent("com.shieldmessenger.PROFILE_UPDATED")
+                            refreshIntent.setPackage(packageName)
+                            refreshIntent.putExtra("CONTACT_ID", contact.id)
+                            sendBroadcast(refreshIntent)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to process profile update", e)
+                        }
+                    }
+                    return // Don't save as regular message
+                }
+
+                0x20 -> {
+                    // Legacy GROUP_INVITE — superseded by CRDT (0x30). Ignore.
+                    Log.w(TAG, "Ignoring legacy GROUP_INVITE (0x20) — use CRDT groups")
+                    return
+                }
+
+                0x21 -> {
+                    // Legacy GROUP_MESSAGE — superseded by CRDT (0x21). Ignore.
+                    Log.w(TAG, "Ignoring legacy GROUP_MESSAGE (0x21) — use CRDT groups")
+                    return
+                }
+
+                0x30 -> {
+                    // CRDT_OPS: [type=0x30][32-byte groupId][packed ops...]
+                    Log.i(TAG, "Message type: CRDT_OPS")
+                    if (body.size < CRDT_GROUP_ID_LEN) {
+                        Log.e(TAG, "CRDT_OPS too short: ${body.size} bytes (need >= $CRDT_GROUP_ID_LEN)")
+                        return
+                    }
+                    val groupIdHex = body.copyOfRange(0, CRDT_GROUP_ID_LEN)
+                        .joinToString("") { "%02x".format(it) }
+                    val packedOps = body.copyOfRange(CRDT_GROUP_ID_LEN, body.size)
+                    serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        try {
+                            val mgr = CrdtGroupManager.getInstance(this@TorService)
+                            val (applied, rejected) = mgr.applyReceivedOps(groupIdHex, packedOps)
+                            Log.i(TAG, "CRDT_OPS applied=$applied rejected=$rejected group=${groupIdHex.take(16)}...")
+                            val intent = android.content.Intent("com.shieldmessenger.NEW_GROUP_MESSAGE").apply {
+                                setPackage(packageName)
+                                putExtra("GROUP_ID", groupIdHex)
+                            }
+                            sendBroadcast(intent)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error processing CRDT_OPS", e)
+                        }
+                    }
+                    return // Don't process as regular message
+                }
+
+                else -> {
+                    // Backward compat: older clients may have sent plaintext TEXT with no leading type byte.
+                    // Treat entire plaintext as UTF-8 text.
+                    Log.d(TAG, "Message type: TEXT (legacy, unknown appType=0x${String.format("%02X", appType)})")
+                    messageType = com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_TEXT
+                    messageContent = try {
+                        String(plaintextBytes, Charsets.UTF_8)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to decode legacy plaintext as UTF-8", e)
+                        return
+                    }
+                }
+            }
+
+            // Update plaintext variable to use the parsed message content
+            plaintext = messageContent
+
+            Log.i(TAG, "Decrypted message (${messageType}): ${if (messageType == com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_TEXT) plaintext.take(50) else "${voiceDuration}s voice, ${plaintext.length} bytes"}...")
+
+            // Save message directly to database (already decrypted)
+            Log.d(TAG, "MESSAGE SAVE: Launching coroutine to save message to database")
+            serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                try {
+                    Log.d(TAG, "MESSAGE SAVE: Coroutine started (contactId=${contact.id}, contact=${contact.displayName})")
+                    // Generate messageId from ENCRYPTED PAYLOAD (prevents ghost messages across both paths)
+                    // Using encrypted bytes ensures same message arriving via both listener and pong has same ID
+                    // Encrypted payload includes random nonce, so identical plaintexts get different IDs
+                    val messageIdHash = java.security.MessageDigest.getInstance("SHA-256").digest(actualEncryptedMessage)
+                    val messageId = "blob_" + android.util.Base64.encodeToString(messageIdHash, android.util.Base64.NO_WRAP).take(28)
+
+                    Log.d(TAG, "MESSAGE SAVE: Message ID generated from encrypted payload hash: $messageId")
+
+                    // Get database
+                    val dbPassphrase = keyManager.getDatabasePassphrase()
+                    val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@TorService, dbPassphrase)
+
+                    // Track this messageId to prevent duplicate processing (PRIMARY deduplication)
+                    val messageTracking = com.shieldmessenger.database.entities.ReceivedId(
+                        receivedId = messageId,
+                        idType = com.shieldmessenger.database.entities.ReceivedId.TYPE_MESSAGE,
+                        receivedTimestamp = System.currentTimeMillis()
+                    )
+                    Log.d(TAG, "MESSAGE SAVE: Attempting to insert messageId into ReceivedId tracking table...")
+                    val rowId = tryInsertReceivedId(database, messageTracking, "MESSAGE")
+                    Log.d(TAG, "MESSAGE SAVE: ReceivedId insert result: rowId=$rowId")
+
+                    if (rowId == -1L) {
+                        Log.w(TAG, "MESSAGE SAVE: DUPLICATE MESSAGE BLOB BLOCKED! MessageId=$messageId already in tracking table")
+                        Log.i(TAG, "MESSAGE SAVE: Skipping duplicate message blob processing")
+
+                        // Send MESSAGE_ACK to stop sender from retrying (with retry logic)
+                        serviceScope.launch {
+                            sendAckWithRetry(
+                                connectionId = null, // No existing connection available
+                                itemId = messageId,
+                                ackType = "MESSAGE_ACK",
+                                contactId = contact.id
+                            )
+                        }
+                        return@launch
+                    }
+                    Log.i(TAG, "→ New Message Blob - tracked in database (rowId=$rowId)")
+
+                    // PRIMARY deduplication via ReceivedId table above is sufficient
+                    // No secondary check needed - this was blocking rapid identical messages
+
+                    // If it's a voice message, save the audio file
+                    if (messageType == com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_VOICE) {
+                        try {
+                            val voiceRecorder = com.shieldmessenger.utils.VoiceRecorder(this@TorService)
+                            val audioBytes = plaintext.toByteArray(Charsets.ISO_8859_1)
+                            voiceFilePath = voiceRecorder.saveVoiceMessage(audioBytes, voiceDuration ?: 0)
+                            Log.d(TAG, "Saved voice file: $voiceFilePath")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to save voice file", e)
+                            // Continue anyway, will just show broken voice message
+                        }
+                    }
+
+                    // If it's an image message, convert bytes to Base64 for storage
+                    var imageBase64: String? = null
+                    if (messageType == com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_IMAGE) {
+                        try {
+                            val imageBytes = plaintext.toByteArray(Charsets.ISO_8859_1)
+                            imageBase64 = android.util.Base64.encodeToString(imageBytes, android.util.Base64.NO_WRAP)
+                            Log.d(TAG, "Converted image to Base64: ${imageBase64.length} chars")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to convert image to Base64", e)
+                            // Continue anyway
+                        }
+                    }
+
+                    // Parse payment message fields
+                    var paymentQuoteJson: String? = null
+                    var paymentToken: String? = null
+                    var paymentAmount: Long? = null
+                    var paymentStatus: String? = null
+                    var txSignature: String? = null
+                    var receiveAddress: String? = null
+                    var displayContent = plaintext
+
+                    if (messageType in listOf(
+                        com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_PAYMENT_REQUEST,
+                        com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_PAYMENT_SENT,
+                        com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_PAYMENT_ACCEPTED
+                    )) {
+                        try {
+                            val json = org.json.JSONObject(plaintext)
+                            Log.d(TAG, "Parsing payment JSON: $plaintext")
+
+                            when (messageType) {
+                                com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_PAYMENT_REQUEST -> {
+                                    // Format: {"type":"PAYMENT_REQUEST","quote":{...}}
+                                    val quoteObj = json.optJSONObject("quote")
+                                    if (quoteObj != null) {
+                                        paymentQuoteJson = quoteObj.toString()
+                                        paymentAmount = quoteObj.optLong("amount", 0)
+                                        paymentToken = quoteObj.optString("token", "SOL")
+                                        paymentStatus = com.shieldmessenger.database.entities.Message.PAYMENT_STATUS_PENDING
+                                        val formattedAmount = formatPaymentAmount(paymentAmount!!, paymentToken!!)
+                                        displayContent = "Payment Request: $formattedAmount"
+                                        Log.d(TAG, "Parsed PAYMENT_REQUEST: $formattedAmount")
+                                    }
+                                }
+                                com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_PAYMENT_SENT -> {
+                                    // Format: {"type":"PAYMENT_SENT","quote_id":"...","tx_signature":"...","amount":...,"token":"..."}
+                                    paymentAmount = json.optLong("amount", 0)
+                                    paymentToken = json.optString("token", "SOL")
+                                    txSignature = json.opt("tx_signature") as? String
+                                    paymentStatus = com.shieldmessenger.database.entities.Message.PAYMENT_STATUS_PAID
+                                    val formattedAmount = formatPaymentAmount(paymentAmount!!, paymentToken!!)
+                                    displayContent = "Payment Received: $formattedAmount"
+                                    Log.d(TAG, "Parsed PAYMENT_SENT: $formattedAmount, tx=$txSignature")
+                                }
+                                com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_PAYMENT_ACCEPTED -> {
+                                    // Format: {"type":"PAYMENT_ACCEPTED","quote_id":"...","receive_address":"...","amount":...,"token":"..."}
+                                    paymentAmount = json.optLong("amount", 0)
+                                    paymentToken = json.optString("token", "SOL")
+                                    receiveAddress = json.opt("receive_address") as? String
+                                    paymentStatus = com.shieldmessenger.database.entities.Message.PAYMENT_STATUS_PENDING
+                                    val quoteId = json.optString("quote_id", "")
+                                    val formattedAmount = formatPaymentAmount(paymentAmount!!, paymentToken!!)
+                                    displayContent = "Payment Accepted: $formattedAmount"
+                                    Log.d(TAG, "Parsed PAYMENT_ACCEPTED: $formattedAmount to $receiveAddress")
+
+                                    // Auto-execute the transfer!
+                                    if (receiveAddress != null && paymentAmount > 0) {
+                                        Log.i(TAG, "=== AUTO-EXECUTING PAYMENT TRANSFER ===")
+                                        Log.i(TAG, "Amount: $formattedAmount")
+                                        Log.i(TAG, "To: $receiveAddress")
+                                        Log.i(TAG, "Token: $paymentToken")
+
+                                        // Find our original payment request using messageId pattern: pay_req_{quoteId}
+                                        val originalMessageId = "pay_req_$quoteId"
+                                        val originalRequest = database.messageDao().getMessageByMessageId(originalMessageId)
+
+                                        if (originalRequest != null && originalRequest.isSentByMe) {
+                                            Log.i(TAG, "Found original request: ${originalRequest.messageId}")
+                                            // Execute the blockchain transfer
+                                            executePaymentTransfer(
+                                                contact = contact,
+                                                amount = paymentAmount!!,
+                                                token = paymentToken!!,
+                                                recipientAddress = receiveAddress,
+                                                quoteId = quoteId,
+                                                originalMessageId = originalRequest.messageId
+                                            )
+                                        } else {
+                                            Log.e(TAG, "Could not find original payment request for quote: $quoteId (messageId: $originalMessageId)")
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to parse payment JSON", e)
+                            displayContent = plaintext
+                        }
+                    }
+
+                    // Check if this message is for an active download (find PONG_SENT or DOWNLOAD_QUEUED ping)
+                    // DOWNLOAD_QUEUED(10) included for race: message may arrive before DB transitions to PONG_SENT(1)
+                    val activePings = database.pingInboxDao().getPendingByContact(contact.id)
+                    val downloadPingId = activePings.firstOrNull {
+                        it.state == com.shieldmessenger.database.entities.PingInbox.STATE_PONG_SENT ||
+                            it.state == com.shieldmessenger.database.entities.PingInbox.STATE_DOWNLOAD_QUEUED
+                    }?.pingId
+                    if (downloadPingId != null) {
+                        Log.i(TAG, "Message associated with active download pingId: ${downloadPingId.take(8)}")
+                    }
+
+                    // Create message entity (store plaintext in encryptedContent field for now)
+                    // PHASE 1.1: Generate messageNonce for received messages
+                    val messageNonce = java.security.SecureRandom().nextLong()
+                    val message = com.shieldmessenger.database.entities.Message(
+                        contactId = contact.id,
+                        messageId = messageId,
+                        encryptedContent = when (messageType) {
+                            com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_TEXT -> plaintext
+                            com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_PAYMENT_REQUEST,
+                            com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_PAYMENT_SENT,
+                            com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_PAYMENT_ACCEPTED -> displayContent
+                            else -> ""
+                        },
+                        messageType = messageType,
+                        attachmentType = when (messageType) {
+                            com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_IMAGE -> "image"
+                            com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_STICKER -> "sticker"
+                            else -> null
+                        },
+                        attachmentData = when (messageType) {
+                            com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_IMAGE -> imageBase64
+                            com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_STICKER -> messageContent // asset path
+                            else -> null
+                        },
+                        voiceDuration = voiceDuration,
+                        voiceFilePath = voiceFilePath,
+                        isSentByMe = false,
+                        timestamp = System.currentTimeMillis(),
+                        status = com.shieldmessenger.database.entities.Message.STATUS_DELIVERED,
+                        signatureBase64 = "", // TODO: Verify signature
+                        nonceBase64 = "", // Not needed for already-decrypted messages
+                        messageNonce = messageNonce, // CRITICAL: Stored once, reused on all retries
+                        paymentQuoteJson = paymentQuoteJson,
+                        paymentToken = paymentToken,
+                        paymentAmount = paymentAmount,
+                        paymentStatus = paymentStatus,
+                        txSignature = txSignature,
+                        pingId = downloadPingId // ← Associate with download ping
+                    )
+
+                    // Save to database
+                    Log.d(TAG, "MESSAGE SAVE: About to insert message into database")
+                    Log.d(TAG, "messageId=$messageId")
+                    Log.d(TAG, "contactId=${contact.id}")
+                    Log.d(TAG, "messageType=$messageType")
+                    Log.d(TAG, "content length=${message.encryptedContent.length}")
+                    val savedMessageId = database.messageDao().insertMessage(message)
+                    Log.i(TAG, "MESSAGE SAVE: Message saved to database successfully! DB row ID=$savedMessageId")
+
+                    // If this was an active download, transition ping to MSG_STORED in DB
+                    if (downloadPingId != null) {
+                        Log.i(TAG, "Transitioning ping ${downloadPingId.take(8)} to MSG_STORED (listener path)")
+                        val transitioned = database.pingInboxDao().transitionToMsgStored(
+                            pingId = downloadPingId,
+                            timestamp = System.currentTimeMillis()
+                        )
+                        if (transitioned > 0) {
+                            Log.d(TAG, "ping_inbox ${downloadPingId.take(8)} → MSG_STORED")
+                        } else {
+                            Log.w(TAG, "ping_inbox ${downloadPingId.take(8)} already MSG_STORED or not found")
+                        }
+
+                        // Active download tracking cleared by transitionToMsgStored (downloadQueuedAt = NULL)
+                        Log.d(TAG, "Active download tracking cleared via DB state for contact ${contact.id}")
+                    }
+
+                    // Send MESSAGE_ACK to sender to confirm receipt (with retry logic)
+                    serviceScope.launch {
+                        sendAckWithRetry(
+                            connectionId = null, // No existing connection available
+                            itemId = messageId,
+                            ackType = "MESSAGE_ACK",
+                            contactId = contact.id
+                        )
+                    }
+
+                    // Broadcast to ChatActivity so it can refresh and perform atomic swap (explicit broadcast)
+                    val intentChat = Intent("com.shieldmessenger.MESSAGE_RECEIVED")
+                    intentChat.setPackage(packageName) // Make it explicit
+                    intentChat.putExtra("CONTACT_ID", contact.id)
+                    sendBroadcast(intentChat)
+                    Log.i(TAG, "Broadcast explicit MESSAGE_RECEIVED for contact ${contact.id}")
+
+                    // Broadcast to MainActivity to refresh chat list preview (explicit broadcast)
+                    val intentMain = Intent("com.shieldmessenger.NEW_PING")
+                    intentMain.setPackage(packageName) // Make it explicit
+                    intentMain.putExtra("CONTACT_ID", contact.id)
+                    sendBroadcast(intentMain)
+                    Log.i(TAG, "Broadcast explicit NEW_PING to refresh MainActivity chat list")
+                } catch (e: Exception) {
+                    Log.e(TAG, "MESSAGE SAVE: CRITICAL ERROR - Exception occurred while saving message!", e)
+                    Log.e(TAG, "contactId=${contact.id}")
+                    Log.e(TAG, "Exception type: ${e.javaClass.simpleName}")
+                    Log.e(TAG, "Exception message: ${e.message}")
+                    e.printStackTrace()
+                }
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling incoming message blob", e)
+        }
+    }
+
+    /**
+     * Handle incoming friend request from unknown contact
+     * Wire format: [0x07][Sender X25519 - 32 bytes][Encrypted FriendRequest JSON]
+     * Note: Wire type byte and X25519 key are already stripped by caller
+     */
+    private fun handleFriendRequest(senderX25519PublicKey: ByteArray, encryptedFriendRequest: ByteArray) {
+        try {
+            Log.i(TAG, "")
+            Log.i(TAG, "FRIEND REQUEST from unknown contact")
+            Log.i(TAG, "")
+
+            // Wire type byte (0x07) has already been stripped by caller
+            if (encryptedFriendRequest.size < 1) {
+                Log.e(TAG, "Friend request too short")
+                return
+            }
+
+            // NEW: Check if this is a Phase 1 PIN-encrypted message or old X25519-encrypted message
+            // Phase 1 messages are PIN-encrypted and contain {"phase":1, ...}
+            // Try to detect by attempting PIN decryption (user will need to provide PIN)
+
+            Log.d(TAG, "Received friend request: ${encryptedFriendRequest.size} bytes")
+            Log.d(TAG, "This appears to be a Phase 1 PIN-encrypted friend request")
+
+            // For Phase 1, we need the user to provide the PIN to decrypt
+            // So we save the encrypted payload and show it as a pending request
+            // The user will enter the sender's PIN when they click "Accept"
+
+            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+
+            // Store in SharedPreferences as pending friend request (Phase 1)
+            // We'll decrypt it when the user provides the PIN
+            val prefs = getSharedPreferences("friend_requests", MODE_PRIVATE)
+            val existingRequests = prefs.getStringSet("pending_requests_v2", mutableSetOf()) ?: mutableSetOf()
+
+            // Create PendingFriendRequest with encrypted Phase 1 data
+            // We'll show "New Friend Request" and decrypt when user provides PIN
+            val pendingRequest = com.shieldmessenger.models.PendingFriendRequest(
+                displayName = "New Friend Request", // Will get real name after PIN decryption
+                ipfsCid = "", // Not used in v2.0
+                direction = com.shieldmessenger.models.PendingFriendRequest.DIRECTION_INCOMING,
+                status = com.shieldmessenger.models.PendingFriendRequest.STATUS_PENDING,
+                timestamp = System.currentTimeMillis(),
+                contactCardJson = android.util.Base64.encodeToString(encryptedFriendRequest, android.util.Base64.NO_WRAP) // Store encrypted Phase 1 data
+            )
+
+            // Add new request
+            val updatedRequests = existingRequests.toMutableSet()
+            updatedRequests.add(pendingRequest.toJson())
+            prefs.edit().putStringSet("pending_requests_v2", updatedRequests).apply()
+
+            Log.i(TAG, "Phase 1 friend request stored - total pending: ${updatedRequests.size}")
+
+            // Show notification
+            showFriendRequestNotification("New Friend Request")
+
+            Log.i(TAG, "Decrypted friend request JSON: (Phase 1 - will decrypt with PIN later)")
+
+            // Broadcast to update MainActivity badge count (explicit broadcast)
+            val intent = Intent("com.shieldmessenger.FRIEND_REQUEST_RECEIVED")
+            intent.setPackage(packageName)
+            sendBroadcast(intent)
+            Log.d(TAG, "Broadcast FRIEND_REQUEST_RECEIVED to update badge")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling friend request", e)
+        }
+    }
+
+    /**
+     * Handle incoming friend request accepted notification from pending outgoing request
+     * This means someone accepted our friend request - add them to Contacts
+     *
+     * NEW (Phase 2): Receives full ContactCard encrypted with our X25519 key
+     * OLD (v1.0): Receives FriendRequest with CID (for backward compatibility)
+     */
+    private fun handleFriendRequestAcceptedFromPending(senderX25519PublicKey: ByteArray, encryptedAcceptance: ByteArray) {
+        try {
+            Log.i(TAG, "")
+            Log.i(TAG, "FRIEND REQUEST ACCEPTED (FROM PENDING)")
+            Log.i(TAG, "")
+
+            // Decrypt acceptance notification
+            val wireMessage = senderX25519PublicKey + encryptedAcceptance
+            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val ourEd25519PublicKey = keyManager.getSigningPublicKey()
+            val ourPrivateKey = keyManager.getSigningKeyBytes()
+
+            val decryptedJson = RustBridge.decryptMessage(
+                wireMessage,
+                ourEd25519PublicKey,
+                ourPrivateKey
+            )
+
+            if (decryptedJson.isNullOrEmpty()) {
+                Log.e(TAG, "Failed to decrypt acceptance notification")
+                return
+            }
+
+            Log.d(TAG, "Decrypted JSON (first 200 chars): ${decryptedJson.take(200)}...")
+
+            // Try to parse as NEW Phase 2 format with Kyber ciphertext (v2.1)
+            var contactCard: com.shieldmessenger.models.ContactCard? = null
+            var kyberCiphertext: ByteArray? = null
+            var isPhase2 = false
+
+            try {
+                val phase2Obj = org.json.JSONObject(decryptedJson)
+                if (phase2Obj.has("phase") && phase2Obj.getInt("phase") == 2) {
+                    // NEW Phase 2 format with contact_card + kyber_ciphertext
+                    Log.d(TAG, "Parsing Phase 2 with Kyber ciphertext...")
+                    val contactCardJson = phase2Obj.getJSONObject("contact_card").toString()
+                    contactCard = com.shieldmessenger.models.ContactCard.fromJson(contactCardJson)
+
+                    // Extract Kyber ciphertext if present
+                    if (phase2Obj.has("kyber_ciphertext")) {
+                        val ciphertextBase64 = phase2Obj.getString("kyber_ciphertext")
+                        kyberCiphertext = android.util.Base64.decode(ciphertextBase64, android.util.Base64.NO_WRAP)
+                        Log.i(TAG, "Phase 2 (quantum): Received ContactCard + Kyber ciphertext (${kyberCiphertext.size} bytes) from: ${contactCard.displayName}")
+                    } else {
+                        Log.i(TAG, "Phase 2 (legacy): Received ContactCard from: ${contactCard.displayName}")
+                    }
+
+                    // Verify Ed25519 signature (defense-in-depth against .onion MitM)
+                    if (phase2Obj.has("signature") && phase2Obj.has("ed25519_public_key")) {
+                        val signature = android.util.Base64.decode(phase2Obj.getString("signature"), android.util.Base64.NO_WRAP)
+                        val senderEd25519PublicKey = android.util.Base64.decode(phase2Obj.getString("ed25519_public_key"), android.util.Base64.NO_WRAP)
+
+                        // Reconstruct unsigned JSON to verify signature
+                        val unsignedJson = org.json.JSONObject().apply {
+                            put("contact_card", phase2Obj.getJSONObject("contact_card"))
+                            if (phase2Obj.has("kyber_ciphertext")) {
+                                put("kyber_ciphertext", phase2Obj.getString("kyber_ciphertext"))
+                            }
+                            put("phase", 2)
+                        }.toString()
+
+                        val signatureValid = RustBridge.verifySignature(
+                            unsignedJson.toByteArray(Charsets.UTF_8),
+                            signature,
+                            senderEd25519PublicKey
+                        )
+
+                        if (!signatureValid) {
+                            Log.e(TAG, "Phase 2 signature verification FAILED - rejecting contact (possible MitM attack)")
+                            return
+                        }
+                        Log.i(TAG, "Phase 2 signature verified (Ed25519)")
+                    } else {
+                        Log.w(TAG, "Phase 2 has no signature (legacy response)")
+                    }
+
+                    isPhase2 = true
+                } else {
+                    // Try old Phase 2 format (just ContactCard)
+                    contactCard = com.shieldmessenger.models.ContactCard.fromJson(decryptedJson)
+                    isPhase2 = true
+                    Log.i(TAG, "Phase 2 (old format): Received ContactCard from: ${contactCard.displayName}")
+                }
+            } catch (e: Exception) {
+                Log.d(TAG, "Not a Phase 2 ContactCard, trying old v1.0 format... ${e.message}")
+            }
+
+            // PHASE 2 PATH: Full contact card received
+            if (isPhase2 && contactCard != null) {
+                Log.i(TAG, "Phase 2: Adding ${contactCard.displayName} to Contacts directly...")
+
+                // Add contact to database
+                try {
+                    val dbPassphrase = keyManager.getDatabasePassphrase()
+                    val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
+
+                    val contact = com.shieldmessenger.database.entities.Contact(
+                        displayName = contactCard.displayName,
+                        solanaAddress = contactCard.solanaAddress,
+                        publicKeyBase64 = android.util.Base64.encodeToString(
+                            contactCard.solanaPublicKey,
+                            android.util.Base64.NO_WRAP
+                        ),
+                        x25519PublicKeyBase64 = android.util.Base64.encodeToString(
+                            contactCard.x25519PublicKey,
+                            android.util.Base64.NO_WRAP
+                        ),
+                        kyberPublicKeyBase64 = android.util.Base64.encodeToString(
+                            contactCard.kyberPublicKey,
+                            android.util.Base64.NO_WRAP
+                        ),
+
+                        friendRequestOnion = contactCard.friendRequestOnion, // NEW - public .onion for friend requests (port 9151)
+                        messagingOnion = contactCard.messagingOnion, // NEW - private .onion for messaging (port 8080)
+                        voiceOnion = contactCard.voiceOnion, // NEW - voice calling .onion (port 9152)
+                        ipfsCid = contactCard.ipfsCid,
+                        contactPin = contactCard.contactPin,
+                        addedTimestamp = System.currentTimeMillis(),
+                        lastContactTimestamp = System.currentTimeMillis(),
+                        trustLevel = com.shieldmessenger.database.entities.Contact.TRUST_UNTRUSTED,
+                        friendshipStatus = com.shieldmessenger.database.entities.Contact.FRIENDSHIP_CONFIRMED
+                    )
+
+                    val contactId = kotlinx.coroutines.runBlocking {
+                        database.contactDao().insertContact(contact)
+                    }
+
+                    Log.i(TAG, "Phase 2: Added ${contactCard.displayName} to Contacts (ID: $contactId)")
+
+                    // Initialize key chain for progressive ephemeral key evolution
+                    serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        try {
+                            val ourMessagingOnion = torManager.getOnionAddress()
+                            val theirMessagingOnion = contact.messagingOnion ?: contactCard.messagingOnion
+                            if (ourMessagingOnion.isNullOrEmpty() || theirMessagingOnion.isNullOrEmpty()) {
+                                Log.e(TAG, "Cannot initialize key chain: missing onion address (ours=$ourMessagingOnion, theirs=$theirMessagingOnion) for ${contact.displayName}")
+                            } else {
+                                // Check if we have a saved shared secret from Phase 2 encapsulation
+                                // This happens when Device B (accepter) receives Phase 2b from Device A (initiator)
+                                var precomputedSharedSecret: ByteArray? = null
+                                try {
+                                    val prefs = getSharedPreferences("friend_requests", MODE_PRIVATE)
+                                    val pendingRequestsSet = prefs.getStringSet("pending_requests_v2", mutableSetOf()) ?: mutableSetOf()
+                                    val savedRequest = pendingRequestsSet.mapNotNull { requestJson ->
+                                        try {
+                                            com.shieldmessenger.models.PendingFriendRequest.fromJson(requestJson)
+                                        } catch (e: Exception) {
+                                            null
+                                        }
+                                    }.find { it.ipfsCid == contactCard.friendRequestOnion }
+
+                                    if (savedRequest != null && savedRequest.contactCardJson != null) {
+                                        val savedData = org.json.JSONObject(savedRequest.contactCardJson)
+                                        if (savedData.has("hybrid_shared_secret")) {
+                                            val sharedSecretBase64 = savedData.getString("hybrid_shared_secret")
+                                            precomputedSharedSecret = android.util.Base64.decode(sharedSecretBase64, android.util.Base64.NO_WRAP)
+                                            Log.i(TAG, "Found saved shared secret (${precomputedSharedSecret.size} bytes) from Phase 2 encapsulation")
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "Could not load saved shared secret: ${e.message}")
+                                }
+
+                                // Initialize key chain with appropriate parameters
+                                if (precomputedSharedSecret != null) {
+                                    // Device B (accepter) path: Use shared secret from Phase 2 encapsulation
+                                    com.shieldmessenger.crypto.KeyChainManager.initializeKeyChain(
+                                        context = this@TorService,
+                                        contactId = contactId,
+                                        theirX25519PublicKey = contactCard.x25519PublicKey,
+                                        theirKyberPublicKey = contactCard.kyberPublicKey,
+                                        ourMessagingOnion = ourMessagingOnion,
+                                        theirMessagingOnion = theirMessagingOnion,
+                                        precomputedSharedSecret = precomputedSharedSecret
+                                    )
+                                    Log.i(TAG, "Key chain initialized for ${contact.displayName} (quantum - precomputed secret)")
+                                } else if (kyberCiphertext != null) {
+                                    // Device A (initiator) path: Decapsulate ciphertext from Phase 2
+                                    com.shieldmessenger.crypto.KeyChainManager.initializeKeyChain(
+                                        context = this@TorService,
+                                        contactId = contactId,
+                                        theirX25519PublicKey = contactCard.x25519PublicKey,
+                                        theirKyberPublicKey = contactCard.kyberPublicKey,
+                                        ourMessagingOnion = ourMessagingOnion,
+                                        theirMessagingOnion = theirMessagingOnion,
+                                        kyberCiphertext = kyberCiphertext
+                                    )
+                                    Log.i(TAG, "Key chain initialized for ${contact.displayName} (quantum - decapsulated)")
+                                } else {
+                                    // PQ_MISSING_PARAMS: Have Kyber keys but no quantum parameters
+                                    // Fall back to X25519-only key chain instead of crashing
+                                    Log.e(TAG, "PQ_MISSING_PARAMS: Have Kyber keys but missing BOTH precomputedSharedSecret AND kyberCiphertext. " +
+                                        "Falling back to X25519-only key chain. Messages may fail to decrypt. " +
+                                        "Delete and re-add contact to fix.")
+                                    Log.e(TAG, "Contact has Kyber key: ${contactCard.kyberPublicKey.any { it != 0.toByte() }}")
+                                    com.shieldmessenger.crypto.KeyChainManager.initializeKeyChain(
+                                        context = this@TorService,
+                                        contactId = contactId,
+                                        theirX25519PublicKey = contactCard.x25519PublicKey,
+                                        theirKyberPublicKey = null, // Force legacy mode
+                                        ourMessagingOnion = ourMessagingOnion,
+                                        theirMessagingOnion = theirMessagingOnion,
+                                    )
+                                    Log.w(TAG, "Key chain initialized for ${contact.displayName} (X25519-only fallback — PQ desync)")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to initialize key chain for ${contact.displayName}", e)
+                        }
+                    }
+
+                    // Send Phase 2b confirmation back to them
+                    // This tells them we received their contact card and added them
+                    serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        try {
+                            Log.d(TAG, "Sending Phase 2b confirmation to ${contactCard.displayName}")
+
+                            // Build our contact card
+                            val torManager = TorManager.getInstance(this@TorService)
+                            val ownContactCard = com.shieldmessenger.models.ContactCard(
+                                displayName = keyManager.getUsername() ?: "Unknown",
+                                solanaPublicKey = keyManager.getSolanaPublicKey(),
+                                x25519PublicKey = keyManager.getEncryptionPublicKey(),
+                                kyberPublicKey = keyManager.getKyberPublicKey(),
+                                solanaAddress = keyManager.getSolanaAddress(),
+                                friendRequestOnion = keyManager.getFriendRequestOnion() ?: "",
+                                messagingOnion = keyManager.getMessagingOnion() ?: "",
+                                voiceOnion = torManager.getVoiceOnionAddress() ?: "",
+                                contactPin = keyManager.getContactPin() ?: "",
+                                ipfsCid = keyManager.deriveContactListCID(),
+                                timestamp = System.currentTimeMillis() / 1000
+                            )
+
+                            // Encrypt with their X25519 public key
+                            val confirmationJson = ownContactCard.toJson()
+                            val encryptedConfirmation = RustBridge.encryptMessage(
+                                plaintext = confirmationJson,
+                                recipientX25519PublicKey = contactCard.x25519PublicKey
+                            )
+
+                            // Send via their friend-request.onion
+                            val success = RustBridge.sendFriendRequestAccepted(
+                                recipientOnion = contactCard.friendRequestOnion,
+                                encryptedAcceptance = encryptedConfirmation
+                            )
+
+                            if (success) {
+                                Log.i(TAG, "Sent Phase 2b confirmation to ${contactCard.displayName}")
+                            } else {
+                                Log.w(TAG, "Failed to send Phase 2b confirmation (they may be offline)")
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error sending Phase 2b confirmation", e)
+                        }
+                    }
+
+                    // Remove any pending outgoing requests to this friend
+                    val prefs = getSharedPreferences("friend_requests", MODE_PRIVATE)
+                    val pendingRequestsV2 = prefs.getStringSet("pending_requests_v2", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+                    val updatedRequests = pendingRequestsV2.filter { requestJson ->
+                        try {
+                            val request = com.shieldmessenger.models.PendingFriendRequest.fromJson(requestJson)
+                            // Keep requests that don't match this friend
+                            request.displayName != contactCard.displayName ||
+                            request.direction != com.shieldmessenger.models.PendingFriendRequest.DIRECTION_OUTGOING
+                        } catch (e: Exception) {
+                            true // Keep if can't parse
+                        }
+                    }.toMutableSet()
+                    prefs.edit().putStringSet("pending_requests_v2", updatedRequests).apply()
+
+                    // Broadcast to update AddFriendActivity UI
+                    val broadcastIntent = Intent("com.shieldmessenger.FRIEND_REQUEST_RECEIVED")
+                    broadcastIntent.setPackage(packageName)
+                    sendBroadcast(broadcastIntent)
+                    Log.d(TAG, "Broadcast sent to refresh UI after friend added")
+
+                    // Show notification
+                    showFriendRequestAcceptedNotification(contactCard.displayName)
+                    return
+
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to add Phase 2 contact to database", e)
+                    return
+                }
+            }
+
+            // OLD v1.0 PATH: Parse as FriendRequest (backward compatibility)
+            val acceptance = try {
+                com.shieldmessenger.models.FriendRequest.fromJson(decryptedJson)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to parse as either Phase 2 or v1.0 format", e)
+                return
+            }
+
+            Log.i(TAG, "v1.0: Acceptance from: ${acceptance.displayName}, CID: ${acceptance.ipfsCid}")
+
+            // Find matching pending outgoing request
+            val prefs = getSharedPreferences("friend_requests", MODE_PRIVATE)
+            val pendingRequestsV2 = prefs.getStringSet("pending_requests_v2", mutableSetOf()) ?: mutableSetOf()
+            val matchingRequest = pendingRequestsV2.mapNotNull { requestJson ->
+                try {
+                    com.shieldmessenger.models.PendingFriendRequest.fromJson(requestJson)
+                } catch (e: Exception) {
+                    null
+                }
+            }.find {
+                it.ipfsCid == acceptance.ipfsCid &&
+                it.direction == com.shieldmessenger.models.PendingFriendRequest.DIRECTION_OUTGOING
+            }
+
+            if (matchingRequest == null) {
+                Log.w(TAG, "No matching pending outgoing request found for CID: ${acceptance.ipfsCid}")
+                return
+            }
+
+            Log.i(TAG, "Found matching pending request for: ${matchingRequest.displayName}")
+
+            // Parse the saved contact card and add to Contacts
+            if (matchingRequest.contactCardJson == null) {
+                Log.w(TAG, "No contact card data saved with pending request - cannot add to Contacts")
+                return
+            }
+
+            try {
+                val contactCard = com.shieldmessenger.models.ContactCard.fromJson(matchingRequest.contactCardJson)
+                Log.d(TAG, "Parsed contact card for: ${contactCard.displayName}")
+
+                // Add to Contacts database
+                val dbPassphrase = keyManager.getDatabasePassphrase()
+                val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
+
+                val contact = com.shieldmessenger.database.entities.Contact(
+                    displayName = contactCard.displayName,
+                    solanaAddress = contactCard.solanaAddress,
+                    publicKeyBase64 = android.util.Base64.encodeToString(
+                        contactCard.solanaPublicKey,
+                        android.util.Base64.NO_WRAP
+                    ),
+                    x25519PublicKeyBase64 = android.util.Base64.encodeToString(
+                        contactCard.x25519PublicKey,
+                        android.util.Base64.NO_WRAP
+                    ),
+                    kyberPublicKeyBase64 = android.util.Base64.encodeToString(
+                        contactCard.kyberPublicKey,
+                        android.util.Base64.NO_WRAP
+                    ),
+                    friendRequestOnion = contactCard.friendRequestOnion,
+                    messagingOnion = contactCard.messagingOnion,
+                    voiceOnion = contactCard.voiceOnion,
+                    ipfsCid = contactCard.ipfsCid,
+                    contactPin = contactCard.contactPin,
+                    addedTimestamp = System.currentTimeMillis(),
+                    lastContactTimestamp = System.currentTimeMillis(),
+                    trustLevel = com.shieldmessenger.database.entities.Contact.TRUST_UNTRUSTED,
+                    friendshipStatus = com.shieldmessenger.database.entities.Contact.FRIENDSHIP_CONFIRMED
+                )
+
+                val contactId = kotlinx.coroutines.runBlocking {
+                    database.contactDao().insertContact(contact)
+                }
+
+                Log.i(TAG, "Added ${contactCard.displayName} to Contacts with CONFIRMED status (ID: $contactId)")
+
+                // NOTE: This is the OLD v1.0 friend request handler (DEPRECATED)
+                // Key chain initialization should happen in Phase 2 handler with quantum parameters
+                // Do NOT initialize here - will cause encryption mismatch!
+                Log.w(TAG, "OLD v1.0 friend request path - key chain NOT initialized (use NEW Phase 1/2/2b flow)")
+
+                // Remove from pending
+                val newPendingSet = pendingRequestsV2.toMutableSet()
+                newPendingSet.remove(matchingRequest.toJson())
+                prefs.edit().putStringSet("pending_requests_v2", newPendingSet).apply()
+
+                Log.i(TAG, "Friend request accepted! ${acceptance.displayName} is now your friend")
+                Log.i(TAG, "Removed from pending requests, added to Contacts")
+
+                // Broadcast to update AddFriendActivity UI
+                val broadcastIntent = Intent("com.shieldmessenger.FRIEND_REQUEST_RECEIVED")
+                broadcastIntent.setPackage(packageName)
+                sendBroadcast(broadcastIntent)
+                Log.d(TAG, "Broadcast sent to refresh UI after friend added")
+
+                // Show notification
+                showFriendRequestAcceptedNotification(acceptance.displayName)
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to add contact to database", e)
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling friend request accepted from pending", e)
+        }
+    }
+
+    /**
+     * Handle incoming friend request accepted notification
+     * This means someone accepted our friend request - update their status to CONFIRMED
+     */
+    private fun handleFriendRequestAccepted(contact: com.shieldmessenger.database.entities.Contact, senderX25519PublicKey: ByteArray, encryptedAcceptance: ByteArray) {
+        try {
+            Log.i(TAG, "")
+            Log.i(TAG, "FRIEND REQUEST ACCEPTED RECEIVED")
+            Log.i(TAG, "")
+            Log.d(TAG, "Contact: ${contact.displayName}, Current status: ${contact.friendshipStatus}")
+
+            // Reconstruct wire format for decryption: [Sender X25519 - 32 bytes][Encrypted Data]
+            val wireMessage = senderX25519PublicKey + encryptedAcceptance
+
+            Log.d(TAG, "Reconstructed wire message: ${wireMessage.size} bytes")
+
+            try {
+                // Decrypt acceptance notification (same as friend request decryption)
+                // decryptMessage will derive X25519 private key from Ed25519
+                val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+                val ourEd25519PublicKey = keyManager.getSigningPublicKey()
+                val ourPrivateKey = keyManager.getSigningKeyBytes()
+
+                Log.d(TAG, "Attempting to decrypt acceptance notification...")
+                val decryptedJson = RustBridge.decryptMessage(
+                    wireMessage,
+                    ourEd25519PublicKey,
+                    ourPrivateKey
+                )
+
+                if (decryptedJson.isNullOrEmpty()) {
+                    Log.e(TAG, "Failed to decrypt friend request accepted notification - null result")
+                    return
+                }
+
+                Log.i(TAG, "Decrypted acceptance notification from ${contact.displayName}")
+                Log.d(TAG, "Decrypted JSON: $decryptedJson")
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Exception during decryption", e)
+                return
+            }
+
+            // Update contact status to CONFIRMED
+            try {
+                Log.d(TAG, "Updating contact status to CONFIRMED...")
+                val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+                val dbPassphrase = keyManager.getDatabasePassphrase()
+                val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
+
+                val updatedContact = contact.copy(
+                    friendshipStatus = com.shieldmessenger.database.entities.Contact.FRIENDSHIP_CONFIRMED
+                )
+
+                kotlinx.coroutines.runBlocking {
+                    Log.d(TAG, "Calling database updateContact...")
+                    database.contactDao().updateContact(updatedContact)
+                    Log.d(TAG, "Database update completed")
+                }
+
+                Log.i(TAG, "Updated ${contact.displayName} to CONFIRMED status - you are now mutual friends!")
+
+                // Show notification
+                Log.d(TAG, "Showing acceptance notification...")
+                showFriendRequestAcceptedNotification(contact.displayName)
+                Log.d(TAG, "Notification shown successfully")
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to update contact status to CONFIRMED", e)
+                Log.e(TAG, "Stack trace:", e)
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error handling friend request accepted", e)
+            Log.e(TAG, "Stack trace:", e)
+        }
+    }
+
+    /**
+     * Show notification for new friend request
+     */
+    private fun showFriendRequestNotification(senderName: String) {
+        try {
+            // Generate consistent notification ID per contact name
+            // Use hashCode to create stable ID for each unique sender
+            val friendRequestNotificationId = 5000 + Math.abs(senderName.hashCode() % 10000)
+
+            // Check if user is already unlocked - if so, go directly to MainActivity
+            val isUnlocked = com.shieldmessenger.utils.SessionManager.isUnlocked(this)
+
+            val intent = if (isUnlocked) {
+                // User is already logged in - go directly to MainActivity
+                android.content.Intent(this, com.shieldmessenger.MainActivity::class.java).apply {
+                    putExtra("SHOW_FRIEND_REQUESTS", true)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
+            } else {
+                // User is locked - go through LockActivity
+                android.content.Intent(this, com.shieldmessenger.LockActivity::class.java).apply {
+                    putExtra("TARGET_ACTIVITY", "MainActivity")
+                    putExtra("SHOW_FRIEND_REQUESTS", true)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                }
+            }
+
+            val pendingIntent = android.app.PendingIntent.getActivity(
+                this,
+                0,
+                intent,
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val notification = androidx.core.app.NotificationCompat.Builder(this, AUTH_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_shield)
+                .setContentTitle("New Friend Request")
+                .setContentText("$senderName wants to add you as a friend")
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+                .setCategory(androidx.core.app.NotificationCompat.CATEGORY_SOCIAL)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+                .setGroup("FRIEND_REQUESTS")
+                .build()
+
+            val notificationManager = getSystemService(android.app.NotificationManager::class.java)
+            notificationManager.notify(friendRequestNotificationId, notification)
+
+            Log.i(TAG, "Friend request notification shown for $senderName (ID: $friendRequestNotificationId)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to show friend request notification", e)
+        }
+    }
+
+    /**
+     * Send friend request accepted response
+     * Used when someone resends a friend request and we already have them confirmed
+     */
+    private fun sendFriendRequestAcceptedResponse(recipientContactCard: com.shieldmessenger.models.ContactCard) {
+        serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Sending FRIEND_REQUEST_ACCEPTED response to ${recipientContactCard.displayName}")
+
+                // Get own account information
+                val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                val ownDisplayName = keyManager.getUsername()
+                    ?: throw Exception("Username not set")
+                val ownCid = keyManager.getIPFSCID()
+                    ?: throw Exception("IPFS CID not found")
+
+                // Create acceptance notification
+                val acceptance = com.shieldmessenger.models.FriendRequest(
+                    displayName = ownDisplayName,
+                    ipfsCid = ownCid
+                )
+
+                // Serialize to JSON
+                val acceptanceJson = acceptance.toJson()
+
+                // Encrypt the acceptance using recipient's X25519 public key
+                val encryptedAcceptance = com.shieldmessenger.crypto.RustBridge.encryptMessage(
+                    plaintext = acceptanceJson,
+                    recipientX25519PublicKey = recipientContactCard.x25519PublicKey
+                )
+
+                // Send via Tor
+                val success = com.shieldmessenger.crypto.RustBridge.sendFriendRequestAccepted(
+                    recipientOnion = recipientContactCard.friendRequestOnion,
+                    encryptedAcceptance = encryptedAcceptance
+                )
+
+                if (success) {
+                    Log.i(TAG, "Sent FRIEND_REQUEST_ACCEPTED response to ${recipientContactCard.displayName}")
+                } else {
+                    Log.w(TAG, "Failed to send acceptance response (recipient may be offline)")
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error sending friend request accepted response", e)
+            }
+        }
+    }
+
+    /**
+     * Show notification for friend request accepted
+     */
+    private fun showFriendRequestAcceptedNotification(contactName: String) {
+        try {
+            // Generate consistent notification ID per contact name
+            // Use hashCode to create stable ID for each unique contact (different range from friend requests)
+            val acceptedNotificationId = 6000 + Math.abs(contactName.hashCode() % 10000)
+
+            // Check if user is already unlocked - if so, go directly to MainActivity
+            val isUnlocked = com.shieldmessenger.utils.SessionManager.isUnlocked(this)
+
+            val intent = if (isUnlocked) {
+                // User is already logged in - go directly to MainActivity
+                android.content.Intent(this, com.shieldmessenger.MainActivity::class.java).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                }
+            } else {
+                // User is locked - go through LockActivity
+                android.content.Intent(this, com.shieldmessenger.LockActivity::class.java).apply {
+                    putExtra("TARGET_ACTIVITY", "MainActivity")
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                }
+            }
+
+            val pendingIntent = android.app.PendingIntent.getActivity(
+                this,
+                0,
+                intent,
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val notification = androidx.core.app.NotificationCompat.Builder(this, AUTH_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_friends)
+                .setContentTitle("Friend Request Accepted!")
+                .setContentText("$contactName accepted your friend request")
+                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+                .setCategory(androidx.core.app.NotificationCompat.CATEGORY_SOCIAL)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+                .setGroup("FRIEND_REQUESTS")
+                .build()
+
+            val notificationManager = getSystemService(android.app.NotificationManager::class.java)
+            notificationManager.notify(acceptedNotificationId, notification)
+
+            Log.i(TAG, "Friend request accepted notification shown for $contactName (ID: $acceptedNotificationId)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to show friend request accepted notification", e)
+        }
+    }
+
+    private fun lookupContactName(senderPublicKey: ByteArray): String {
+        return try {
+            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val dbPassphrase = keyManager.getDatabasePassphrase()
+            val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
+
+            // Convert public key to Base64
+            val publicKeyBase64 = android.util.Base64.encodeToString(senderPublicKey, android.util.Base64.NO_WRAP)
+
+            // Look up contact by public key
+            val contact = database.contactDao().getContactByPublicKey(publicKeyBase64)
+
+            contact?.displayName ?: "Unknown Contact"
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to lookup contact name", e)
+            "Unknown Contact"
+        }
+    }
+
+    // storePendingPing() REMOVED — ping_inbox DB is the single source of truth
+    // Wire bytes stored in pingWireBytesBase64 column at insert time (handleIncomingPing)
+
+    // ==================== Push Recovery (v5 Contact List Mesh) ====================
+
+    /**
+     * Activate push recovery mode if the user restored from seed and contacts weren't found locally.
+     * This tells the Rust HTTP server to accept POST /recovery/push/{cid} from friends.
+     * Also starts a poller that checks when a friend pushes the blob.
+     */
+    private fun activateRecoveryModeIfNeeded() {
+        try {
+            val recoveryPrefs = getSharedPreferences("recovery_state", MODE_PRIVATE)
+            val recoveryNeeded = recoveryPrefs.getBoolean("recovery_needed", false)
+            if (!recoveryNeeded) return
+
+            val expectedCid = recoveryPrefs.getString("expected_cid", null)
+            if (expectedCid.isNullOrEmpty()) {
+                Log.w(TAG, "Recovery needed but no expected CID found")
+                return
+            }
+
+            val dataDir = filesDir.absolutePath
+            Log.i(TAG, "Activating push recovery mode (CID: ${expectedCid.take(20)}..., dir: $dataDir)")
+
+            RustBridge.setRecoveryMode(true, expectedCid, dataDir)
+
+            // Start polling for pushed recovery blob
+            startRecoveryPoller(expectedCid)
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to activate recovery mode", e)
+        }
+    }
+
+    /**
+     * Poll for a recovery blob that a friend pushed to disk.
+     * When Rust writes the file, pollRecoveryReady() returns true.
+     * Then we run the existing recoverFromIPFS() flow which reads from local disk,
+     * decrypts with AES-GCM (using deterministic PIN), and imports contacts.
+     */
+    private fun startRecoveryPoller(expectedCid: String) {
+        serviceScope.launch(Dispatchers.IO) {
+            Log.i(TAG, "Recovery poller started — waiting for friend push...")
+
+            while (isServiceRunning) {
+                try {
+                    val ready = RustBridge.pollRecoveryReady()
+                    if (ready) {
+                        Log.i(TAG, "Recovery blob detected on disk! Attempting import...")
+
+                        val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                        val seedPhrase = keyManager.getMainWalletSeedForZcash()
+
+                        if (seedPhrase != null) {
+                            val contactListManager = com.shieldmessenger.services.ContactListManager.getInstance(this@TorService)
+                            val result = contactListManager.recoverFromIPFS(seedPhrase)
+
+                            if (result.isSuccess) {
+                                val count = result.getOrNull()
+                                if (count != null && count > 0) {
+                                    Log.i(TAG, "Push recovery SUCCESS: $count contacts imported!")
+
+                                    // Clear recovery mode — we're done
+                                    RustBridge.clearRecoveryMode()
+                                    val recoveryPrefs = getSharedPreferences("recovery_state", MODE_PRIVATE)
+                                    recoveryPrefs.edit()
+                                        .putBoolean("recovery_needed", false)
+                                        .remove("expected_cid")
+                                        .apply()
+
+                                    // Re-send TAPs now that we have contacts
+                                    sendTapsToAllContacts()
+                                    return@launch // Stop polling
+                                } else {
+                                    Log.w(TAG, "Recovery blob on disk but imported 0 contacts — GCM may have failed")
+                                    // Delete the bad file so Rust accepts a new push
+                                    val badFile = java.io.File(filesDir, "ipfs_pins/$expectedCid")
+                                    if (badFile.exists()) {
+                                        badFile.delete()
+                                        Log.i(TAG, "Deleted invalid recovery blob, will accept new push")
+                                    }
+                                    RustBridge.setRecoveryMode(true, expectedCid, filesDir.absolutePath)
+                                }
+                            } else {
+                                Log.w(TAG, "Recovery import failed: ${result.exceptionOrNull()?.message}")
+                                // Delete the bad file so Rust accepts a new push
+                                val badFile = java.io.File(filesDir, "ipfs_pins/$expectedCid")
+                                if (badFile.exists()) {
+                                    badFile.delete()
+                                    Log.i(TAG, "Deleted invalid recovery blob, will accept new push")
+                                }
+                                com.shieldmessenger.crypto.RustBridge.setRecoveryMode(true, expectedCid, filesDir.absolutePath)
+                            }
+                        } else {
+                            Log.e(TAG, "Cannot recover: seed phrase not available")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Recovery poller error", e)
+                }
+
+                // Poll every 5 seconds
+                kotlinx.coroutines.delay(5000)
+            }
+
+            Log.d(TAG, "Recovery poller stopped (service not running)")
+        }
+    }
+
+    // ==================== END Push Recovery ====================
+
+    /**
+     * PHASE 6: Send taps to all contacts when Tor connects
+     * This notifies contacts that we're online and they should retry any pending operations
+     */
+    private fun sendTapsToAllContacts() {
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                if (!keyManager.isInitialized()) {
+                    Log.d(TAG, "Skipping taps - no account yet")
+                    return@launch
+                }
+
+                Log.i(TAG, "Sending taps to all contacts...")
+
+                val dbPassphrase = keyManager.getDatabasePassphrase()
+                val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@TorService, dbPassphrase)
+
+                // Get all contacts
+                val contacts = database.contactDao().getAllContacts()
+
+                if (contacts.isEmpty()) {
+                    Log.d(TAG, "No contacts to send taps to")
+                    return@launch
+                }
+
+                Log.i(TAG, "Sending taps to ${contacts.size} contact(s)")
+
+                var successCount = 0
+                var failureCount = 0
+
+                for (contact in contacts) {
+                    try {
+                        // Get contact keys
+                        val recipientEd25519PubKey = android.util.Base64.decode(contact.publicKeyBase64, android.util.Base64.NO_WRAP)
+                        val recipientX25519PubKey = android.util.Base64.decode(contact.x25519PublicKeyBase64, android.util.Base64.NO_WRAP)
+
+                        // Send tap
+                        val success = RustBridge.sendTap(
+                            recipientEd25519PubKey,
+                            recipientX25519PubKey,
+                            contact.messagingOnion ?: ""
+                        )
+
+                        if (success) {
+                            Log.d(TAG, "Sent tap to ${contact.displayName}")
+                            successCount++
+
+                            // Friend-side push recovery: check if this contact is recovering
+                            checkAndPushRecoveryBlob(contact)
+                        } else {
+                            Log.w(TAG, "Failed to send tap to ${contact.displayName}")
+                            failureCount++
+                        }
+
+                        // Small delay between attempts to avoid overwhelming Tor
+                        // (Don't delay after last contact)
+                        if (contact != contacts.last()) {
+                            kotlinx.coroutines.delay(150) // 150ms between taps
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error sending tap to ${contact.displayName}", e)
+                        failureCount++
+                    }
+                }
+
+                Log.i(TAG, "Tap broadcast complete: $successCount success, $failureCount failed")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send taps to contacts", e)
+            }
+        }
+    }
+
+    /**
+     * Friend-side push recovery: after a successful TAP to a contact, check if they're
+     * in recovery mode. If so, push their encrypted contact list blob from our local pin.
+     *
+     * Flow:
+     * 1. GET http://{friendRequestOnion}/recovery/beacon → {"recovering":true}
+     * 2. Read local ipfs_pins/{contact.ipfsCid} (we pinned their list when we added them)
+     * 3. POST raw bytes to http://{friendRequestOnion}/recovery/push/{cid}
+     * 4. Their device writes to disk → Kotlin GCM decrypts → contacts imported
+     */
+    private fun checkAndPushRecoveryBlob(contact: com.shieldmessenger.database.entities.Contact) {
+        // Need their friend request .onion (HTTP server) and their contact list CID
+        val friendOnion = contact.friendRequestOnion
+        val friendCid = contact.ipfsCid
+        if (friendOnion.isNullOrEmpty() || friendCid.isNullOrEmpty()) return
+
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                // Step 1: Check recovery beacon
+                val beaconUrl = "http://$friendOnion/recovery/beacon"
+                val beaconResponse = try {
+                    RustBridge.httpGetViaTor(beaconUrl)
+                } catch (e: Exception) {
+                    // Not reachable or no beacon endpoint — normal for non-recovering devices
+                    return@launch
+                }
+
+                if (beaconResponse == null || !beaconResponse.contains("\"recovering\":true")) {
+                    return@launch // Not recovering
+                }
+
+                Log.i(TAG, "${contact.displayName} is in recovery mode! Checking if we have their contact list...")
+
+                // Step 2: Read their pinned contact list from our local storage
+                val ipfsManager = com.shieldmessenger.services.IPFSManager.getInstance(this@TorService)
+                val pinnedBlob = ipfsManager.getContactList(friendCid)
+
+                if (pinnedBlob == null) {
+                    Log.w(TAG, "Don't have ${contact.displayName}'s contact list pinned (CID: ${friendCid.take(20)}...)")
+                    return@launch
+                }
+
+                Log.i(TAG, "Pushing ${pinnedBlob.size} bytes to ${contact.displayName} for recovery...")
+
+                // Step 3: POST raw bytes to their recovery endpoint
+                val pushUrl = "http://$friendOnion/recovery/push/$friendCid"
+                val response = try {
+                    RustBridge.httpPostBinaryViaTor(pushUrl, pinnedBlob)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to push recovery blob to ${contact.displayName}: ${e.message}")
+                    return@launch
+                }
+
+                if (response != null) {
+                    Log.i(TAG, "Recovery push to ${contact.displayName} accepted!")
+                } else {
+                    Log.w(TAG, "Recovery push to ${contact.displayName} returned null")
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking recovery beacon for ${contact.displayName}", e)
+            }
+        }
+    }
+
+    /**
+     * Show simple notification that a message is waiting
+     */
+    private fun showNewMessageNotification() {
+        // Check if user is already unlocked - if so, go directly to MainActivity
+        // If locked, go through LockActivity for authentication
+        val isUnlocked = com.shieldmessenger.utils.SessionManager.isUnlocked(this)
+
+        val openAppIntent = if (isUnlocked) {
+            // User is already logged in - go directly to MainActivity
+            Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+        } else {
+            // User is locked - go through LockActivity
+            Intent(this, LockActivity::class.java).apply {
+                putExtra("TARGET_ACTIVITY", "MainActivity")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+        }
+
+        val openAppPendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            openAppIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        // Count pending pings from DB (single source of truth)
+        val pendingCount = try {
+            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val dbPassphrase = keyManager.getDatabasePassphrase()
+            val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
+            kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
+                database.pingInboxDao().countGlobalPending()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to count pending pings from DB", e)
+            0
+        }
+
+        // Only show notification if there are pending messages
+        if (pendingCount > 0) {
+            // Build notification
+            val notification = NotificationCompat.Builder(this, AUTH_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_shield)
+                .setContentTitle("New Message")
+                .setContentText("You have $pendingCount pending ${if (pendingCount == 1) "message" else "messages"}")
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+                .setAutoCancel(true)
+                .setContentIntent(openAppPendingIntent)
+                .setNumber(pendingCount) // Shows badge on app icon
+                .build()
+
+            // Show notification
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager.notify(999, notification) // Use fixed ID so it updates instead of creating multiple
+
+            Log.i(TAG, "New message notification shown ($pendingCount pending)")
+        } else {
+            // Cancel notification if no pending messages
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager.cancel(999)
+            Log.d(TAG, "No pending messages - notification cancelled")
+        }
+    }
+
+    /**
+     * Receive encrypted message after sending Pong
+     */
+    /**
+     * Process a received encrypted message (decrypt, save to database, notify)
+     */
+    private fun processReceivedMessage(encryptedMessage: ByteArray, pingId: String, senderName: String) {
+        try {
+            Log.i(TAG, "Processing received encrypted message: ${encryptedMessage.size} bytes")
+
+            // Get sender's public key from the Ping token
+            val senderPublicKey = RustBridge.getPingSenderPublicKey(pingId)
+            if (senderPublicKey == null) {
+                Log.e(TAG, "Failed to get sender public key from Ping")
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    ThemedToast.show(this@TorService, "Failed to verify sender")
+                }
+                return
+            }
+
+            // Look up sender in contacts database
+            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val dbPassphrase = keyManager.getDatabasePassphrase()
+            val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
+
+            // Convert public key to Base64
+            val publicKeyBase64 = android.util.Base64.encodeToString(senderPublicKey, android.util.Base64.NO_WRAP)
+
+            // Get contact by public key
+            val contact = database.contactDao().getContactByPublicKey(publicKeyBase64)
+
+            if (contact == null) {
+                Log.e(TAG, "Sender not in contacts - cannot decrypt message")
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    ThemedToast.show(this@TorService, "Message from unknown contact")
+                }
+                return
+            }
+
+            Log.i(TAG, "Message from contact: ${contact.displayName} (ID: ${contact.id})")
+
+            // Get our Ed25519 private key for decryption
+            val ourPrivateKey = keyManager.getSigningKeyBytes()
+
+            // Decrypt message using sender's Ed25519 public key and our private key
+            val senderEd25519PublicKey = android.util.Base64.decode(contact.publicKeyBase64, android.util.Base64.NO_WRAP)
+            val messageText = RustBridge.decryptMessage(encryptedMessage, senderEd25519PublicKey, ourPrivateKey)
+
+            if (messageText == null || messageText.isEmpty()) {
+                Log.e(TAG, "Failed to decrypt message")
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    ThemedToast.show(this@TorService, "Failed to decrypt message")
+                }
+                return
+            }
+
+            Log.i(TAG, "Message decrypted successfully: ${messageText.take(50)}...")
+
+            // Save message to database with deduplication
+            kotlinx.coroutines.runBlocking {
+                // Generate messageId from ENCRYPTED MESSAGE (consistent with PATH 1)
+                // This ensures same message arriving via both paths has same ID
+                val messageIdHash = java.security.MessageDigest.getInstance("SHA-256").digest(encryptedMessage)
+                val deterministicMessageId = "blob_" + android.util.Base64.encodeToString(messageIdHash, android.util.Base64.NO_WRAP).take(28)
+
+                Log.d(TAG, "Message ID generated from encrypted payload hash: $deterministicMessageId")
+
+                // Track this messageId to prevent duplicate processing (PRIMARY deduplication)
+                val messageTracking = com.shieldmessenger.database.entities.ReceivedId(
+                    receivedId = deterministicMessageId,
+                    idType = com.shieldmessenger.database.entities.ReceivedId.TYPE_MESSAGE,
+                    receivedTimestamp = System.currentTimeMillis()
+                )
+                val rowId = tryInsertReceivedId(database, messageTracking, "MESSAGE")
+
+                if (rowId == -1L) {
+                    Log.w(TAG, "DUPLICATE MESSAGE BLOCKED! MessageId=$deterministicMessageId already in tracking table")
+                    Log.i(TAG, "→ Skipping duplicate message processing, but will send MESSAGE_ACK")
+
+                    // Send MESSAGE_ACK to stop sender from retrying (with retry logic)
+                    serviceScope.launch {
+                        sendAckWithRetry(
+                            connectionId = null, // No existing connection available
+                            itemId = deterministicMessageId,
+                            ackType = "MESSAGE_ACK",
+                            contactId = contact.id
+                        )
+                    }
+
+                    // Transition ping to MSG_STORED in DB (idempotent for duplicates)
+                    database.pingInboxDao().transitionToMsgStored(
+                        pingId = pingId,
+                        timestamp = System.currentTimeMillis()
+                    )
+                    Log.i(TAG, "Ensured ping_inbox MSG_STORED for contact ${contact.id} (duplicate message)")
+
+                    // Update notification to reflect new pending count (will cancel if 0)
+                    showNewMessageNotification()
+
+                    return@runBlocking
+                }
+                Log.i(TAG, "→ New Message - tracked in database (rowId=$rowId)")
+
+                // PRIMARY deduplication via ReceivedId table above is sufficient
+                // No secondary check needed - this was blocking rapid identical messages
+
+                // PHASE 1.1: Generate messageNonce for received messages
+                val messageNonce = java.security.SecureRandom().nextLong()
+                val message = com.shieldmessenger.database.entities.Message(
+                    contactId = contact.id,
+                    messageId = deterministicMessageId,
+                    encryptedContent = messageText,
+                    isSentByMe = false,
+                    timestamp = System.currentTimeMillis(),
+                    status = com.shieldmessenger.database.entities.Message.STATUS_DELIVERED,
+                    signatureBase64 = "",
+                    nonceBase64 = "",
+                    messageNonce = messageNonce, // CRITICAL: Stored once, reused on all retries
+                    isRead = false,
+                    requiresReadReceipt = true,
+                    selfDestructAt = null,
+                    pingId = pingId, // Store pingId for reference
+                    messageDelivered = true // Mark as delivered since we received it
+                )
+
+                val insertedMessage = database.messageDao().insertMessage(message)
+                Log.i(TAG, "Message saved to database with ID: $insertedMessage (messageId: $deterministicMessageId)")
+
+                // Send MESSAGE_ACK to sender to confirm receipt (with retry logic)
+                serviceScope.launch {
+                    sendAckWithRetry(
+                        connectionId = null, // No existing connection available
+                        itemId = deterministicMessageId,
+                        ackType = "MESSAGE_ACK",
+                        contactId = contact.id
+                    )
+                }
+
+                // Transition ping to MSG_STORED in DB (single source of truth)
+                database.pingInboxDao().transitionToMsgStored(
+                    pingId = pingId,
+                    timestamp = System.currentTimeMillis()
+                )
+                Log.i(TAG, "ping_inbox → MSG_STORED for contact ${contact.id} after message download")
+
+                // Update notification to reflect new pending count (will cancel if 0)
+                showNewMessageNotification()
+
+                // Broadcast to update ChatActivity if it's open for this contact
+                val messageReceivedIntent = Intent("com.shieldmessenger.MESSAGE_RECEIVED").apply {
+                    setPackage(packageName)
+                    putExtra("CONTACT_ID", contact.id)
+                }
+                sendBroadcast(messageReceivedIntent)
+                Log.d(TAG, "Broadcast sent: MESSAGE_RECEIVED for contact ${contact.id}")
+
+                // Update app badge count
+                updateAppBadgeCount(database)
+
+                // Show notification on main thread
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    showMessageNotification(contact.displayName, messageText, contact.id)
+                }
+
+                // Send read receipt if required
+                if (message.requiresReadReceipt) {
+                    sendReadReceipt(contact.id, insertedMessage)
+                }
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to process received message", e)
+        }
+    }
+
+    private fun receiveIncomingMessage(connectionId: Long, pingId: String, senderName: String) {
+        Thread {
+            try {
+                Log.d(TAG, "Waiting for message on connection $connectionId from $senderName...")
+
+                // Receive message from sender (Rust code will handle reading from connection)
+                val encryptedMessage = RustBridge.receiveIncomingMessage(connectionId)
+
+                if (encryptedMessage != null && encryptedMessage.isNotEmpty()) {
+                    Log.i(TAG, "Received encrypted message: ${encryptedMessage.size} bytes")
+                    // Reuse the processing logic
+                    processReceivedMessage(encryptedMessage, pingId, senderName)
+                } else {
+                    Log.w(TAG, "No message received or empty message")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error receiving incoming message", e)
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    ThemedToast.show(this@TorService, "Error receiving message: ${e.message}")
+                }
+            }
+        }.start()
+    }
+
+    /**
+     * Show notification for received message with preview and actions
+     */
+    private fun showMessageNotification(senderName: String, messageText: String, contactId: Long) {
+        // Create intent to open chat when notification is tapped
+        // Launch via LockActivity to prevent showing chat before authentication
+        val openChatIntent = Intent(this, LockActivity::class.java).apply {
+            putExtra("TARGET_ACTIVITY", "ChatActivity")
+            putExtra(ChatActivity.EXTRA_CONTACT_ID, contactId)
+            putExtra(ChatActivity.EXTRA_CONTACT_NAME, senderName)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val openChatPendingIntent = PendingIntent.getActivity(
+            this,
+            contactId.toInt(),
+            openChatIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        // Create reply action intent (also via LockActivity)
+        val replyIntent = Intent(this, LockActivity::class.java).apply {
+            putExtra("TARGET_ACTIVITY", "ChatActivity")
+            putExtra(ChatActivity.EXTRA_CONTACT_ID, contactId)
+            putExtra(ChatActivity.EXTRA_CONTACT_NAME, senderName)
+            putExtra("FOCUS_INPUT", true)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val replyPendingIntent = PendingIntent.getActivity(
+            this,
+            (contactId + 10000).toInt(),
+            replyIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        // Privacy-first: only show message content if user explicitly enabled it
+        // Default is OFF — notifications show "New message" to protect content on lock screen
+        val notifPrefs = getSharedPreferences("notifications_prefs", android.content.Context.MODE_PRIVATE)
+        val showContent = notifPrefs.getBoolean("message_content_enabled", false)
+
+        val displayText = if (showContent) {
+            if (messageText.length > 100) messageText.take(100) + "..." else messageText
+        } else {
+            "New message"
+        }
+
+        // Use unique notification ID per MESSAGE (not per contact)
+        // Each message gets its own notification that can be dismissed independently
+        // Use current time millis to ensure uniqueness
+        val messageNotificationId = (System.currentTimeMillis() % 100000).toInt() + 10000
+
+        // Build notification
+        val notification = NotificationCompat.Builder(this, AUTH_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_shield)
+            .setContentTitle(senderName)
+            .setContentText(displayText)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setAutoCancel(true)
+            .setContentIntent(openChatPendingIntent)
+            .addAction(R.drawable.ic_send, "Reply", replyPendingIntent)
+            .setGroup("MESSAGES_${contactId}") // Group messages by contact
+            .build()
+
+        // Show notification - each message gets unique ID
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.notify(messageNotificationId, notification)
+
+        Log.i(TAG, "Message notification shown for $senderName (unique ID: $messageNotificationId)")
+    }
+
+    /**
+     * Update app badge count with unread message count
+     */
+    private fun updateAppBadgeCount(database: com.shieldmessenger.database.ShieldMessengerDatabase) {
+        try {
+            kotlinx.coroutines.runBlocking {
+                val unreadCount = database.messageDao().getTotalUnreadCount()
+                Log.d(TAG, "Updating app badge count: $unreadCount unread messages")
+
+                // Update badge using ShortcutBadger or similar
+                // For now, just log it - badge implementation varies by launcher
+                if (unreadCount > 0) {
+                    Log.i(TAG, "App badge should show: $unreadCount")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update badge count", e)
+        }
+    }
+
+    /**
+     * Send read receipt back to sender when message is received
+     */
+    private fun sendReadReceipt(contactId: Long, messageId: Long) {
+        Thread {
+            try {
+                Log.d(TAG, "Sending read receipt for message $messageId to contact $contactId")
+
+                // Get contact info
+                val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+                val dbPassphrase = keyManager.getDatabasePassphrase()
+                val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
+                val contact = kotlinx.coroutines.runBlocking {
+                    database.contactDao().getContactById(contactId)
+                }
+
+                if (contact == null) {
+                    Log.e(TAG, "Contact not found for read receipt")
+                    return@Thread
+                }
+
+                // Create read receipt payload
+                val receiptPayload = """
+                    {
+                        "type": "read_receipt",
+                        "messageId": $messageId,
+                        "timestamp": ${System.currentTimeMillis()}
+                    }
+                """.trimIndent()
+
+                // Encrypt receipt
+                val recipientX25519PublicKey = android.util.Base64.decode(contact.x25519PublicKeyBase64, android.util.Base64.NO_WRAP)
+                val encryptedReceipt = RustBridge.encryptMessage(receiptPayload, recipientX25519PublicKey)
+
+                // Send via Tor to contact's .onion address
+                // TODO: Implement Tor send message protocol
+                // For now, just log it - this will be implemented when we add outgoing message support
+                Log.i(TAG, "Read receipt prepared (${encryptedReceipt.size} bytes) - waiting for outgoing protocol implementation")
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send read receipt", e)
+            }
+        }.start()
+    }
+
+    /**
+     * Handle notification deletion - recreate it immediately
+     * This is called when user swipes away the notification
+     */
+    private fun handleNotificationDeleted() {
+        Log.w(TAG, "Notification deleted by user - recreating to keep service alive")
+
+        // Determine current status
+        val status = when {
+            !torConnected -> "Connecting to Tor network..."
+            !listenersReady -> "Starting listeners..."
+            else -> "Connected to Tor"
+        }
+
+        // Recreate the notification and reattach to foreground
+        val notification = createNotification(status)
+        try {
+            startForeground(NOTIFICATION_ID, notification)
+            Log.i(TAG, "Notification recreated - service remains active")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to recreate notification", e)
+        }
+    }
+
+    @Deprecated("Use stopTor() instead", level = DeprecationLevel.ERROR)
+    private fun stopTorService() {
+        Log.w(TAG, "========== OLD stopTorService() CALLED BUT DISABLED ==========")
+        Log.w(TAG, "This was the legacy daemon lifecycle - now using stopTor() instead")
+        // DISABLED - Part of OLD IMPLEMENTATION that bypassed state machine
+        // Use the new state machine: stopTor()
+    }
+
+    /**
+     * Restart Tor daemon (idempotent)
+     * Used by TorHealthMonitorWorker for auto-recovery
+     */
+    /**
+     * OLD IMPLEMENTATION (DISABLED) - Legacy daemon restart
+     *
+     * WHY DISABLED: This was the restart function the worker called (no args).
+     * It does stopTorService() + postDelayed + startTorService() which bypasses
+     * all the state machine guards in the new restartTor(reason).
+     *
+     * FIXED: Worker now calls restartTor(reason) through serviceScope.launch()
+     */
+    private fun restartTor() {
+        Log.w(TAG, "========== OLD restartTor() CALLED BUT DISABLED ==========")
+        Log.w(TAG, "This was the legacy daemon restart - now using restartTor(reason) instead")
+        Log.w(TAG, "If you see this, something is still calling the old function signature")
+        // DISABLED - do nothing
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Tor service channel (minimal priority - shows only shield icon in status bar)
+            val serviceChannel = NotificationChannel(
+                CHANNEL_ID,
+                CHANNEL_NAME,
+                NotificationManager.IMPORTANCE_MIN
+            ).apply {
+                description = "Shows shield icon when Tor is running. Only displays notification for connection issues."
+                setShowBadge(false)
+                // Disable sound and vibration for this persistent notification
+                setSound(null, null)
+                enableVibration(false)
+            }
+
+            // Message authentication channel (high priority)
+            val authChannel = NotificationChannel(
+                AUTH_CHANNEL_ID,
+                AUTH_CHANNEL_NAME,
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Friend requests and message approvals"
+                setShowBadge(true)
+                enableVibration(true)
+                enableLights(true)
+                setSound(
+                    android.provider.Settings.System.DEFAULT_NOTIFICATION_URI,
+                    android.media.AudioAttributes.Builder()
+                        .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+            }
+
+            // Badge channel (for app icon badge with unread count)
+            val badgeChannel = NotificationChannel(
+                "badge_channel",
+                "Message Badge",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Shows unread message count on app icon"
+                setShowBadge(true)
+            }
+
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager.createNotificationChannel(serviceChannel)
+            notificationManager.createNotificationChannel(authChannel)
+            notificationManager.createNotificationChannel(badgeChannel)
+        }
+    }
+
+    private fun createNotification(status: String): Notification {
+        // Launch via LockActivity to prevent showing app before authentication
+        val intent = Intent(this, LockActivity::class.java).apply {
+            putExtra("TARGET_ACTIVITY", "MainActivity")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        // Determine if this is a problem state that needs user attention
+        val isProblemState = status.contains("Connecting", ignoreCase = true) ||
+                             status.contains("Reconnecting", ignoreCase = true) ||
+                             status.contains("Failed", ignoreCase = true) ||
+                             status.contains("Error", ignoreCase = true) ||
+                             status.contains("Retrying", ignoreCase = true)
+
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification_logo)
+            .setOngoing(true)
+            .setContentIntent(pendingIntent)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+
+        // Only show notification text for problem states
+        // Normal "Connected" state shows bandwidth stats
+        if (isProblemState) {
+            builder.setContentTitle("Shield Messenger")
+                   .setContentText(status)
+                   .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+        } else {
+            // Connected state - show bandwidth stats
+            if (vpnActive) {
+                // VPN enabled - show combined stats
+                val messagingDown = formatBytes(currentDownloadSpeed)
+                val messagingUp = formatBytes(currentUploadSpeed)
+                val vpnDown = formatBytesTotal(vpnBytesReceived)
+                val vpnUp = formatBytesTotal(vpnBytesSent)
+
+                builder.setContentTitle("Shield Messenger")
+                       .setContentText("Messaging: ↓ $messagingDown ↑ $messagingUp\nVPN: ↓ $vpnDown ↑ $vpnUp")
+                       .setStyle(NotificationCompat.BigTextStyle()
+                           .bigText("Messaging Tor: ↓ $messagingDown / ↑ $messagingUp\nDevice VPN: ↓ $vpnDown / ↑ $vpnUp"))
+                       .setPriority(NotificationCompat.PRIORITY_MIN)
+                       .setShowWhen(false)
+                       .setSilent(true)
+            } else {
+                // VPN disabled - show only messaging stats
+                val downloadSpeed = formatBytes(currentDownloadSpeed)
+                val uploadSpeed = formatBytes(currentUploadSpeed)
+
+                builder.setContentTitle("Connected to the Tor Network")
+                       .setContentText("↓ $downloadSpeed / ↑ $uploadSpeed")
+                       .setPriority(NotificationCompat.PRIORITY_MIN)
+                       .setShowWhen(false)
+                       .setSilent(true)
+            }
+        }
+
+        // Android 12+ (API 31+): Make notification truly non-dismissible
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+        }
+
+        return builder.build()
+    }
+
+    private fun updateNotification(status: String) {
+        val notification = createNotification(status)
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.notify(NOTIFICATION_ID, notification)
+    }
+
+    // ==================== VOICE SERVICE ====================
+
+    /**
+     * Initialize voice streaming service
+     * - Creates voice hidden service .onion address
+     * - Registers VoiceCallManager as packet callback
+     * - Starts voice streaming server on port 9152
+     */
+    private fun startVoiceService() {
+        Log.i(TAG, "startVoiceService() called")
+        try {
+            // Get VoiceCallManager singleton instance
+            Log.d(TAG, "Getting VoiceCallManager instance...")
+            val voiceCallManager = com.shieldmessenger.voice.VoiceCallManager.getInstance(applicationContext)
+
+            // Register as voice packet callback for incoming voice packets
+            Log.d(TAG, "Setting voice packet callback...")
+            RustBridge.setVoicePacketCallback(voiceCallManager)
+
+            // Register signaling callback for CALL_OFFER/CALL_ANSWER messages over voice onion
+            Log.d(TAG, "Setting voice signaling callback...")
+            RustBridge.setVoiceSignalingCallback(object : RustBridge.VoiceSignalingCallback {
+                override fun onSignalingMessage(senderPubkey: ByteArray, wireMessage: ByteArray) {
+                    Log.i(TAG, "Voice signaling message received via HTTP: ${wireMessage.size} bytes")
+
+                    // Wire format: [Type][Sender X25519 Pubkey - 32 bytes][Encrypted Message]
+                    if (wireMessage.size < 33) {
+                        Log.e(TAG, "Invalid signaling message: too short (${wireMessage.size} bytes)")
+                        return
+                    }
+
+                    // Extract encrypted payload (skip type byte + 32 byte pubkey)
+                    val encryptedPayload = wireMessage.copyOfRange(33, wireMessage.size)
+
+                    // Lookup contact by X25519 public key
+                    kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        try {
+                            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(applicationContext)
+                            val dbPassphrase = keyManager.getDatabasePassphrase()
+                            val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(applicationContext, dbPassphrase)
+
+                            val contact = database.contactDao().getContactByX25519PublicKey(
+                                android.util.Base64.encodeToString(senderPubkey, android.util.Base64.NO_WRAP)
+                            )
+
+                            if (contact == null) {
+                                Log.w(TAG, "Cannot process signaling - contact not found for X25519 key")
+                                return@launch
+                            }
+
+                            val senderOnion = contact.voiceOnion ?: contact.messagingOnion ?: ""
+                            if (senderOnion.isEmpty()) {
+                                Log.w(TAG, "Cannot process signaling - no onion address for contact ${contact.id}")
+                                return@launch
+                            }
+
+                            // Process call signaling through MessageService
+                            val messageService = MessageService(applicationContext)
+                            val encryptedPayloadBase64 = android.util.Base64.encodeToString(encryptedPayload, android.util.Base64.NO_WRAP)
+
+                            messageService.handleCallSignaling(
+                                encryptedData = encryptedPayloadBase64,
+                                senderPublicKey = senderPubkey,
+                                senderOnionAddress = senderOnion,
+                                contactId = contact.id
+                            )
+                            Log.i(TAG, "Voice signaling message processed via HTTP")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error processing voice signaling message", e)
+                        }
+                    }
+                }
+            })
+            Log.i(TAG, "Voice signaling callback registered")
+
+            // CRITICAL: Start VOICE TOR first (separate Tor instance with Single Onion Service)
+            // This Tor runs on port 9052 with HiddenServiceNonAnonymousMode 1 for 3-hop latency
+            val torManager = com.shieldmessenger.crypto.TorManager.getInstance(applicationContext)
+            Log.i(TAG, "Starting VOICE Tor instance (Single Onion Service mode)...")
+            val voiceTorStarted = torManager.startVoiceTor()
+            if (!voiceTorStarted) {
+                Log.e(TAG, "Failed to start voice Tor - cannot create voice hidden service")
+                return
+            }
+            Log.i(TAG, "Voice Tor started successfully (3-hop Single Onion Service)")
+
+            // IMPORTANT: Start voice streaming server SECOND (bind to localhost:9152)
+            // This must happen BEFORE creating the hidden service, otherwise Tor will try
+            // to route traffic to a port that isn't listening yet
+            Log.d(TAG, "Starting voice streaming server on localhost:9152...")
+            RustBridge.startVoiceStreamingServer()
+            Log.i(TAG, "Voice streaming server started on localhost:9152")
+
+            // Read voice onion address from torrc-generated hostname file
+            // (Single Onion Services don't support ADD_ONION, must be configured in torrc)
+            Log.i(TAG, "Reading voice onion address from torrc-generated hostname file...")
+            val hostnameFile = File(filesDir, "voice_tor/voice_hidden_service/hostname")
+
+            // Wait for hostname file to be created by Tor (max 30 seconds)
+            var attempts = 0
+            while (!hostnameFile.exists() && attempts < 30) {
+                Thread.sleep(1000)
+                attempts++
+            }
+
+            if (!hostnameFile.exists()) {
+                Log.e(TAG, "Voice hidden service hostname file not found after 30s")
+                throw Exception("Voice Tor did not create hostname file")
+            }
+
+            val voiceOnion = hostnameFile.readText().trim()
+            Log.i(TAG, "Voice onion address from torrc: $voiceOnion")
+
+            // Check if this is different from what's stored
+            val existingVoiceOnion = torManager.getVoiceOnionAddress()
+            if (existingVoiceOnion != voiceOnion) {
+                Log.i(TAG, "Voice onion changed from $existingVoiceOnion to $voiceOnion - updating...")
+                torManager.saveVoiceOnionAddress(voiceOnion)
+            } else {
+                Log.i(TAG, "Voice onion address unchanged: $voiceOnion")
+            }
+
+            Log.i(TAG, "Voice streaming service fully initialized")
+        } catch (e: Exception) {
+            Log.e(TAG, "CRITICAL ERROR initializing voice service: ${e.message}", e)
+            e.printStackTrace()
+        }
+    }
+
+    // ==================== BANDWIDTH MONITORING ====================
+
+    /**
+     * Start monitoring network bandwidth and updating notification
+     * Updates every 2s when app open, 10s when app closed (saves battery)
+     */
+    private fun startBandwidthMonitoring() {
+        // Initialize baseline
+        lastRxBytes = android.net.TrafficStats.getTotalRxBytes()
+        lastTxBytes = android.net.TrafficStats.getTotalTxBytes()
+        lastBandwidthUpdate = System.currentTimeMillis()
+
+        // Create update runnable
+        bandwidthUpdateRunnable = object : Runnable {
+            override fun run() {
+                updateBandwidthStats()
+                // Update notification with current speeds
+                updateNotification("Connected to the Tor Network")
+
+                // Adaptive update interval: fast when app open, slow when closed
+                val updateInterval = if (isAppInForeground) {
+                    BANDWIDTH_UPDATE_FAST // 5 seconds
+                } else {
+                    BANDWIDTH_UPDATE_SLOW // 10 seconds (saves battery)
+                }
+
+                // Schedule next update
+                bandwidthHandler.postDelayed(this, updateInterval)
+            }
+        }
+
+        // Start monitoring
+        bandwidthHandler.post(bandwidthUpdateRunnable!!)
+        Log.d(TAG, "Bandwidth monitoring started")
+    }
+
+    /**
+     * Update foreground state (called by activities)
+     * Adjusts bandwidth update frequency
+     */
+    fun setAppInForeground(inForeground: Boolean) {
+        if (isAppInForeground != inForeground) {
+            isAppInForeground = inForeground
+            Log.d(TAG, "App foreground state changed: $inForeground (bandwidth updates: ${if (inForeground) "fast (5s)" else "slow (10s)"})")
+        }
+    }
+
+    /**
+     * Stop bandwidth monitoring
+     */
+    private fun stopBandwidthMonitoring() {
+        bandwidthUpdateRunnable?.let {
+            bandwidthHandler.removeCallbacks(it)
+        }
+        bandwidthUpdateRunnable = null
+        currentDownloadSpeed = 0
+        currentUploadSpeed = 0
+        Log.d(TAG, "Bandwidth monitoring stopped")
+    }
+
+    /**
+     * Update bandwidth statistics
+     * Calculates download/upload speeds based on traffic since last update
+     */
+    private fun updateBandwidthStats() {
+        val now = System.currentTimeMillis()
+        val currentRxBytes = android.net.TrafficStats.getTotalRxBytes()
+        val currentTxBytes = android.net.TrafficStats.getTotalTxBytes()
+
+        // Calculate time delta (in seconds)
+        val timeDelta = (now - lastBandwidthUpdate) / 1000.0
+        if (timeDelta <= 0) return // Avoid division by zero
+
+        // Calculate bytes transferred since last update
+        val rxDelta = currentRxBytes - lastRxBytes
+        val txDelta = currentTxBytes - lastTxBytes
+
+        // Calculate speeds (bytes per second)
+        currentDownloadSpeed = (rxDelta / timeDelta).toLong()
+        currentUploadSpeed = (txDelta / timeDelta).toLong()
+
+        // Update for next iteration
+        lastRxBytes = currentRxBytes
+        lastTxBytes = currentTxBytes
+        lastBandwidthUpdate = now
+    }
+
+    /**
+     * Format bytes into human-readable speed string
+     * Examples: "1.2 MiB/s", "456 KiB/s", "12 B/s"
+     */
+    private fun formatBytes(bytes: Long): String {
+        return when {
+            bytes >= 1024 * 1024 -> String.format("%.1f MiB/s", bytes / (1024.0 * 1024.0))
+            bytes >= 1024 -> String.format("%.0f KiB/s", bytes / 1024.0)
+            else -> "$bytes B/s"
+        }
+    }
+
+    /**
+     * Format total bytes (not speed) into human-readable string
+     * Examples: "1.2 MB", "456 KB", "12 B"
+     */
+    private fun formatBytesTotal(bytes: Long): String {
+        return when {
+            bytes >= 1024 * 1024 -> String.format("%.1f MB", bytes / (1024.0 * 1024.0))
+            bytes >= 1024 -> String.format("%.1f KB", bytes / 1024.0)
+            else -> "$bytes B"
+        }
+    }
+
+    override fun onBind(intent: Intent?): IBinder? {
+        // This is not a bound service
+        return null
+    }
+
+    // ==================== NETWORK MONITORING ====================
+
+    /**
+     * Handle network events from NetworkWatcher
+     */
+    private suspend fun handleNetworkEvent(event: NetworkWatcher.NetworkEvent) {
+        when (event) {
+            is NetworkWatcher.NetworkEvent.Available -> {
+                Log.i(TAG, "Network available - checking if reconnection needed")
+                Log.d(TAG, "Internet: ${event.hasInternet}, WiFi: ${event.isWifi}, IPv6-only: ${event.isIpv6Only}")
+
+                if (event.isIpv6Only) {
+                    Log.w(TAG, "Network is IPv6-only - may affect Tor relay selection")
+                }
+
+                // SKIP rehydration on first network detection (startup)
+                val isFirstNetwork = lastNetworkIsWifi == null
+                if (isFirstNetwork) {
+                    Log.w(TAG, "========== FIRST NETWORK (STARTUP) - skipping rehydration ==========")
+                } else {
+                    // GATE CHECK: Only rehydrate if gate is CLOSED
+                    // If gate is OPEN → transport is verified healthy, no need to rebind
+                    if (gate.isOpenNow()) {
+                        Log.i(TAG, "Network change detected BUT gate is OPEN → skipping rehydration (transport verified)")
+                    } else {
+                        // Trigger rehydration for network switch (cleans up stale circuits)
+                        Log.i(TAG, "Network change detected and gate CLOSED → triggering rehydration")
+                        lastNetworkChangeMs = System.currentTimeMillis()
+                        lastTorUnstableAt = System.currentTimeMillis() // Mark Tor as unstable
+                        rehydrator.onNetworkChanged()
+                    }
+                }
+
+                // IMPORTANT: Only restart Tor when transport type (WiFi ↔ Cellular) or IPv6 status changes
+                // Ignore capability-only changes (validated, metered, etc.) to prevent unnecessary restarts
+                val transportChanged = lastNetworkIsWifi != null && lastNetworkIsWifi != event.isWifi
+                val ipv6StatusChanged = lastNetworkIsIpv6Only != null && lastNetworkIsIpv6Only != event.isIpv6Only
+
+                if (transportChanged || ipv6StatusChanged) {
+                    Log.w(TAG, "Network path changed: transport=${if (transportChanged) "YES (${lastNetworkIsWifi} → ${event.isWifi})" else "no"}, " +
+                              "ipv6=${if (ipv6StatusChanged) "YES (${lastNetworkIsIpv6Only} → ${event.isIpv6Only})" else "no"}")
+
+                    // Update tracking
+                    lastNetworkIsWifi = event.isWifi
+                    lastNetworkIsIpv6Only = event.isIpv6Only
+                    lastNetworkChangeMs = System.currentTimeMillis()
+                    lastTorUnstableAt = System.currentTimeMillis() // Mark Tor as unstable
+
+                    // FIX 5: DO NOT restart Tor on network path changes
+                    // Tor will handle network transitions via circuit rotation (NEWNYM)
+                    // SOCKS is sacred - only restart on process death or explicit user stop
+                    // Let fall through to rehydrator logic (gated on TransportGate)
+                    Log.i(TAG, "Network path changed - letting Tor handle circuit rotation (no SOCKS restart)")
+                    // Continue to rehydrator logic below (do NOT return early)
+                } else if (lastNetworkIsWifi == null) {
+                    // First network detection - just track it, DON'T trigger rehydration
+                    Log.w(TAG, "========== FIRST NETWORK DETECTED (STARTUP) - WiFi=${event.isWifi}, IPv6-only=${event.isIpv6Only}, Internet=${event.hasInternet} ==========")
+                    Log.w(TAG, "NOT triggering rehydration on first network (startup stabilization)")
+                    lastNetworkIsWifi = event.isWifi
+                    lastNetworkIsIpv6Only = event.isIpv6Only
+                    lastNetworkHasInternet = event.hasInternet
+                    lastNetworkChangeMs = System.currentTimeMillis()
+                    // DON'T mark as unstable on first detection
+                    // DON'T call rehydrator.onNetworkChanged()
+                    return // Exit early to prevent further processing
+                } else {
+                    // Network available but no transport/IPv6 change - ignore (capability update only)
+                    Log.d(TAG, "Network capability change (no transport switch) - ignoring")
+                }
+
+                // Recovery path depends on Tor state
+                if ((torState == TorState.OFF || torState == TorState.ERROR) && !isReconnecting && event.hasInternet) {
+                    // Tor genuinely crashed/stopped — need full reconnect via state machine
+                    Log.w(TAG, "Network restored and Tor state=$torState — scheduling restart")
+                    serviceScope.launch {
+                        restartTor("network available, torState=$torState")
+                    }
+                } else if ((torState == TorState.RUNNING || torState == TorState.BOOTSTRAPPING) && event.hasInternet) {
+                    // Tor daemon still alive — circuits will rebuild, health monitor will reopen gate
+                    Log.i(TAG, "Network restored while Tor $torState — waiting for circuit rebuild + gate reopen")
+
+                    reconnectHandler.postDelayed({
+                        Log.i(TAG, "Tor circuits should be ready - sending TAPs and checking pending messages")
+                        sendTapsToAllContacts()
+
+                        // Also trigger immediate retry for any pending messages
+                        serviceScope.launch(Dispatchers.IO) {
+                            try {
+                                val messageService = MessageService(this@TorService)
+                                val pongResult = messageService.pollForPongsAndSendMessages()
+                                if (pongResult.isSuccess) {
+                                    val sentCount = pongResult.getOrNull() ?: 0
+                                    if (sentCount > 0) {
+                                        Log.i(TAG, "Network restored: Sent $sentCount pending messages")
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error checking pending messages after network restore", e)
+                            }
+                        }
+                    }, 45000) // 45 second delay for Tor circuit stabilization
+                }
+            }
+
+            is NetworkWatcher.NetworkEvent.Lost -> {
+                Log.w(TAG, "Network lost (torState=$torState)")
+                // CRITICAL: Do NOT set torConnected = false here!
+                // The legacy setter triggers setState(OFF) which kills ALL monitoring loops
+                // (healthMonitor, socksHealthMonitor, fastRetryLoop all exit on torState==OFF).
+                // The Tor daemon is still alive — circuits are broken but will rebuild when
+                // network returns. The health monitor will detect unhealthy state and manage recovery.
+                updateNotification("Network disconnected")
+
+                // Close gate to prevent outbound message attempts during outage
+                if (gate.isOpenNow()) {
+                    Log.w(TAG, "Network lost → closing gate (circuits broken)")
+                    gate.close("NETWORK_LOST")
+                    lastTorUnstableAt = System.currentTimeMillis()
+                }
+
+                // Trigger rehydration to clean up dead circuits
+                lastNetworkChangeMs = System.currentTimeMillis()
+                rehydrator.onNetworkChanged()
+            }
+
+            is NetworkWatcher.NetworkEvent.CapabilitiesChanged -> {
+                Log.i(TAG, "Network capabilities changed")
+                Log.d(TAG, "Internet: ${event.hasInternet}, WiFi: ${event.isWifi}, IPv6-only: ${event.isIpv6Only}")
+
+                if (event.isIpv6Only) {
+                    Log.w(TAG, "Network switched to IPv6-only")
+                }
+
+                // Only trigger rehydration on REAL changes (transport/internet flip)
+                // Don't trigger on capability noise (validated, metered, etc.)
+                val transportChanged =
+                    (lastNetworkIsWifi != null && event.isWifi != lastNetworkIsWifi) ||
+                    (lastNetworkIsIpv6Only != null && event.isIpv6Only != lastNetworkIsIpv6Only)
+
+                val internetFlip =
+                    (lastNetworkHasInternet != null && event.hasInternet != lastNetworkHasInternet)
+
+                // Update last-known state FIRST (before triggering)
+                lastNetworkIsWifi = event.isWifi
+                lastNetworkIsIpv6Only = event.isIpv6Only
+                lastNetworkHasInternet = event.hasInternet
+
+                if (transportChanged || internetFlip) {
+                    // GATE CHECK: Only rehydrate if gate is CLOSED
+                    if (gate.isOpenNow()) {
+                        Log.w(TAG, "Capabilities changed meaningfully BUT gate is OPEN → skipping rehydration (transport verified)")
+                    } else {
+                        Log.w(TAG, "Capabilities changed meaningfully and gate CLOSED → triggering rehydration")
+                        lastNetworkChangeMs = System.currentTimeMillis()
+                        lastTorUnstableAt = System.currentTimeMillis()
+                        rehydrator.onNetworkChanged()
+                    }
+                } else {
+                    Log.d(TAG, "Capabilities noise (metered/validated/etc) - ignoring")
+                }
+            }
+
+            is NetworkWatcher.NetworkEvent.AirplaneModeChanged -> {
+                Log.i(TAG, "Airplane mode: ${if (event.isEnabled) "ON" else "OFF"}")
+
+                if (!event.isEnabled && event.hasInternet && torConnected) {
+                    // Airplane mode turned OFF and network is back
+                    Log.i(TAG, "Airplane mode disabled - waiting 45 seconds for Tor circuits to stabilize")
+
+                    reconnectHandler.postDelayed({
+                        Log.i(TAG, "Tor circuits should be ready - sending TAPs now")
+                        sendTapsToAllContacts()
+
+                        // Also retry pending messages
+                        serviceScope.launch(Dispatchers.IO) {
+                            try {
+                                val messageService = MessageService(this@TorService)
+                                val pongResult = messageService.pollForPongsAndSendMessages()
+                                if (pongResult.isSuccess) {
+                                    val sentCount = pongResult.getOrNull() ?: 0
+                                    if (sentCount > 0) {
+                                        Log.i(TAG, "Airplane mode restored: Sent $sentCount pending messages")
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error checking pending messages after airplane mode", e)
+                            }
+                        }
+                    }, 45000) // 45 second delay for Tor circuit stabilization
+                }
+            }
+
+            is NetworkWatcher.NetworkEvent.ScreenOn,
+            is NetworkWatcher.NetworkEvent.ScreenOff,
+            is NetworkWatcher.NetworkEvent.DozeModeChanged -> {
+                Log.i(TAG, "Power state changed - ignoring (no rebind)")
+                // Screen/Doze events do NOT mean network path changed
+                // These fire constantly during normal use and at startup
+                // DO NOT trigger rehydration
+            }
+
+            is NetworkWatcher.NetworkEvent.WifiApStateChanged,
+            is NetworkWatcher.NetworkEvent.WifiP2pChanged -> {
+                Log.i(TAG, "WiFi AP/P2P changed - ignoring (no rebind)")
+                // Wi-Fi Direct / hotspot state churns frequently and fires at boot
+                // It's not a reliable signal that Tor path needs rebinding
+                // DO NOT trigger rehydration
+            }
+        }
+    }
+
+    private fun setupVpnBroadcastReceiver() {
+        vpnBroadcastReceiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == ACTION_VPN_BANDWIDTH_UPDATE) {
+                    vpnBytesReceived = intent.getLongExtra(EXTRA_VPN_RX_BYTES, 0L)
+                    vpnBytesSent = intent.getLongExtra(EXTRA_VPN_TX_BYTES, 0L)
+                    vpnActive = intent.getBooleanExtra(EXTRA_VPN_ACTIVE, false)
+
+                    // Update notification with new VPN stats
+                    if (torConnected) {
+                        updateNotification("Connected to the Tor Network")
+                    }
+                }
+            }
+        }
+
+        val filter = android.content.IntentFilter(ACTION_VPN_BANDWIDTH_UPDATE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(vpnBroadcastReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("UnspecifiedRegisterReceiverFlag") // RECEIVER_NOT_EXPORTED not available in API < 31
+            registerReceiver(vpnBroadcastReceiver, filter)
+        }
+        Log.d(TAG, "VPN broadcast receiver registered")
+    }
+
+    // ==================== HEALTH CHECK MONITORING ====================
+
+    private fun checkTorHealth() {
+        try {
+            val isInitialized = torManager.isInitialized()
+
+            if (!isInitialized && hasNetworkConnection() && !isReconnecting) {
+                Log.w(TAG, "Health check failed: Tor not initialized but network available - attempting reconnect")
+                if (torConnected) {
+                    torConnected = false
+                    // Stop SOCKS proxy when Tor disconnects
+                    if (RustBridge.isSocksProxyRunning()) {
+                        Log.d(TAG, "Stopping SOCKS proxy due to Tor disconnection")
+                        RustBridge.stopSocksProxy()
+                    }
+                }
+                scheduleReconnect("health check: tor not initialized")
+            } else if (isInitialized) {
+                if (!torConnected && !isReconnecting) {
+                    Log.i(TAG, "Health check: Tor reconnected successfully")
+                    torConnected = true
+                    resetReconnectBackoff()
+                    isServiceRunning = true
+                    running = true
+
+                    // Reset SOCKS failure count on successful reconnect
+                    socksFailureCount = 0
+
+                    // Ensure SOCKS proxy is running for outgoing connections
+                    ensureSocksProxyRunning()
+
+                    // Start listener when health check detects reconnection
+                    startIncomingListener()
+
+                    // Send taps to all contacts to notify them we're online
+                    sendTapsToAllContacts()
+
+                    updateNotification("Connected to Tor")
+                }
+
+                // REMOVED: testSocksConnectivity() - was end-to-end test causing restart loops
+                // Tor health is determined by bootstrap state + local control port, NOT external reachability
+
+                // Ensure incoming listener is running when connected
+                if (!isListenerRunning) {
+                    Log.w(TAG, "Health check: Listener not running but Tor is connected - restarting listener")
+                    startIncomingListener()
+                }
+            } else if (!hasNetworkConnection()) {
+                Log.d(TAG, "Health check: No network connection available")
+                torConnected = false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error during health check", e)
+        }
+    }
+
+    /**
+     * Test actual SOCKS connectivity (not just if proxy is running)
+     */
+    private fun testSocksConnectivity() {
+        Thread {
+            try {
+                if (!RustBridge.isSocksProxyRunning()) {
+                    Log.w(TAG, "SOCKS health test: Proxy not running")
+                    handleSocksFailure()
+                    return@Thread
+                }
+
+                // Test by attempting to connect to check.torproject.org
+                val testResult = RustBridge.testSocksConnectivity()
+                if (!testResult) {
+                    Log.w(TAG, "SOCKS health test: Connectivity test failed")
+                    handleSocksFailure()
+                } else {
+                    // Success - reset failure count
+                    if (socksFailureCount > 0) {
+                        Log.i(TAG, "SOCKS health test: Passed - resetting failure count")
+                    }
+                    socksFailureCount = 0
+                    lastSocksFailureTime = 0L
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "SOCKS health test failed with exception", e)
+                handleSocksFailure()
+            }
+        }.start()
+    }
+
+    /**
+     * Record a download failure and restart listeners if threshold reached
+     */
+    fun recordDownloadFailure() {
+        val now = System.currentTimeMillis()
+
+        // Start new tracking window if needed
+        if (downloadFailureWindowStart == 0L || (now - downloadFailureWindowStart) > 300000L) {
+            downloadFailureWindowStart = now
+            downloadFailureCount = 1
+            Log.w(TAG, "Download failure recorded (starting new 5-minute window)")
+            return
+        }
+
+        // Increment count within window
+        downloadFailureCount++
+        Log.w(TAG, "Download failure recorded (count: $downloadFailureCount in ${(now - downloadFailureWindowStart) / 1000}s)")
+
+        // If 3 failures within 5 minutes, restart listeners
+        if (downloadFailureCount >= 3) {
+            Log.e(TAG, "Multiple download failures detected ($downloadFailureCount in 5 minutes) - restarting listeners")
+            restartListeners()
+            // Reset counters
+            downloadFailureCount = 0
+            downloadFailureWindowStart = 0L
+        }
+    }
+
+    /**
+     * Restart incoming listeners to recover from broken state
+     */
+    private fun restartListeners() {
+        Thread {
+            try {
+                Log.i(TAG, "Restarting all listeners...")
+                updateNotification("Restarting listeners...")
+
+                // Stop all listeners
+                RustBridge.stopListeners()
+                Thread.sleep(2000) // Wait 2s for cleanup
+
+                // Restart incoming listener
+                Log.i(TAG, "Starting incoming listener...")
+                startIncomingListener()
+
+                Log.i(TAG, "Listeners restarted successfully")
+                updateNotification("Connected to Tor")
+
+                // Show toast to user
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    com.shieldmessenger.utils.ThemedToast.show(this, "Connection reset - please try again")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to restart listeners", e)
+                updateNotification("Restart failed - check connection")
+            }
+        }.start()
+    }
+
+    /**
+     * Test SOCKS connectivity immediately after login - more aggressive than regular health check
+     * Forces immediate Tor restart if connection is broken
+     */
+    /**
+     * OLD IMPLEMENTATION (DISABLED) - Test SOCKS connectivity at startup
+     *
+     * WHY DISABLED: Called forceTorRestart() on end-to-end test failures (check.torproject.org)
+     * This created restart loops when external reachability failed (normal on Tor).
+     * Bootstrap state + local control port are sufficient for Tor health.
+     */
+    private fun testSocksConnectivityAtStartup() {
+        Log.w(TAG, "testSocksConnectivityAtStartup() called but DISABLED")
+        Log.w(TAG, "Old behavior: tested check.torproject.org and restarted on failure")
+        Log.w(TAG, "New behavior: Tor health determined by bootstrap state, not external tests")
+        // DISABLED - do nothing
+    }
+
+    /**
+     * Handle SOCKS failure — escalates to NEWNYM (not full restart) after threshold.
+     *
+     * OLD BEHAVIOR: escalated to forceTorRestart() on threshold → caused restart loops
+     * NEW BEHAVIOR: sends NEWNYM (circuit rotation) after 3 failures in 60s window.
+     * NEWNYM is lightweight (just asks Tor for new circuits) and can't cause restart loops.
+     * Full restart is left to the health monitor's backoff logic.
+     *
+     * Uses elapsedRealtime (monotonic) for all timestamps — immune to device clock changes.
+     */
+    private fun handleSocksFailure() {
+        val now = SystemClock.elapsedRealtime()
+
+        // Reset counter if failures are outside the time window
+        if (now - lastSocksFailureTime > SOCKS_FAILURE_WINDOW) {
+            socksFailureCount = 0
+        }
+
+        socksFailureCount++
+        lastSocksFailureTime = now
+
+        Log.w(TAG, "SOCKS failure reported ($socksFailureCount/$SOCKS_FAILURE_THRESHOLD)")
+
+        // After threshold: send NEWNYM to rotate circuits (safe, no restart loop risk)
+        if (socksFailureCount >= SOCKS_FAILURE_THRESHOLD) {
+            Log.w(TAG, "SOCKS failure threshold reached ($socksFailureCount) → requesting circuit rotation via NEWNYM")
+            maybeSendHealthNewnym()
+            socksFailureCount = 0 // Reset after action to allow future detection
+        }
+    }
+
+    /**
+     * OLD IMPLEMENTATION (DISABLED) - Force a complete Tor restart when SOCKS proxy is broken
+     *
+     * WHY DISABLED: This is the core "nuke it from orbit" loop that causes restart spirals.
+     * End-to-end reachability failures trigger this, but they're normal on Tor.
+     * The new state machine (restartTor(reason)) handles actual Tor failures properly.
+     *
+     * THIS FUNCTION IS NOW LOG-ONLY TO STOP RESTART LOOPS.
+     */
+    private fun forceTorRestart() {
+        Log.w(TAG, "========== forceTorRestart() CALLED BUT DISABLED ==========")
+        Log.w(TAG, "This was the old restart loop mechanism - now using restartTor(reason) instead")
+        Log.w(TAG, "If you're seeing this, check what called forceTorRestart() and remove that caller")
+
+        // DISABLED - do nothing
+        // Old behavior: stopped everything, reinitialize torManager, restart listeners
+        // New behavior: use restartTor(reason) with proper state machine guards instead
+    }
+
+    // ==================== RECONNECTION LOGIC ====================
+
+    /**
+     * Schedule a clean restart with exponential backoff.
+     * ALL reconnection goes through restartTor(reason) — single pipeline, no legacy bypass.
+     *
+     * @param reason Human-readable reason for the restart (logged)
+     */
+    private fun scheduleReconnect(reason: String = "scheduled reconnect") {
+        if (isReconnecting) {
+            Log.d(TAG, "Reconnection already scheduled, skipping: $reason")
+            return
+        }
+
+        if (!hasNetworkConnection()) {
+            Log.i(TAG, "No network — will restart when NetworkWatcher fires Available: $reason")
+            updateNotification("Waiting for network...")
+            return
+        }
+
+        // Calculate exponential backoff: 2s, 5s, 10s, 20s, 30s cap
+        val delay = calculateBackoffDelay()
+        reconnectAttempts++
+
+        Log.i(TAG, "Scheduling restart #$reconnectAttempts in ${delay/1000}s: $reason")
+        updateNotification("Reconnecting in ${delay/1000}s...")
+
+        isReconnecting = true
+
+        reconnectHandler.postDelayed({
+            isReconnecting = false
+            serviceScope.launch {
+                restartTor(reason)
+            }
+        }, delay)
+    }
+
+    /** Reset reconnect backoff after successful bootstrap */
+    private fun resetReconnectBackoff() {
+        reconnectAttempts = 0
+        isReconnecting = false
+        consecutiveBootstrapFailures = 0
+        reconnectHandler.removeCallbacksAndMessages(null)
+    }
+
+    private fun calculateBackoffDelay(): Long {
+        // Exponential backoff: 2s, 5s, 10s, 20s, 30s cap
+        val delays = longArrayOf(2_000, 5_000, 10_000, 20_000, 30_000)
+        return delays[reconnectAttempts.coerceAtMost(delays.size - 1)]
+    }
+
+    // ==================== ALARMMANAGER RESTART ====================
+
+    /**
+     * Schedule recurring alarm to check if service is running
+     * Provides redundancy beyond START_STICKY for aggressive battery optimization
+     */
+    @Suppress("MissingPermission") // SCHEDULE_EXACT_ALARM declared in manifest
+    private fun scheduleServiceRestart() {
+        try {
+            alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+
+            val restartIntent = Intent(this, com.shieldmessenger.receivers.TorServiceRestartReceiver::class.java)
+            val pendingIntent = PendingIntent.getBroadcast(
+                this,
+                RESTART_REQUEST_CODE,
+                restartIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val triggerTime = SystemClock.elapsedRealtime() + RESTART_CHECK_INTERVAL
+
+            // Use setExactAndAllowWhileIdle for Android 6+ to work in Doze mode
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                alarmManager?.setExactAndAllowWhileIdle(
+                    AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                    triggerTime,
+                    pendingIntent
+                )
+            } else {
+                alarmManager?.setExact(
+                    AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                    triggerTime,
+                    pendingIntent
+                )
+            }
+
+            Log.i(TAG, "Service restart alarm scheduled (${RESTART_CHECK_INTERVAL / 60000} minutes)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to schedule service restart alarm", e)
+        }
+    }
+
+    /**
+     * Cancel the recurring restart alarm
+     */
+    private fun cancelServiceRestart() {
+        try {
+            alarmManager?.let {
+                val restartIntent = Intent(this, com.shieldmessenger.receivers.TorServiceRestartReceiver::class.java)
+                val pendingIntent = PendingIntent.getBroadcast(
+                    this,
+                    RESTART_REQUEST_CODE,
+                    restartIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                it.cancel(pendingIntent)
+                Log.i(TAG, "Service restart alarm cancelled")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to cancel service restart alarm", e)
+        }
+    }
+
+    // ==================== LIFECYCLE ====================
+
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.d(TAG, "TorService destroyed")
+
+        running = false
+        torConnected = false
+        listenersReady = false
+        isServiceRunning = false
+        startTorRequested.set(false)
+
+        // Stop Guardian Project's :tor process to prevent SIGABRT on next start
+        try {
+            val gpStopIntent = Intent(this, org.torproject.jni.TorService::class.java)
+            stopService(gpStopIntent)
+            Log.d(TAG, "Sent stopService to Guardian Project TorService")
+        } catch (e: Exception) {
+            Log.w(TAG, "Error stopping GP TorService in onDestroy: ${e.message}")
+        }
+
+        // Record shutdown timestamp so startTor() can enforce a cooldown
+        try {
+            val torDir = File(filesDir, "tor")
+            torDir.mkdirs()
+            File(torDir, "last_shutdown_time").writeText(System.currentTimeMillis().toString())
+            Log.d(TAG, "Recorded shutdown timestamp")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to write shutdown timestamp: ${e.message}")
+        }
+
+        // Cancel all protocol operations and clean up coroutine scope
+        serviceScope.cancel()
+
+        // Cancel all poller coroutines and clean up poller scope
+        pollerScope.cancel()
+        pollerJobs.clear()
+
+        // Clear instance
+        instance = null
+
+        // Cancel AlarmManager restart checks
+        cancelServiceRestart()
+
+        // Clean up handlers
+        reconnectHandler.removeCallbacksAndMessages(null)
+        bandwidthHandler.removeCallbacksAndMessages(null)
+
+        // Stop NetworkWatcher
+        networkWatcher?.stop()
+
+        // Unregister VPN broadcast receiver
+        try {
+            vpnBroadcastReceiver?.let { unregisterReceiver(it) }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error unregistering VPN broadcast receiver", e)
+        }
+
+        // Release wake lock
+        wakeLock?.let {
+            if (it.isHeld) {
+                it.release()
+            }
+        }
+    }
+
+    /**
+     * Ensure SOCKS proxy is running for outgoing Tor connections
+     * Checks if proxy is running and starts it if not
+     * ALWAYS runs in background thread to avoid blocking the caller
+     */
+    private fun ensureSocksProxyRunning() {
+        Thread {
+            try {
+                if (!RustBridge.isSocksProxyRunning()) {
+                    Log.i(TAG, "SOCKS proxy not running, starting...")
+                    val started = RustBridge.startSocksProxy()
+                    if (started) {
+                        Log.i(TAG, "SOCKS proxy started successfully on 127.0.0.1:9050")
+                    } else {
+                        Log.e(TAG, "Failed to start SOCKS proxy")
+                    }
+                } else {
+                    Log.d(TAG, "SOCKS proxy already running")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking/starting SOCKS proxy", e)
+            }
+        }.start()
+    }
+
+    /**
+     * Generate deterministic message ID from sender + content hash + timestamp
+     * This enables deduplication of identical messages received within the same time window
+     */
+    private fun generateMessageId(senderId: String, content: String, timestamp: Long): String {
+        val data = "$senderId:$content:$timestamp".toByteArray()
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        val hash = digest.digest(data)
+        return "blob_" + android.util.Base64.encodeToString(hash, android.util.Base64.NO_WRAP).take(28)
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        Log.d(TAG, "onTaskRemoved - App swiped away, keeping service running")
+        // Service continues running even when app is swiped away
+        // This is intentional for Ping-Pong protocol
+    }
+
+    /**
+     * Format payment amount for display
+     * Converts lamports/zatoshis to human-readable format
+     */
+    private fun formatPaymentAmount(amount: Long, token: String): String {
+        val decimals = when (token.uppercase()) {
+            "SOL" -> 9
+            "ZEC" -> 8
+            "USDC", "USDT" -> 6
+            else -> 9
+        }
+        val divisor = Math.pow(10.0, decimals.toDouble())
+        val humanAmount = amount.toDouble() / divisor
+        return String.format("%.4f %s", humanAmount, token)
+    }
+
+    /**
+     * Execute blockchain transfer after payment acceptance
+     * Called when we receive PAYMENT_ACCEPTED from recipient
+     */
+    private fun executePaymentTransfer(
+        contact: com.shieldmessenger.database.entities.Contact,
+        amount: Long,
+        token: String,
+        recipientAddress: String,
+        quoteId: String,
+        originalMessageId: String
+    ) {
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                Log.i(TAG, "")
+                Log.i(TAG, "EXECUTING PAYMENT TRANSFER")
+                Log.i(TAG, "Amount: ${formatPaymentAmount(amount, token)}")
+                Log.i(TAG, "To: $recipientAddress")
+                Log.i(TAG, "Token: $token")
+                Log.i(TAG, "")
+
+                val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                val solanaService = SolanaService(this@TorService)
+                val senderAddress = keyManager.getSolanaAddress()
+
+                // Execute the transfer based on token type
+                val result = when (token.uppercase()) {
+                    "SOL" -> {
+                        // Convert lamports to SOL (1 SOL = 1,000,000,000 lamports)
+                        val amountSOL = amount.toDouble() / 1_000_000_000.0
+                        solanaService.sendTransaction(
+                            fromPublicKey = senderAddress,
+                            toPublicKey = recipientAddress,
+                            amountSOL = amountSOL,
+                            keyManager = keyManager
+                        )
+                    }
+                    "ZEC" -> {
+                        // Convert zatoshis to ZEC (1 ZEC = 100,000,000 zatoshis)
+                        val amountZEC = amount.toDouble() / 100_000_000.0
+                        val zcashService = ZcashService.getInstance(this@TorService)
+                        // Include NLx402 quote hash in memo for verification
+                        val memo = "NLx402:$quoteId"
+                        zcashService.sendTransaction(recipientAddress, amountZEC, memo)
+                    }
+                    else -> {
+                        // TODO: Implement SPL token transfer
+                        Result.failure(Exception("$token transfers not yet implemented"))
+                    }
+                }
+
+                if (result.isSuccess) {
+                    val txSignature = result.getOrNull() ?: ""
+                    Log.i(TAG, "Payment transfer successful! TX: $txSignature")
+
+                    // Update the original request message status
+                    val dbPassphrase = keyManager.getDatabasePassphrase()
+                    val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@TorService, dbPassphrase)
+
+                    // Find and update original message
+                    val originalMessage = database.messageDao().getMessageByMessageId(originalMessageId)
+                    if (originalMessage != null) {
+                        // CRITICAL: Use partial update to avoid overwriting delivery status
+                        // (fixes race where MESSAGE_ACK sets delivered=true between read and write)
+                        database.messageDao().updatePaymentFields(
+                            originalMessage.id,
+                            com.shieldmessenger.database.entities.Message.PAYMENT_STATUS_PAID,
+                            txSignature
+                        )
+                        Log.i(TAG, "Updated original request status to PAID")
+                    }
+
+                    // Send payment confirmation to recipient
+                    val messageService = MessageService(this@TorService)
+                    val currentTime = System.currentTimeMillis() / 1000
+                    val quote = com.shieldmessenger.crypto.NLx402Manager.PaymentQuote(
+                        quoteId = quoteId,
+                        recipient = recipientAddress,
+                        amount = amount,
+                        token = token,
+                        description = null,
+                        createdAt = currentTime,
+                        expiresAt = currentTime + 86400, // 24 hours
+                        senderHandle = null,
+                        recipientHandle = null,
+                        rawJson = """{"quote_id":"$quoteId","recipient":"$recipientAddress","amount":$amount,"token":"$token","created_at":$currentTime,"expires_at":${currentTime + 86400}}"""
+                    )
+
+                    messageService.sendPaymentConfirmation(
+                        contactId = contact.id,
+                        originalQuote = quote,
+                        txSignature = txSignature
+                    )
+                    Log.i(TAG, "Payment confirmation sent to ${contact.displayName}")
+
+                    // Broadcast payment success
+                    val intent = Intent("com.shieldmessenger.PAYMENT_SUCCESS")
+                    intent.setPackage(packageName)
+                    intent.putExtra("CONTACT_ID", contact.id)
+                    intent.putExtra("TX_SIGNATURE", txSignature)
+                    intent.putExtra("AMOUNT", amount)
+                    intent.putExtra("TOKEN", token)
+                    sendBroadcast(intent)
+
+                } else {
+                    val error = result.exceptionOrNull()?.message ?: "Unknown error"
+                    Log.e(TAG, "Payment transfer failed: $error")
+
+                    // Broadcast payment failure
+                    val intent = Intent("com.shieldmessenger.PAYMENT_FAILED")
+                    intent.setPackage(packageName)
+                    intent.putExtra("CONTACT_ID", contact.id)
+                    intent.putExtra("ERROR", error)
+                    sendBroadcast(intent)
+                }
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error executing payment transfer", e)
+            }
+        }
+    }
+
+    // ========== ControlPort Event Monitoring ==========
+
+    /**
+     * Register Tor event callback to receive ControlPort events
+     * Enables fast reaction to circuit failures and HS descriptor issues
+     */
+    private fun registerTorEventCallback() {
+        try {
+            RustBridge.setTorEventCallback(object : RustBridge.TorEventCallback {
+                override fun onTorEvent(
+                    eventType: String,
+                    circId: String,
+                    reason: String,
+                    address: String,
+                    severity: String,
+                    message: String,
+                    progress: Int
+                ) {
+                    handleTorEvent(eventType, circId, reason, address, severity, message, progress)
+                }
+            })
+            Log.i(TAG, "Tor event callback registered")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to register Tor event callback", e)
+        }
+    }
+
+    /**
+     * Handle incoming Tor ControlPort events
+     * - Logs all events to ring buffer
+     * - Reacts to CIRC_FAILED (early restart)
+     * - Reacts to HS_DESC failures (mark unhealthy)
+     */
+    private fun handleTorEvent(
+        eventType: String,
+        circId: String,
+        reason: String,
+        address: String,
+        severity: String,
+        message: String,
+        progress: Int
+    ) {
+        val now = System.currentTimeMillis()
+
+        // Add to ring buffer (last 50 events)
+        synchronized(eventRingBuffer) {
+            eventRingBuffer.add(
+                TorEvent(
+                    timestamp = now,
+                    eventType = eventType,
+                    circId = circId,
+                    reason = reason,
+                    address = address,
+                    severity = severity,
+                    message = message,
+                    progress = progress
+                )
+            )
+
+            // Keep only last 50 events
+            if (eventRingBuffer.size > MAX_EVENTS) {
+                eventRingBuffer.removeAt(0)
+            }
+        }
+
+        // React to specific events
+        when (eventType) {
+            "CIRC_FAILED" -> handleCircuitFailed(circId, reason, now)
+            "HS_DESC_FAILED" -> handleHsDescFailed(address, reason, now)
+            "HS_DESC_UPLOADED" -> handleHsDescUploaded(address, now)
+            else -> {
+                // Just log other events
+                Log.d(TAG, "Tor event: $eventType")
+            }
+        }
+    }
+
+    /**
+     * Handle CIRC_FAILED event (INFORMATIONAL ONLY)
+     *
+     * CRITICAL: Circuit failures are NORMAL Tor behavior and do NOT indicate transport failure.
+     * Circuits routinely timeout/close/rebuild - this is expected on mobile networks.
+     *
+     * Per severity model:
+     * - CIRC events → INFO level (no action)
+     * - Excessive churn (>20 in 60s) → NEWNYM (with 5-min cooldown)
+     * - Never restart Tor on circuit events alone
+     *
+     * NEWNYM is the "nuclear option" — it destroys all circuits and rotates guards.
+     * Without a cooldown, repeated NEWNYMs create a death spiral where Tor never
+     * stabilizes long enough to publish hidden service descriptors.
+     */
+    private fun handleCircuitFailed(circId: String, reason: String, now: Long) {
+        Log.i(TAG, "Circuit event: FAILED $circId (reason: $reason) [INFORMATIONAL ONLY]")
+
+        // Reset window if too old
+        if (now - circFailureWindowStart > CIRC_FAILURE_NEWNYM_WINDOW) {
+            circFailureCount = 0
+            circFailureWindowStart = now
+        }
+
+        circFailureCount++
+
+        // Log threshold for visibility
+        if (circFailureCount == 10) {
+            Log.i(TAG, "Circuit churn: 10 failures in 60s (normal Tor behavior, monitoring)")
+        }
+
+        // NEWNYM is the ONLY allowed soft action for excessive churn
+        // Never restart Tor based on circuit events
+        if (circFailureCount >= CIRC_FAILURE_NEWNYM_THRESHOLD) {
+            Log.w(TAG, "Excessive circuit failures ($circFailureCount in window) → requesting NEWNYM")
+            maybeSendCircuitNewnym()
+            // Reset counter after action attempt (cooldown is enforced inside maybeSendCircuitNewnym)
+            circFailureCount = 0
+            circFailureWindowStart = now
+        }
+    }
+
+    /**
+     * Handle HS_DESC_FAILED event
+     * Only counts failures for OUR OWN onion addresses (local HS publish health).
+     * Peer descriptor fetch failures (contact offline) are logged but do NOT affect HS health.
+     * If we see 3 of our own descriptor failures in 30 seconds → mark HS unhealthy.
+     */
+    private fun handleHsDescFailed(address: String, reason: String, now: Long) {
+        // Split local vs remote: only our own descriptor failures affect HS health
+        if (!isOwnOnion(address)) {
+            Log.d(TAG, "Peer HS_DESC_FAILED (remote, not ours): ${address.take(16)}... reason=$reason [NO health action]")
+            return
+        }
+
+        Log.w(TAG, "OWN HS descriptor FAILED (reason: $reason)")
+
+        // Reset window if too old
+        if (now - hsDescFailureWindowStart > HS_DESC_FAILURE_WINDOW) {
+            hsDescFailureCount = 0
+            hsDescFailureWindowStart = now
+        }
+
+        hsDescFailureCount++
+
+        Log.d(TAG, "Own HS descriptor failures: $hsDescFailureCount in window")
+
+        // If threshold exceeded → mark HS unhealthy and send SIGNAL HUP to force re-publish
+        if (hsDescFailureCount >= HS_DESC_FAILURE_THRESHOLD) {
+            hsDescHealthy = false
+            Log.w(TAG, "$hsDescFailureCount HS descriptor failures → marking HS unhealthy")
+
+            // SIGNAL HUP: tells Tor to reload torrc and re-publish HS descriptors
+            // Much lighter than a full restart — circuits stay alive, bootstrap stays 100%
+            // Only attempt when Tor is fully running (control socket is alive and responsive)
+            if (torState != TorState.RUNNING) {
+                Log.d(TAG, "Skipping SIGNAL HUP — Tor not RUNNING (state=$torState)")
+                return
+            }
+            val elapsed = SystemClock.elapsedRealtime()
+            if (elapsed - lastHsHupSentAt >= HS_HUP_COOLDOWN_MS) {
+                lastHsHupSentAt = elapsed
+                Log.w(TAG, "Sending SIGNAL HUP to force HS descriptor re-publish")
+                serviceScope.launch(Dispatchers.IO) {
+                    val ok = sendTorControlCommand("SIGNAL HUP")
+                    if (ok) {
+                        Log.i(TAG, "SIGNAL HUP accepted — Tor will re-read config and re-publish HS descriptors")
+                    } else {
+                        Log.e(TAG, "SIGNAL HUP failed — HS descriptors may remain stalled")
+                    }
+                }
+            } else {
+                Log.d(TAG, "SIGNAL HUP suppressed (cooldown: ${(HS_HUP_COOLDOWN_MS - (elapsed - lastHsHupSentAt)) / 1000}s remaining)")
+            }
+        }
+    }
+
+    /**
+     * Handle HS_DESC_UPLOADED event
+     * Reset HS health counter when OUR descriptor uploads successfully.
+     * Blank or non-own addresses are ignored to prevent bogus health flips.
+     */
+    private fun handleHsDescUploaded(address: String, now: Long) {
+        // Blank address = parsing issue, don't flip health
+        if (address.isBlank()) {
+            Log.d(TAG, "HS_DESC_UPLOADED with blank address [ignoring]")
+            return
+        }
+
+        // Only process our own descriptor uploads
+        if (!isOwnOnion(address)) {
+            Log.d(TAG, "HS_DESC_UPLOADED for non-own address: ${address.take(16)}... [ignoring]")
+            return
+        }
+
+        // Deduplicate: Tor uploads each descriptor to 3 HSDirs (normal redundancy)
+        val normalizedAddr = address.trim().lowercase().removeSuffix(".onion")
+        val lastUpload = lastHsDescUpload[normalizedAddr] ?: 0L
+        if (now - lastUpload < HS_DESC_DEDUPE_WINDOW_MS) {
+            return // Skip duplicate log
+        }
+        lastHsDescUpload[normalizedAddr] = now
+
+        Log.i(TAG, "Own HS descriptor UPLOADED")
+
+        // Reset HS health tracking
+        if (!hsDescHealthy || hsDescFailureCount > 0) {
+            Log.i(TAG, "Own HS descriptor upload successful → marking HS healthy")
+            hsDescHealthy = true
+            hsDescFailureCount = 0
+            hsDescFailureWindowStart = now
+        }
+    }
+
+    /**
+     * Check if network connection is available
+     * Returns true if device has validated network connectivity
+     */
+    private fun hasNetworkConnection(): Boolean {
+        return try {
+            val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val activeNetwork = connectivityManager.activeNetwork
+            val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
+            capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+        } catch (e: Exception) {
+            false
+        }
+    }
+}

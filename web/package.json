@@ -1,8 +1,8 @@
 {
-  "name": "secure-legion-web",
+  "name": "shield-messenger-web",
   "private": true,
   "version": "0.1.0",
-  "description": "Secure Legion — Private & Encrypted Messaging Web App",
+  "description": "Shield Messenger — Private & Encrypted Messaging Web App",
   "type": "module",
   "scripts": {
     "dev": "vite",
