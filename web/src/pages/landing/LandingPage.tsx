@@ -298,9 +298,13 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 }
 
 function DownloadButton({ icon, label, href }: { icon: string; label: string; href: string }) {
+  const isExternal = href.startsWith('http');
+  const isDownload = href.endsWith('.apk');
   return (
     <a
       href={href}
+      {...(isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+      {...(isDownload ? { download: true } : {})}
       className="flex items-center justify-center gap-3 p-4 rounded-xl bg-dark-900 border border-dark-800 hover:border-primary-600 hover:bg-dark-800 transition-all group"
     >
       <span className="text-2xl">{icon}</span>

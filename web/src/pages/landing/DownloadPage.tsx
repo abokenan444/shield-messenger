@@ -63,10 +63,12 @@ export function DownloadPage() {
 
 function DownloadCard({ icon, label, desc, href }: { icon: string; label: string; desc: string; href: string }) {
   const isExternal = href.startsWith('http');
+  const isDownload = href.endsWith('.apk');
   return (
     <a
       href={href}
       {...(isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+      {...(isDownload ? { download: true } : {})}
       className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-dark-900 border border-dark-800 hover:border-primary-600 hover:bg-dark-800 transition-all group"
     >
       <span className="text-4xl">{icon}</span>
