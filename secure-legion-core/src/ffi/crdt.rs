@@ -1,3 +1,4 @@
+use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
 /// CRDT group JNI bridge — 5 core + 4 sync (stub) entry points.
 ///
 /// In-memory group state lives behind `GROUPS` (Mutex<HashMap>).
@@ -13,27 +14,23 @@
 /// **Sync stubs (Phase 6):**
 /// - `crdtGenerateSyncHello`, `crdtProcessSyncHello`,
 ///   `crdtPrepareSyncChunks`, `crdtApplySyncChunk`
-
 use jni::objects::{JByteArray, JClass, JString};
-use jni::sys::{jboolean, jbyteArray, jstring, JNI_TRUE, JNI_FALSE};
+use jni::sys::{jboolean, jbyteArray, jstring, JNI_FALSE, JNI_TRUE};
 use jni::JNIEnv;
 use std::collections::HashMap;
 use std::panic;
 use std::sync::Mutex;
 use std::sync::OnceLock;
-use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 
-use crate::crdt::ids::{DeviceID, GroupID, OpID};
-use crate::crdt::ops::{
-    OpEnvelope, OpType, Role, RemoveReason, MetadataKey,
-    GroupCreatePayload, MemberInvitePayload, MemberAcceptPayload,
-    MemberRemovePayload, RoleSetPayload, MsgAddPayload, MsgEditPayload,
-    MsgDeletePayload, ReactionSetPayload, MetadataSetPayload,
-    generate_msg_id,
-};
-use crate::crdt::limits::{MAX_OP_PAYLOAD_BYTES, HARD_CAP_OPS_PER_GROUP};
 use crate::crdt::apply::GroupState;
+use crate::crdt::ids::{DeviceID, GroupID, OpID};
+use crate::crdt::limits::{HARD_CAP_OPS_PER_GROUP, MAX_OP_PAYLOAD_BYTES};
 use crate::crdt::messages::MessageEntry;
+use crate::crdt::ops::{
+    generate_msg_id, GroupCreatePayload, MemberAcceptPayload, MemberInvitePayload,
+    MemberRemovePayload, MetadataKey, MetadataSetPayload, MsgAddPayload, MsgDeletePayload,
+    MsgEditPayload, OpEnvelope, OpType, ReactionSetPayload, RemoveReason, Role, RoleSetPayload,
+};
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -149,10 +146,13 @@ fn parse_metadata_key(s: &str) -> Result<MetadataKey, String> {
 
 /// Decode hex string to a fixed 32-byte array (pubkey, msg_id, etc.).
 fn hex_to_32(hex_str: &str, field_name: &str) -> Result<[u8; 32], String> {
-    let bytes = hex::decode(hex_str)
-        .map_err(|e| format!("Bad {} hex: {}", field_name, e))?;
+    let bytes = hex::decode(hex_str).map_err(|e| format!("Bad {} hex: {}", field_name, e))?;
     if bytes.len() != 32 {
-        return Err(format!("{} must be 32 bytes (64 hex chars), got {}", field_name, bytes.len()));
+        return Err(format!(
+            "{} must be 32 bytes (64 hex chars), got {}",
+            field_name,
+            bytes.len()
+        ));
     }
     let mut arr = [0u8; 32];
     arr.copy_from_slice(&bytes);
@@ -161,10 +161,15 @@ fn hex_to_32(hex_str: &str, field_name: &str) -> Result<[u8; 32], String> {
 
 /// Decode base64 string to a fixed 24-byte array (XChaCha20 nonce).
 fn b64_to_24(b64_str: &str, field_name: &str) -> Result<[u8; 24], String> {
-    let bytes = B64.decode(b64_str)
+    let bytes = B64
+        .decode(b64_str)
         .map_err(|e| format!("Bad {} base64: {}", field_name, e))?;
     if bytes.len() != 24 {
-        return Err(format!("{} must be 24 bytes, got {}", field_name, bytes.len()));
+        return Err(format!(
+            "{} must be 24 bytes, got {}",
+            field_name,
+            bytes.len()
+        ));
     }
     let mut arr = [0u8; 24];
     arr.copy_from_slice(&bytes);
@@ -187,9 +192,7 @@ fn decode_length_prefixed_ops(
             return Err(format!("Op count exceeds limit of {}", max_ops));
         }
 
-        let len = u32::from_be_bytes(
-            data[offset..offset + 4].try_into().unwrap(),
-        ) as usize;
+        let len = u32::from_be_bytes(data[offset..offset + 4].try_into().unwrap()) as usize;
         offset += 4;
 
         if len > max_op_size {
@@ -202,7 +205,9 @@ fn decode_length_prefixed_ops(
         if offset + len > data.len() {
             return Err(format!(
                 "Truncated op at offset {} (need {} bytes, have {})",
-                offset, len, data.len() - offset
+                offset,
+                len,
+                data.len() - offset
             ));
         }
 
@@ -266,35 +271,55 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_crdtLoadGroup(
     group_id_hex: JString,
     serialized_ops_bytes: JByteArray,
 ) -> jboolean {
-    catch_panic!(env, {
-        let gid = match parse_group_id(&mut env, group_id_hex) {
-            Ok(g) => g,
-            Err(e) => { log::error!("crdtLoadGroup: {}", e); return JNI_FALSE; }
-        };
+    catch_panic!(
+        env,
+        {
+            let gid = match parse_group_id(&mut env, group_id_hex) {
+                Ok(g) => g,
+                Err(e) => {
+                    log::error!("crdtLoadGroup: {}", e);
+                    return JNI_FALSE;
+                }
+            };
 
-        let data = match jbytearray_to_vec(&mut env, serialized_ops_bytes) {
-            Ok(d) => d,
-            Err(e) => { log::error!("crdtLoadGroup: {}", e); return JNI_FALSE; }
-        };
+            let data = match jbytearray_to_vec(&mut env, serialized_ops_bytes) {
+                Ok(d) => d,
+                Err(e) => {
+                    log::error!("crdtLoadGroup: {}", e);
+                    return JNI_FALSE;
+                }
+            };
 
-        // Load allows up to hard cap ops (full group rebuild).
-        let ops = match decode_length_prefixed_ops(&data, HARD_CAP_OPS_PER_GROUP, MAX_SERIALIZED_OP_BYTES) {
-            Ok(o) => o,
-            Err(e) => { log::error!("crdtLoadGroup decode: {}", e); return JNI_FALSE; }
-        };
+            // Load allows up to hard cap ops (full group rebuild).
+            let ops = match decode_length_prefixed_ops(
+                &data,
+                HARD_CAP_OPS_PER_GROUP,
+                MAX_SERIALIZED_OP_BYTES,
+            ) {
+                Ok(o) => o,
+                Err(e) => {
+                    log::error!("crdtLoadGroup decode: {}", e);
+                    return JNI_FALSE;
+                }
+            };
 
-        let op_count = ops.len();
-        let state = match GroupState::rebuild_from_ops(gid, &ops) {
-            Ok(s) => s,
-            Err(e) => { log::error!("crdtLoadGroup rebuild: {}", e); return JNI_FALSE; }
-        };
+            let op_count = ops.len();
+            let state = match GroupState::rebuild_from_ops(gid, &ops) {
+                Ok(s) => s,
+                Err(e) => {
+                    log::error!("crdtLoadGroup rebuild: {}", e);
+                    return JNI_FALSE;
+                }
+            };
 
-        let mut groups = get_groups().lock().unwrap();
-        groups.insert(gid, state);
+            let mut groups = get_groups().lock().unwrap();
+            groups.insert(gid, state);
 
-        log::info!("crdtLoadGroup: loaded {} ops for {}", op_count, gid);
-        JNI_TRUE
-    }, JNI_FALSE)
+            log::info!("crdtLoadGroup: loaded {} ops for {}", op_count, gid);
+            JNI_TRUE
+        },
+        JNI_FALSE
+    )
 }
 
 // ===========================================================================
@@ -308,23 +333,30 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_crdtUnloadGroup(
     _class: JClass,
     group_id_hex: JString,
 ) {
-    catch_panic!(env, {
-        let gid = match parse_group_id(&mut env, group_id_hex) {
-            Ok(g) => g,
-            Err(e) => { log::error!("crdtUnloadGroup: {}", e); return; }
-        };
-
+    catch_panic!(
+        env,
         {
-            let mut groups = get_groups().lock().unwrap();
-            groups.remove(&gid);
-        }
-        {
-            let mut lmap = get_lamport_map().lock().unwrap();
-            lmap.remove(&gid);
-        }
+            let gid = match parse_group_id(&mut env, group_id_hex) {
+                Ok(g) => g,
+                Err(e) => {
+                    log::error!("crdtUnloadGroup: {}", e);
+                    return;
+                }
+            };
 
-        log::info!("crdtUnloadGroup: {}", gid);
-    }, ())
+            {
+                let mut groups = get_groups().lock().unwrap();
+                groups.remove(&gid);
+            }
+            {
+                let mut lmap = get_lamport_map().lock().unwrap();
+                lmap.remove(&gid);
+            }
+
+            log::info!("crdtUnloadGroup: {}", gid);
+        },
+        ()
+    )
 }
 
 // ===========================================================================
@@ -341,54 +373,62 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_crdtApplyOps(
     group_id_hex: JString,
     serialized_ops_bytes: JByteArray,
 ) -> jstring {
-    catch_panic!(env, {
-        let gid = match parse_group_id(&mut env, group_id_hex) {
-            Ok(g) => g,
-            Err(e) => throw_arg!(env, e),
-        };
+    catch_panic!(
+        env,
+        {
+            let gid = match parse_group_id(&mut env, group_id_hex) {
+                Ok(g) => g,
+                Err(e) => throw_arg!(env, e),
+            };
 
-        let data = match jbytearray_to_vec(&mut env, serialized_ops_bytes) {
-            Ok(d) => d,
-            Err(e) => throw_arg!(env, e),
-        };
+            let data = match jbytearray_to_vec(&mut env, serialized_ops_bytes) {
+                Ok(d) => d,
+                Err(e) => throw_arg!(env, e),
+            };
 
-        // Batch apply capped at MAX_OPS_PER_APPLY_BATCH.
-        let ops = match decode_length_prefixed_ops(&data, MAX_OPS_PER_APPLY_BATCH, MAX_SERIALIZED_OP_BYTES) {
-            Ok(o) => o,
-            Err(e) => throw_arg!(env, e),
-        };
+            // Batch apply capped at MAX_OPS_PER_APPLY_BATCH.
+            let ops = match decode_length_prefixed_ops(
+                &data,
+                MAX_OPS_PER_APPLY_BATCH,
+                MAX_SERIALIZED_OP_BYTES,
+            ) {
+                Ok(o) => o,
+                Err(e) => throw_arg!(env, e),
+            };
 
-        let mut groups = get_groups().lock().unwrap();
-        let state = match groups.get_mut(&gid) {
-            Some(s) => s,
-            None => throw_state!(env, "Group not loaded — call crdtLoadGroup first"),
-        };
+            let mut groups = get_groups().lock().unwrap();
+            let state = match groups.get_mut(&gid) {
+                Some(s) => s,
+                None => throw_state!(env, "Group not loaded — call crdtLoadGroup first"),
+            };
 
-        let mut applied = 0u64;
-        let mut rejected = 0u64;
+            let mut applied = 0u64;
+            let mut rejected = 0u64;
 
-        for op in &ops {
-            match state.apply_op(op) {
-                Ok(true) => applied += 1,
-                Ok(false) => {} // duplicate — silently skip
-                Err(e) => {
-                    log::warn!("crdtApplyOps: rejected op {:?}: {}", op.op_id, e);
-                    rejected += 1;
+            for op in &ops {
+                match state.apply_op(op) {
+                    Ok(true) => applied += 1,
+                    Ok(false) => {} // duplicate — silently skip
+                    Err(e) => {
+                        log::warn!("crdtApplyOps: rejected op {:?}: {}", op.op_id, e);
+                        rejected += 1;
+                    }
                 }
             }
-        }
 
-        let json = serde_json::json!({
-            "applied": applied,
-            "rejected": rejected,
-            "limit_status": format!("{:?}", state.limit_status()),
-        });
+            let json = serde_json::json!({
+                "applied": applied,
+                "rejected": rejected,
+                "limit_status": format!("{:?}", state.limit_status()),
+            });
 
-        match env.new_string(json.to_string()) {
-            Ok(s) => s.into_raw(),
-            Err(e) => throw_rt!(env, format!("JSON creation failed: {}", e)),
-        }
-    }, std::ptr::null_mut())
+            match env.new_string(json.to_string()) {
+                Ok(s) => s.into_raw(),
+                Err(e) => throw_rt!(env, format!("JSON creation failed: {}", e)),
+            }
+        },
+        std::ptr::null_mut()
+    )
 }
 
 // ===========================================================================
@@ -421,102 +461,125 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_crdtCreateOp(
     author_pubkey: JByteArray,
     author_privkey: JByteArray,
 ) -> jstring {
-    catch_panic!(env, {
-        // --- Parse inputs ---
-        let gid = match parse_group_id(&mut env, group_id_hex) {
-            Ok(g) => g,
-            Err(e) => throw_arg!(env, e),
-        };
-        let otype_str = match jstring_to_string(&mut env, op_type_str) {
-            Ok(s) => s,
-            Err(e) => throw_arg!(env, e),
-        };
-        let params_str = match jstring_to_string(&mut env, params_json) {
-            Ok(s) => s,
-            Err(e) => throw_arg!(env, e),
-        };
-        let pub_key = match jbytearray_to_vec(&mut env, author_pubkey) {
-            Ok(v) if v.len() == 32 => { let mut a = [0u8; 32]; a.copy_from_slice(&v); a }
-            Ok(v) => throw_arg!(env, format!("Pubkey must be 32 bytes, got {}", v.len())),
-            Err(e) => throw_arg!(env, e),
-        };
-        let priv_key = match jbytearray_to_vec(&mut env, author_privkey) {
-            Ok(v) if v.len() == 32 => { let mut a = [0u8; 32]; a.copy_from_slice(&v); a }
-            Ok(v) => throw_arg!(env, format!("Privkey must be 32 bytes, got {}", v.len())),
-            Err(e) => throw_arg!(env, e),
-        };
-
-        let otype = match parse_op_type(&otype_str) {
-            Ok(o) => o,
-            Err(e) => throw_arg!(env, e),
-        };
-        let params: serde_json::Value = match serde_json::from_str(&params_str) {
-            Ok(v) => v,
-            Err(e) => throw_arg!(env, format!("Invalid JSON: {}", e)),
-        };
-
-        // --- Get/create group state ---
-        let mut groups = get_groups().lock().unwrap();
-        if otype == OpType::GroupCreate && !groups.contains_key(&gid) {
-            groups.insert(gid, GroupState::new(gid));
-        }
-        let state = match groups.get_mut(&gid) {
-            Some(s) => s,
-            None => throw_state!(env, "Group not loaded — call crdtLoadGroup first"),
-        };
-
-        // --- Lamport + nonce ---
-        let lamport = if otype == OpType::GroupCreate { 1 } else { next_lamport(&gid, state) };
-        let op_nonce: u64 = rand::random();
-        let author_device = DeviceID::from_pubkey(&pub_key);
-
-        // --- Build payload and create signed op ---
-        let envelope = match build_op_envelope(
-            &mut env, gid, otype, &params, lamport, op_nonce,
-            pub_key, &priv_key, &author_device,
-        ) {
-            Some(op) => op,
-            None => return std::ptr::null_mut(), // exception already thrown
-        };
-
-        // --- Apply to local state ---
-        let op_id_hex = envelope.op_id.to_hex();
-        if let Err(e) = state.apply_op(&envelope) {
-            throw_rt!(env, format!("Op apply failed: {}", e));
-        }
-
-        // --- Update my lamport tracker ---
+    catch_panic!(
+        env,
         {
-            let mut lmap = get_lamport_map().lock().unwrap();
-            lmap.entry(gid)
-                .and_modify(|l| *l = (*l).max(lamport))
-                .or_insert(lamport);
-        }
+            // --- Parse inputs ---
+            let gid = match parse_group_id(&mut env, group_id_hex) {
+                Ok(g) => g,
+                Err(e) => throw_arg!(env, e),
+            };
+            let otype_str = match jstring_to_string(&mut env, op_type_str) {
+                Ok(s) => s,
+                Err(e) => throw_arg!(env, e),
+            };
+            let params_str = match jstring_to_string(&mut env, params_json) {
+                Ok(s) => s,
+                Err(e) => throw_arg!(env, e),
+            };
+            let pub_key = match jbytearray_to_vec(&mut env, author_pubkey) {
+                Ok(v) if v.len() == 32 => {
+                    let mut a = [0u8; 32];
+                    a.copy_from_slice(&v);
+                    a
+                }
+                Ok(v) => throw_arg!(env, format!("Pubkey must be 32 bytes, got {}", v.len())),
+                Err(e) => throw_arg!(env, e),
+            };
+            let priv_key = match jbytearray_to_vec(&mut env, author_privkey) {
+                Ok(v) if v.len() == 32 => {
+                    let mut a = [0u8; 32];
+                    a.copy_from_slice(&v);
+                    a
+                }
+                Ok(v) => throw_arg!(env, format!("Privkey must be 32 bytes, got {}", v.len())),
+                Err(e) => throw_arg!(env, e),
+            };
 
-        // --- Serialize and return JSON ---
-        let op_bytes = match envelope.to_bytes() {
-            Ok(b) => b,
-            Err(e) => throw_rt!(env, format!("Op serialization failed: {}", e)),
-        };
+            let otype = match parse_op_type(&otype_str) {
+                Ok(o) => o,
+                Err(e) => throw_arg!(env, e),
+            };
+            let params: serde_json::Value = match serde_json::from_str(&params_str) {
+                Ok(v) => v,
+                Err(e) => throw_arg!(env, format!("Invalid JSON: {}", e)),
+            };
 
-        let mut json = serde_json::json!({
-            "op_bytes_b64": B64.encode(&op_bytes),
-            "op_id": op_id_hex,
-            "op_type": otype_str,
-            "lamport": lamport,
-        });
+            // --- Get/create group state ---
+            let mut groups = get_groups().lock().unwrap();
+            if otype == OpType::GroupCreate && !groups.contains_key(&gid) {
+                groups.insert(gid, GroupState::new(gid));
+            }
+            let state = match groups.get_mut(&gid) {
+                Some(s) => s,
+                None => throw_state!(env, "Group not loaded — call crdtLoadGroup first"),
+            };
 
-        // Include auto-generated msg_id for MsgAdd
-        if otype == OpType::MsgAdd {
-            let msg_id = generate_msg_id(&author_device, lamport, op_nonce);
-            json["msg_id_hex"] = serde_json::Value::String(hex::encode(msg_id));
-        }
+            // --- Lamport + nonce ---
+            let lamport = if otype == OpType::GroupCreate {
+                1
+            } else {
+                next_lamport(&gid, state)
+            };
+            let op_nonce: u64 = rand::random();
+            let author_device = DeviceID::from_pubkey(&pub_key);
 
-        match env.new_string(json.to_string()) {
-            Ok(s) => s.into_raw(),
-            Err(e) => throw_rt!(env, format!("JSON creation failed: {}", e)),
-        }
-    }, std::ptr::null_mut())
+            // --- Build payload and create signed op ---
+            let envelope = match build_op_envelope(
+                &mut env,
+                gid,
+                otype,
+                &params,
+                lamport,
+                op_nonce,
+                pub_key,
+                &priv_key,
+                &author_device,
+            ) {
+                Some(op) => op,
+                None => return std::ptr::null_mut(), // exception already thrown
+            };
+
+            // --- Apply to local state ---
+            let op_id_hex = envelope.op_id.to_hex();
+            if let Err(e) = state.apply_op(&envelope) {
+                throw_rt!(env, format!("Op apply failed: {}", e));
+            }
+
+            // --- Update my lamport tracker ---
+            {
+                let mut lmap = get_lamport_map().lock().unwrap();
+                lmap.entry(gid)
+                    .and_modify(|l| *l = (*l).max(lamport))
+                    .or_insert(lamport);
+            }
+
+            // --- Serialize and return JSON ---
+            let op_bytes = match envelope.to_bytes() {
+                Ok(b) => b,
+                Err(e) => throw_rt!(env, format!("Op serialization failed: {}", e)),
+            };
+
+            let mut json = serde_json::json!({
+                "op_bytes_b64": B64.encode(&op_bytes),
+                "op_id": op_id_hex,
+                "op_type": otype_str,
+                "lamport": lamport,
+            });
+
+            // Include auto-generated msg_id for MsgAdd
+            if otype == OpType::MsgAdd {
+                let msg_id = generate_msg_id(&author_device, lamport, op_nonce);
+                json["msg_id_hex"] = serde_json::Value::String(hex::encode(msg_id));
+            }
+
+            match env.new_string(json.to_string()) {
+                Ok(s) => s.into_raw(),
+                Err(e) => throw_rt!(env, format!("JSON creation failed: {}", e)),
+            }
+        },
+        std::ptr::null_mut()
+    )
 }
 
 /// Build an OpEnvelope for the given op type and params. Returns None if an
@@ -535,9 +598,13 @@ fn build_op_envelope(
     let result = match otype {
         OpType::GroupCreate => {
             let group_name = params["group_name"].as_str().unwrap_or("").to_string();
-            let secret = B64.decode(params["encrypted_group_secret_b64"].as_str().unwrap_or(""))
+            let secret = B64
+                .decode(params["encrypted_group_secret_b64"].as_str().unwrap_or(""))
                 .unwrap_or_default();
-            let payload = GroupCreatePayload { group_name, encrypted_group_secret: secret };
+            let payload = GroupCreatePayload {
+                group_name,
+                encrypted_group_secret: secret,
+            };
             OpEnvelope::create_signed(gid, otype, &payload, lamport, op_nonce, pub_key, priv_key)
         }
         OpType::MemberInvite => {
@@ -556,11 +623,15 @@ fn build_op_envelope(
                     return None;
                 }
             };
-            let secret = B64.decode(params["encrypted_group_secret_b64"].as_str().unwrap_or(""))
+            let secret = B64
+                .decode(params["encrypted_group_secret_b64"].as_str().unwrap_or(""))
                 .unwrap_or_default();
             let invited_device_id = DeviceID::from_pubkey(&invited_pubkey);
             let payload = MemberInvitePayload {
-                invited_device_id, invited_pubkey, role, encrypted_group_secret: secret,
+                invited_device_id,
+                invited_pubkey,
+                role,
+                encrypted_group_secret: secret,
             };
             OpEnvelope::create_signed(gid, otype, &payload, lamport, op_nonce, pub_key, priv_key)
         }
@@ -593,7 +664,10 @@ fn build_op_envelope(
                 }
             };
             let target_device_id = DeviceID::from_pubkey(&target_pk);
-            let payload = MemberRemovePayload { target_device_id, reason };
+            let payload = MemberRemovePayload {
+                target_device_id,
+                reason,
+            };
             OpEnvelope::create_signed(gid, otype, &payload, lamport, op_nonce, pub_key, priv_key)
         }
         OpType::RoleSet => {
@@ -613,12 +687,16 @@ fn build_op_envelope(
                 }
             };
             let target_device_id = DeviceID::from_pubkey(&target_pk);
-            let payload = RoleSetPayload { target_device_id, new_role };
+            let payload = RoleSetPayload {
+                target_device_id,
+                new_role,
+            };
             OpEnvelope::create_signed(gid, otype, &payload, lamport, op_nonce, pub_key, priv_key)
         }
         OpType::MsgAdd => {
             let msg_id = generate_msg_id(author_device, lamport, op_nonce);
-            let ciphertext = B64.decode(params["ciphertext_b64"].as_str().unwrap_or(""))
+            let ciphertext = B64
+                .decode(params["ciphertext_b64"].as_str().unwrap_or(""))
                 .unwrap_or_default();
             let enc_nonce = match b64_to_24(params["nonce_b64"].as_str().unwrap_or(""), "nonce") {
                 Ok(n) => n,
@@ -627,7 +705,11 @@ fn build_op_envelope(
                     return None;
                 }
             };
-            let payload = MsgAddPayload { msg_id, ciphertext, nonce: enc_nonce };
+            let payload = MsgAddPayload {
+                msg_id,
+                ciphertext,
+                nonce: enc_nonce,
+            };
             OpEnvelope::create_signed(gid, otype, &payload, lamport, op_nonce, pub_key, priv_key)
         }
         OpType::MsgEdit => {
@@ -638,7 +720,8 @@ fn build_op_envelope(
                     return None;
                 }
             };
-            let new_ciphertext = B64.decode(params["new_ciphertext_b64"].as_str().unwrap_or(""))
+            let new_ciphertext = B64
+                .decode(params["new_ciphertext_b64"].as_str().unwrap_or(""))
                 .unwrap_or_default();
             let enc_nonce = match b64_to_24(params["nonce_b64"].as_str().unwrap_or(""), "nonce") {
                 Ok(n) => n,
@@ -647,7 +730,11 @@ fn build_op_envelope(
                     return None;
                 }
             };
-            let payload = MsgEditPayload { msg_id, new_ciphertext, nonce: enc_nonce };
+            let payload = MsgEditPayload {
+                msg_id,
+                new_ciphertext,
+                nonce: enc_nonce,
+            };
             OpEnvelope::create_signed(gid, otype, &payload, lamport, op_nonce, pub_key, priv_key)
         }
         OpType::MsgDelete => {
@@ -671,7 +758,11 @@ fn build_op_envelope(
             };
             let emoji = params["emoji"].as_str().unwrap_or("").to_string();
             let present = params["present"].as_bool().unwrap_or(true);
-            let payload = ReactionSetPayload { msg_id, emoji, present };
+            let payload = ReactionSetPayload {
+                msg_id,
+                emoji,
+                present,
+            };
             OpEnvelope::create_signed(gid, otype, &payload, lamport, op_nonce, pub_key, priv_key)
         }
         OpType::MetadataSet => {
@@ -682,7 +773,8 @@ fn build_op_envelope(
                     return None;
                 }
             };
-            let value = B64.decode(params["value_b64"].as_str().unwrap_or(""))
+            let value = B64
+                .decode(params["value_b64"].as_str().unwrap_or(""))
                 .unwrap_or_default();
             let payload = MetadataSetPayload { key, value };
             OpEnvelope::create_signed(gid, otype, &payload, lamport, op_nonce, pub_key, priv_key)
@@ -692,8 +784,10 @@ fn build_op_envelope(
     match result {
         Ok(op) => Some(op),
         Err(e) => {
-            let _ = env.throw_new("java/lang/RuntimeException",
-                format!("Op creation failed: {}", e));
+            let _ = env.throw_new(
+                "java/lang/RuntimeException",
+                format!("Op creation failed: {}", e),
+            );
             None
         }
     }
@@ -721,42 +815,46 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_crdtQuery(
     query_type: JString,
     params_json: JString,
 ) -> jstring {
-    catch_panic!(env, {
-        let gid = match parse_group_id(&mut env, group_id_hex) {
-            Ok(g) => g,
-            Err(e) => throw_arg!(env, e),
-        };
-        let qt = match jstring_to_string(&mut env, query_type) {
-            Ok(s) => s,
-            Err(e) => throw_arg!(env, e),
-        };
-        let params_str = match jstring_to_string(&mut env, params_json) {
-            Ok(s) => s,
-            Err(e) => throw_arg!(env, e),
-        };
+    catch_panic!(
+        env,
+        {
+            let gid = match parse_group_id(&mut env, group_id_hex) {
+                Ok(g) => g,
+                Err(e) => throw_arg!(env, e),
+            };
+            let qt = match jstring_to_string(&mut env, query_type) {
+                Ok(s) => s,
+                Err(e) => throw_arg!(env, e),
+            };
+            let params_str = match jstring_to_string(&mut env, params_json) {
+                Ok(s) => s,
+                Err(e) => throw_arg!(env, e),
+            };
 
-        let groups = get_groups().lock().unwrap();
-        let state = match groups.get(&gid) {
-            Some(s) => s,
-            None => throw_state!(env, "Group not loaded"),
-        };
+            let groups = get_groups().lock().unwrap();
+            let state = match groups.get(&gid) {
+                Some(s) => s,
+                None => throw_state!(env, "Group not loaded"),
+            };
 
-        let json = match qt.as_str() {
-            "members" => query_members(state),
-            "messages" => query_messages(state),
-            "messages_after" => query_messages_after(state, &params_str),
-            "metadata" => query_metadata(state),
-            "heads" => query_heads(state),
-            "state_hash" => query_state_hash(state),
-            "limit_status" => query_limit_status(state),
-            other => throw_arg!(env, format!("Unknown query type: {}", other)),
-        };
+            let json = match qt.as_str() {
+                "members" => query_members(state),
+                "messages" => query_messages(state),
+                "messages_after" => query_messages_after(state, &params_str),
+                "metadata" => query_metadata(state),
+                "heads" => query_heads(state),
+                "state_hash" => query_state_hash(state),
+                "limit_status" => query_limit_status(state),
+                other => throw_arg!(env, format!("Unknown query type: {}", other)),
+            };
 
-        match env.new_string(json.to_string()) {
-            Ok(s) => s.into_raw(),
-            Err(e) => throw_rt!(env, format!("JSON creation failed: {}", e)),
-        }
-    }, std::ptr::null_mut())
+            match env.new_string(json.to_string()) {
+                Ok(s) => s.into_raw(),
+                Err(e) => throw_rt!(env, format!("JSON creation failed: {}", e)),
+            }
+        },
+        std::ptr::null_mut()
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -764,7 +862,10 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_crdtQuery(
 // ---------------------------------------------------------------------------
 
 fn query_members(state: &GroupState) -> serde_json::Value {
-    let members: Vec<serde_json::Value> = state.membership.members().iter()
+    let members: Vec<serde_json::Value> = state
+        .membership
+        .members()
+        .iter()
         .map(|(did, entry)| {
             serde_json::json!({
                 "device_id": did.to_hex(),
@@ -782,7 +883,9 @@ fn query_members(state: &GroupState) -> serde_json::Value {
 }
 
 fn query_messages(state: &GroupState) -> serde_json::Value {
-    let msgs: Vec<serde_json::Value> = state.renderable_messages().iter()
+    let msgs: Vec<serde_json::Value> = state
+        .renderable_messages()
+        .iter()
         .map(|msg| message_to_json(msg))
         .collect();
     serde_json::Value::Array(msgs)
@@ -793,7 +896,8 @@ fn query_messages_after(state: &GroupState, params_str: &str) -> serde_json::Val
     let after_lamport = params["after_lamport"].as_u64().unwrap_or(0);
     let limit = params["limit"].as_u64().unwrap_or(50) as usize;
 
-    let mut msgs: Vec<&MessageEntry> = state.renderable_messages()
+    let mut msgs: Vec<&MessageEntry> = state
+        .renderable_messages()
         .into_iter()
         .filter(|m| m.create_op.lamport > after_lamport)
         .collect();
@@ -813,14 +917,19 @@ fn query_metadata(state: &GroupState) -> serde_json::Value {
         obj.insert("topic".into(), serde_json::Value::String(topic.to_string()));
     }
     if let Some(avatar) = state.metadata.get(&MetadataKey::Avatar) {
-        obj.insert("avatar_b64".into(), serde_json::Value::String(B64.encode(&avatar.value)));
+        obj.insert(
+            "avatar_b64".into(),
+            serde_json::Value::String(B64.encode(&avatar.value)),
+        );
     }
     serde_json::Value::Object(obj)
 }
 
 fn query_heads(state: &GroupState) -> serde_json::Value {
     let heads: Vec<String> = state.heads.iter().map(|h| h.to_hex()).collect();
-    let per_author: serde_json::Map<String, serde_json::Value> = state.max_lamport.iter()
+    let per_author: serde_json::Map<String, serde_json::Value> = state
+        .max_lamport
+        .iter()
         .map(|(did, l)| (did.to_hex(), serde_json::Value::Number((*l).into())))
         .collect();
     serde_json::json!({
@@ -843,7 +952,9 @@ fn query_limit_status(state: &GroupState) -> serde_json::Value {
 }
 
 fn message_to_json(msg: &MessageEntry) -> serde_json::Value {
-    let reactions: Vec<serde_json::Value> = msg.reactions.iter()
+    let reactions: Vec<serde_json::Value> = msg
+        .reactions
+        .iter()
         .filter(|(_, present)| **present)
         .map(|((reactor, emoji), _)| {
             serde_json::json!({
@@ -874,13 +985,17 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_crdtGenerateSyncHello(
     _class: JClass,
     _peer_device_id_hex: JString,
 ) -> jbyteArray {
-    catch_panic!(env, {
-        log::warn!("crdtGenerateSyncHello: stub — not implemented until Phase 6");
-        match vec_to_jbytearray(&mut env, &[]) {
-            Ok(arr) => arr.into_raw(),
-            Err(_) => std::ptr::null_mut(),
-        }
-    }, std::ptr::null_mut())
+    catch_panic!(
+        env,
+        {
+            log::warn!("crdtGenerateSyncHello: stub — not implemented until Phase 6");
+            match vec_to_jbytearray(&mut env, &[]) {
+                Ok(arr) => arr.into_raw(),
+                Err(_) => std::ptr::null_mut(),
+            }
+        },
+        std::ptr::null_mut()
+    )
 }
 
 #[no_mangle]
@@ -890,13 +1005,17 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_crdtProcessSyncHello(
     _peer_device_id_hex: JString,
     _hello_bytes: JByteArray,
 ) -> jbyteArray {
-    catch_panic!(env, {
-        log::warn!("crdtProcessSyncHello: stub — not implemented until Phase 6");
-        match vec_to_jbytearray(&mut env, &[]) {
-            Ok(arr) => arr.into_raw(),
-            Err(_) => std::ptr::null_mut(),
-        }
-    }, std::ptr::null_mut())
+    catch_panic!(
+        env,
+        {
+            log::warn!("crdtProcessSyncHello: stub — not implemented until Phase 6");
+            match vec_to_jbytearray(&mut env, &[]) {
+                Ok(arr) => arr.into_raw(),
+                Err(_) => std::ptr::null_mut(),
+            }
+        },
+        std::ptr::null_mut()
+    )
 }
 
 #[no_mangle]
@@ -905,13 +1024,17 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_crdtPrepareSyncChunks(
     _class: JClass,
     _request_bytes: JByteArray,
 ) -> jbyteArray {
-    catch_panic!(env, {
-        log::warn!("crdtPrepareSyncChunks: stub — not implemented until Phase 6");
-        match vec_to_jbytearray(&mut env, &[]) {
-            Ok(arr) => arr.into_raw(),
-            Err(_) => std::ptr::null_mut(),
-        }
-    }, std::ptr::null_mut())
+    catch_panic!(
+        env,
+        {
+            log::warn!("crdtPrepareSyncChunks: stub — not implemented until Phase 6");
+            match vec_to_jbytearray(&mut env, &[]) {
+                Ok(arr) => arr.into_raw(),
+                Err(_) => std::ptr::null_mut(),
+            }
+        },
+        std::ptr::null_mut()
+    )
 }
 
 #[no_mangle]
@@ -920,11 +1043,15 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_crdtApplySyncChunk(
     _class: JClass,
     _chunk_bytes: JByteArray,
 ) -> jbyteArray {
-    catch_panic!(env, {
-        log::warn!("crdtApplySyncChunk: stub — not implemented until Phase 6");
-        match vec_to_jbytearray(&mut env, &[]) {
-            Ok(arr) => arr.into_raw(),
-            Err(_) => std::ptr::null_mut(),
-        }
-    }, std::ptr::null_mut())
+    catch_panic!(
+        env,
+        {
+            log::warn!("crdtApplySyncChunk: stub — not implemented until Phase 6");
+            match vec_to_jbytearray(&mut env, &[]) {
+                Ok(arr) => arr.into_raw(),
+                Err(_) => std::ptr::null_mut(),
+            }
+        },
+        std::ptr::null_mut()
+    )
 }

@@ -6,7 +6,6 @@
 /// - Outer envelope: bincode-serialized (deterministic, compact)
 /// - Inner payload: CBOR-serialized via ciborium (serde-native, compact binary)
 /// - Signing: Ed25519 over BLAKE3(signable_bytes)
-
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
 use thiserror::Error;
@@ -322,20 +321,17 @@ impl OpEnvelope {
             &self.payload,
             &self.author_pubkey,
         );
-        bincode::serialize(&signable)
-            .map_err(|e| OpError::BincodeError(e.to_string()))
+        bincode::serialize(&signable).map_err(|e| OpError::BincodeError(e.to_string()))
     }
 
     /// Serialize the full envelope to bytes (for storage / wire transfer).
     pub fn to_bytes(&self) -> Result<Vec<u8>, OpError> {
-        bincode::serialize(self)
-            .map_err(|e| OpError::BincodeError(e.to_string()))
+        bincode::serialize(self).map_err(|e| OpError::BincodeError(e.to_string()))
     }
 
     /// Deserialize an envelope from bytes.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, OpError> {
-        bincode::deserialize(bytes)
-            .map_err(|e| OpError::BincodeError(e.to_string()))
+        bincode::deserialize(bytes).map_err(|e| OpError::BincodeError(e.to_string()))
     }
 
     /// Decode the CBOR payload into a typed struct.
@@ -351,15 +347,13 @@ impl OpEnvelope {
 /// CBOR-encode a value to bytes.
 pub fn cbor_encode<T: Serialize>(value: &T) -> Result<Vec<u8>, OpError> {
     let mut buf = Vec::new();
-    ciborium::into_writer(value, &mut buf)
-        .map_err(|e| OpError::CborEncode(e.to_string()))?;
+    ciborium::into_writer(value, &mut buf).map_err(|e| OpError::CborEncode(e.to_string()))?;
     Ok(buf)
 }
 
 /// CBOR-decode a value from bytes.
 pub fn cbor_decode<T: serde::de::DeserializeOwned>(bytes: &[u8]) -> Result<T, OpError> {
-    ciborium::from_reader(bytes)
-        .map_err(|e| OpError::CborDecode(e.to_string()))
+    ciborium::from_reader(bytes).map_err(|e| OpError::CborDecode(e.to_string()))
 }
 
 // ---------------------------------------------------------------------------
@@ -430,7 +424,7 @@ mod tests {
             group_id,
             OpType::GroupCreate,
             &payload,
-            1, // lamport
+            1,  // lamport
             42, // nonce
             pubkey,
             &privkey,
@@ -461,16 +455,9 @@ mod tests {
             nonce: [0xCC; 24],
         };
 
-        let mut op = OpEnvelope::create_signed(
-            group_id,
-            OpType::MsgAdd,
-            &payload,
-            5,
-            99,
-            pubkey,
-            &privkey,
-        )
-        .unwrap();
+        let mut op =
+            OpEnvelope::create_signed(group_id, OpType::MsgAdd, &payload, 5, 99, pubkey, &privkey)
+                .unwrap();
 
         // Tamper with payload
         op.payload.push(0xFF);
@@ -513,9 +500,7 @@ mod tests {
         let (pubkey, privkey) = test_keypair();
         let group_id = test_group_id(&pubkey);
 
-        let payload = MsgDeletePayload {
-            msg_id: [0x11; 32],
-        };
+        let payload = MsgDeletePayload { msg_id: [0x11; 32] };
 
         let op = OpEnvelope::create_signed(
             group_id,
@@ -554,15 +539,8 @@ mod tests {
             nonce: [0; 24],
         };
 
-        let result = OpEnvelope::create_signed(
-            group_id,
-            OpType::MsgAdd,
-            &oversized,
-            1,
-            0,
-            pubkey,
-            &privkey,
-        );
+        let result =
+            OpEnvelope::create_signed(group_id, OpType::MsgAdd, &oversized, 1, 0, pubkey, &privkey);
 
         assert!(result.is_err());
         match result.unwrap_err() {
@@ -578,7 +556,7 @@ mod tests {
     fn test_cbor_payload_roundtrip() {
         let payload = ReactionSetPayload {
             msg_id: [0xDD; 32],
-            emoji: "\u{1F602}".to_string(), // 
+            emoji: "\u{1F602}".to_string(), //
             present: true,
         };
 

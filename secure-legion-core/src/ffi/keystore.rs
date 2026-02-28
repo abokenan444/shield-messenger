@@ -1,10 +1,9 @@
+use jni::objects::{JByteArray, JObject};
 /// FFI KeyStore Integration
 ///
 /// Provides secure access to Android KeyStore from Rust via JNI callbacks.
 /// This ensures private keys never leave the hardware-backed secure storage.
-
 use jni::JNIEnv;
-use jni::objects::{JObject, JByteArray};
 
 /// KeyStore access errors
 #[derive(Debug)]
@@ -34,24 +33,26 @@ impl std::error::Error for KeyStoreError {}
 ///
 /// This calls back to KeyManager.getSigningKeyBytes() via JNI
 /// The key is never stored in Rust - only used for signing operations
-pub fn get_signing_private_key(env: &mut JNIEnv, key_manager: &JObject) -> Result<Vec<u8>, KeyStoreError> {
+pub fn get_signing_private_key(
+    env: &mut JNIEnv,
+    key_manager: &JObject,
+) -> Result<Vec<u8>, KeyStoreError> {
     // Call KeyManager.getSigningKeyBytes()
     let result = env
-        .call_method(
-            key_manager,
-            "getSigningKeyBytes",
-            "()[B",
-            &[],
-        )
-        .map_err(|e| KeyStoreError::JniError(format!("Failed to call getSigningKeyBytes: {}", e)))?;
+        .call_method(key_manager, "getSigningKeyBytes", "()[B", &[])
+        .map_err(|e| {
+            KeyStoreError::JniError(format!("Failed to call getSigningKeyBytes: {}", e))
+        })?;
 
     // Convert result to byte array
-    let byte_array = result.l()
+    let byte_array = result
+        .l()
         .map_err(|e| KeyStoreError::JniError(format!("Failed to get byte array: {}", e)))?;
 
     // Convert Java byte array to Rust Vec<u8>
     let jbyte_array = JByteArray::from(byte_array);
-    let len = env.get_array_length(&jbyte_array)
+    let len = env
+        .get_array_length(&jbyte_array)
         .map_err(|e| KeyStoreError::JniError(format!("Failed to get array length: {}", e)))?;
 
     let mut buf = vec![0i8; len as usize];
@@ -68,21 +69,23 @@ pub fn get_signing_private_key(env: &mut JNIEnv, key_manager: &JObject) -> Resul
 }
 
 /// Get Ed25519 public key from Android KeyStore
-pub fn get_signing_public_key(env: &mut JNIEnv, key_manager: &JObject) -> Result<Vec<u8>, KeyStoreError> {
+pub fn get_signing_public_key(
+    env: &mut JNIEnv,
+    key_manager: &JObject,
+) -> Result<Vec<u8>, KeyStoreError> {
     let result = env
-        .call_method(
-            key_manager,
-            "getSigningPublicKey",
-            "()[B",
-            &[],
-        )
-        .map_err(|e| KeyStoreError::JniError(format!("Failed to call getSigningPublicKey: {}", e)))?;
+        .call_method(key_manager, "getSigningPublicKey", "()[B", &[])
+        .map_err(|e| {
+            KeyStoreError::JniError(format!("Failed to call getSigningPublicKey: {}", e))
+        })?;
 
-    let byte_array = result.l()
+    let byte_array = result
+        .l()
         .map_err(|e| KeyStoreError::JniError(format!("Failed to get byte array: {}", e)))?;
 
     let jbyte_array = JByteArray::from(byte_array);
-    let len = env.get_array_length(&jbyte_array)
+    let len = env
+        .get_array_length(&jbyte_array)
         .map_err(|e| KeyStoreError::JniError(format!("Failed to get array length: {}", e)))?;
 
     let mut buf = vec![0i8; len as usize];
@@ -99,21 +102,23 @@ pub fn get_signing_public_key(env: &mut JNIEnv, key_manager: &JObject) -> Result
 }
 
 /// Get X25519 encryption private key from Android KeyStore
-pub fn get_encryption_private_key(env: &mut JNIEnv, key_manager: &JObject) -> Result<Vec<u8>, KeyStoreError> {
+pub fn get_encryption_private_key(
+    env: &mut JNIEnv,
+    key_manager: &JObject,
+) -> Result<Vec<u8>, KeyStoreError> {
     let result = env
-        .call_method(
-            key_manager,
-            "getEncryptionKeyBytes",
-            "()[B",
-            &[],
-        )
-        .map_err(|e| KeyStoreError::JniError(format!("Failed to call getEncryptionKeyBytes: {}", e)))?;
+        .call_method(key_manager, "getEncryptionKeyBytes", "()[B", &[])
+        .map_err(|e| {
+            KeyStoreError::JniError(format!("Failed to call getEncryptionKeyBytes: {}", e))
+        })?;
 
-    let byte_array = result.l()
+    let byte_array = result
+        .l()
         .map_err(|e| KeyStoreError::JniError(format!("Failed to get byte array: {}", e)))?;
 
     let jbyte_array = JByteArray::from(byte_array);
-    let len = env.get_array_length(&jbyte_array)
+    let len = env
+        .get_array_length(&jbyte_array)
         .map_err(|e| KeyStoreError::JniError(format!("Failed to get array length: {}", e)))?;
 
     let mut buf = vec![0i8; len as usize];
@@ -130,21 +135,23 @@ pub fn get_encryption_private_key(env: &mut JNIEnv, key_manager: &JObject) -> Re
 }
 
 /// Get X25519 encryption public key from Android KeyStore
-pub fn get_encryption_public_key(env: &mut JNIEnv, key_manager: &JObject) -> Result<Vec<u8>, KeyStoreError> {
+pub fn get_encryption_public_key(
+    env: &mut JNIEnv,
+    key_manager: &JObject,
+) -> Result<Vec<u8>, KeyStoreError> {
     let result = env
-        .call_method(
-            key_manager,
-            "getEncryptionPublicKey",
-            "()[B",
-            &[],
-        )
-        .map_err(|e| KeyStoreError::JniError(format!("Failed to call getEncryptionPublicKey: {}", e)))?;
+        .call_method(key_manager, "getEncryptionPublicKey", "()[B", &[])
+        .map_err(|e| {
+            KeyStoreError::JniError(format!("Failed to call getEncryptionPublicKey: {}", e))
+        })?;
 
-    let byte_array = result.l()
+    let byte_array = result
+        .l()
         .map_err(|e| KeyStoreError::JniError(format!("Failed to get byte array: {}", e)))?;
 
     let jbyte_array = JByteArray::from(byte_array);
-    let len = env.get_array_length(&jbyte_array)
+    let len = env
+        .get_array_length(&jbyte_array)
         .map_err(|e| KeyStoreError::JniError(format!("Failed to get array length: {}", e)))?;
 
     let mut buf = vec![0i8; len as usize];
@@ -161,21 +168,23 @@ pub fn get_encryption_public_key(env: &mut JNIEnv, key_manager: &JObject) -> Res
 }
 
 /// Get hidden service Ed25519 private key from Android KeyStore
-pub fn get_hidden_service_private_key(env: &mut JNIEnv, key_manager: &JObject) -> Result<Vec<u8>, KeyStoreError> {
+pub fn get_hidden_service_private_key(
+    env: &mut JNIEnv,
+    key_manager: &JObject,
+) -> Result<Vec<u8>, KeyStoreError> {
     let result = env
-        .call_method(
-            key_manager,
-            "getHiddenServiceKeyBytes",
-            "()[B",
-            &[],
-        )
-        .map_err(|e| KeyStoreError::JniError(format!("Failed to call getHiddenServiceKeyBytes: {}", e)))?;
+        .call_method(key_manager, "getHiddenServiceKeyBytes", "()[B", &[])
+        .map_err(|e| {
+            KeyStoreError::JniError(format!("Failed to call getHiddenServiceKeyBytes: {}", e))
+        })?;
 
-    let byte_array = result.l()
+    let byte_array = result
+        .l()
         .map_err(|e| KeyStoreError::JniError(format!("Failed to get byte array: {}", e)))?;
 
     let jbyte_array = JByteArray::from(byte_array);
-    let len = env.get_array_length(&jbyte_array)
+    let len = env
+        .get_array_length(&jbyte_array)
         .map_err(|e| KeyStoreError::JniError(format!("Failed to get array length: {}", e)))?;
 
     let mut buf = vec![0i8; len as usize];
@@ -193,21 +202,23 @@ pub fn get_hidden_service_private_key(env: &mut JNIEnv, key_manager: &JObject) -
 
 /// Get friend request Ed25519 private key from Android KeyStore (v2.0)
 /// Derived from seed using domain separation ("friend_req")
-pub fn get_friend_request_private_key(env: &mut JNIEnv, key_manager: &JObject) -> Result<Vec<u8>, KeyStoreError> {
+pub fn get_friend_request_private_key(
+    env: &mut JNIEnv,
+    key_manager: &JObject,
+) -> Result<Vec<u8>, KeyStoreError> {
     let result = env
-        .call_method(
-            key_manager,
-            "getFriendRequestKeyBytes",
-            "()[B",
-            &[],
-        )
-        .map_err(|e| KeyStoreError::JniError(format!("Failed to call getFriendRequestKeyBytes: {}", e)))?;
+        .call_method(key_manager, "getFriendRequestKeyBytes", "()[B", &[])
+        .map_err(|e| {
+            KeyStoreError::JniError(format!("Failed to call getFriendRequestKeyBytes: {}", e))
+        })?;
 
-    let byte_array = result.l()
+    let byte_array = result
+        .l()
         .map_err(|e| KeyStoreError::JniError(format!("Failed to get byte array: {}", e)))?;
 
     let jbyte_array = JByteArray::from(byte_array);
-    let len = env.get_array_length(&jbyte_array)
+    let len = env
+        .get_array_length(&jbyte_array)
         .map_err(|e| KeyStoreError::JniError(format!("Failed to get array length: {}", e)))?;
 
     let mut buf = vec![0i8; len as usize];
@@ -226,21 +237,23 @@ pub fn get_friend_request_private_key(env: &mut JNIEnv, key_manager: &JObject) -
 /// Get voice service Ed25519 private key from Android KeyStore (v2.0)
 /// Derived from seed using domain separation ("tor_voice")
 /// Used for voice calling .onion address creation
-pub fn get_voice_service_private_key(env: &mut JNIEnv, key_manager: &JObject) -> Result<Vec<u8>, KeyStoreError> {
+pub fn get_voice_service_private_key(
+    env: &mut JNIEnv,
+    key_manager: &JObject,
+) -> Result<Vec<u8>, KeyStoreError> {
     let result = env
-        .call_method(
-            key_manager,
-            "getVoiceServicePrivateKey",
-            "()[B",
-            &[],
-        )
-        .map_err(|e| KeyStoreError::JniError(format!("Failed to call getVoiceServicePrivateKey: {}", e)))?;
+        .call_method(key_manager, "getVoiceServicePrivateKey", "()[B", &[])
+        .map_err(|e| {
+            KeyStoreError::JniError(format!("Failed to call getVoiceServicePrivateKey: {}", e))
+        })?;
 
-    let byte_array = result.l()
+    let byte_array = result
+        .l()
         .map_err(|e| KeyStoreError::JniError(format!("Failed to get byte array: {}", e)))?;
 
     let jbyte_array = JByteArray::from(byte_array);
-    let len = env.get_array_length(&jbyte_array)
+    let len = env
+        .get_array_length(&jbyte_array)
         .map_err(|e| KeyStoreError::JniError(format!("Failed to get array length: {}", e)))?;
 
     let mut buf = vec![0i8; len as usize];
@@ -265,24 +278,22 @@ pub fn sign_with_keystore(
     data: &[u8],
 ) -> Result<Vec<u8>, KeyStoreError> {
     // Convert data to Java byte array
-    let data_array = env.byte_array_from_slice(data)
+    let data_array = env
+        .byte_array_from_slice(data)
         .map_err(|e| KeyStoreError::JniError(format!("Failed to create byte array: {}", e)))?;
 
     // Call KeyManager.signData(data)
     let result = env
-        .call_method(
-            key_manager,
-            "signData",
-            "([B)[B",
-            &[(&data_array).into()],
-        )
+        .call_method(key_manager, "signData", "([B)[B", &[(&data_array).into()])
         .map_err(|_e| KeyStoreError::SigningFailed)?;
 
-    let signature_array = result.l()
+    let signature_array = result
+        .l()
         .map_err(|e| KeyStoreError::JniError(format!("Failed to get signature: {}", e)))?;
 
     let jbyte_array = JByteArray::from(signature_array);
-    let len = env.get_array_length(&jbyte_array)
+    let len = env
+        .get_array_length(&jbyte_array)
         .map_err(|e| KeyStoreError::JniError(format!("Failed to get signature length: {}", e)))?;
 
     let mut buf = vec![0i8; len as usize];
@@ -301,7 +312,10 @@ pub fn sign_with_keystore(
 /// Get KeyManager instance from context
 ///
 /// Retrieves the singleton KeyManager instance for callback operations
-pub fn get_key_manager<'a>(env: &mut JNIEnv<'a>, context: &JObject) -> Result<JObject<'a>, KeyStoreError> {
+pub fn get_key_manager<'a>(
+    env: &mut JNIEnv<'a>,
+    context: &JObject,
+) -> Result<JObject<'a>, KeyStoreError> {
     // Get KeyManager.getInstance(context)
     let key_manager_class = env
         .find_class("com/securelegion/crypto/KeyManager")
@@ -314,9 +328,12 @@ pub fn get_key_manager<'a>(env: &mut JNIEnv<'a>, context: &JObject) -> Result<JO
             "(Landroid/content/Context;)Lcom/securelegion/crypto/KeyManager;",
             &[context.into()],
         )
-        .map_err(|e| KeyStoreError::JniError(format!("Failed to get KeyManager instance: {}", e)))?;
+        .map_err(|e| {
+            KeyStoreError::JniError(format!("Failed to get KeyManager instance: {}", e))
+        })?;
 
-    Ok(key_manager.l()
+    Ok(key_manager
+        .l()
         .map_err(|e| KeyStoreError::JniError(format!("Failed to cast KeyManager: {}", e)))?)
 }
 

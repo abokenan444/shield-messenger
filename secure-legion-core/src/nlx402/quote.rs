@@ -4,12 +4,12 @@
 //! to make a payment. The quote hash is embedded in the transaction memo
 //! for replay protection.
 
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Sha3_256};
 use thiserror::Error;
 
-use super::{MEMO_PREFIX, DEFAULT_QUOTE_EXPIRY_SECS};
+use super::{DEFAULT_QUOTE_EXPIRY_SECS, MEMO_PREFIX};
 
 #[derive(Error, Debug)]
 pub enum QuoteError {
@@ -90,14 +90,12 @@ impl PaymentQuote {
 
     /// Serialize quote to JSON
     pub fn to_json(&self) -> Result<String> {
-        serde_json::to_string(self)
-            .map_err(|e| QuoteError::SerializationError(e.to_string()))
+        serde_json::to_string(self).map_err(|e| QuoteError::SerializationError(e.to_string()))
     }
 
     /// Deserialize quote from JSON
     pub fn from_json(json: &str) -> Result<Self> {
-        serde_json::from_str(json)
-            .map_err(|e| QuoteError::ParseError(e.to_string()))
+        serde_json::from_str(json).map_err(|e| QuoteError::ParseError(e.to_string()))
     }
 }
 
@@ -159,7 +157,9 @@ pub fn create_quote_with_expiry(
     }
 
     if amount == 0 {
-        return Err(QuoteError::InvalidAmount("Amount must be greater than 0".into()));
+        return Err(QuoteError::InvalidAmount(
+            "Amount must be greater than 0".into(),
+        ));
     }
 
     let now = Utc::now();
@@ -206,7 +206,8 @@ mod tests {
             Some("Payment for services"),
             Some("alice"),
             Some("bob"),
-        ).unwrap();
+        )
+        .unwrap();
 
         assert!(!quote.quote_id.is_empty());
         assert_eq!(quote.recipient, "So1anaAddress123456789");
@@ -217,14 +218,7 @@ mod tests {
 
     #[test]
     fn test_quote_hash() {
-        let quote = create_quote(
-            "TestRecipient123",
-            500_000,
-            "USDC",
-            None,
-            None,
-            None,
-        ).unwrap();
+        let quote = create_quote("TestRecipient123", 500_000, "USDC", None, None, None).unwrap();
 
         let hash1 = quote.hash();
         let hash2 = quote.hash();
@@ -236,14 +230,7 @@ mod tests {
 
     #[test]
     fn test_quote_memo() {
-        let quote = create_quote(
-            "TestRecipient",
-            1000,
-            "SOL",
-            None,
-            None,
-            None,
-        ).unwrap();
+        let quote = create_quote("TestRecipient", 1000, "SOL", None, None, None).unwrap();
 
         let memo = quote.to_memo();
         assert!(memo.starts_with("NLx402:"));
@@ -267,7 +254,8 @@ mod tests {
             Some("Test payment"),
             Some("sender"),
             Some("recipient"),
-        ).unwrap();
+        )
+        .unwrap();
 
         let json = quote.to_json().unwrap();
         let parsed = PaymentQuote::from_json(&json).unwrap();

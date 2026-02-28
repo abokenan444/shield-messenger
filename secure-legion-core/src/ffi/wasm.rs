@@ -17,10 +17,7 @@ use wasm_bindgen::prelude::*;
 use base64::Engine;
 
 #[cfg(target_arch = "wasm32")]
-use crate::crypto::{
-    encryption, signing, key_exchange, hashing,
-    pqc,
-};
+use crate::crypto::{encryption, hashing, key_exchange, pqc, signing};
 
 // ─────────────────────── Initialization ───────────────────────
 
@@ -54,11 +51,12 @@ pub fn generate_identity_keypair() -> Result<String, JsValue> {
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn derive_ed25519_public_key(private_key_b64: &str) -> Result<String, JsValue> {
-    let private_key = base64::engine::general_purpose::STANDARD.decode(private_key_b64)
+    let private_key = base64::engine::general_purpose::STANDARD
+        .decode(private_key_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64: {}", e)))?;
 
-    let public_key = signing::derive_public_key(&private_key)
-        .map_err(|e| JsValue::from_str(&e.to_string()))?;
+    let public_key =
+        signing::derive_public_key(&private_key).map_err(|e| JsValue::from_str(&e.to_string()))?;
 
     Ok(base64::engine::general_purpose::STANDARD.encode(public_key))
 }
@@ -88,9 +86,11 @@ pub fn x25519_derive_shared_secret(
     our_private_key_b64: &str,
     their_public_key_b64: &str,
 ) -> Result<String, JsValue> {
-    let our_priv = base64::engine::general_purpose::STANDARD.decode(our_private_key_b64)
+    let our_priv = base64::engine::general_purpose::STANDARD
+        .decode(our_private_key_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64: {}", e)))?;
-    let their_pub = base64::engine::general_purpose::STANDARD.decode(their_public_key_b64)
+    let their_pub = base64::engine::general_purpose::STANDARD
+        .decode(their_public_key_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64: {}", e)))?;
 
     let shared_secret = key_exchange::derive_shared_secret(&our_priv, &their_pub)
@@ -115,7 +115,8 @@ pub fn generate_encryption_key() -> String {
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn encrypt_message(plaintext: &str, key_b64: &str) -> Result<String, JsValue> {
-    let key = base64::engine::general_purpose::STANDARD.decode(key_b64)
+    let key = base64::engine::general_purpose::STANDARD
+        .decode(key_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64 key: {}", e)))?;
 
     let ciphertext = encryption::encrypt_message(plaintext.as_bytes(), &key)
@@ -129,16 +130,17 @@ pub fn encrypt_message(plaintext: &str, key_b64: &str) -> Result<String, JsValue
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn decrypt_message(ciphertext_b64: &str, key_b64: &str) -> Result<String, JsValue> {
-    let ciphertext = base64::engine::general_purpose::STANDARD.decode(ciphertext_b64)
+    let ciphertext = base64::engine::general_purpose::STANDARD
+        .decode(ciphertext_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64 ciphertext: {}", e)))?;
-    let key = base64::engine::general_purpose::STANDARD.decode(key_b64)
+    let key = base64::engine::general_purpose::STANDARD
+        .decode(key_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64 key: {}", e)))?;
 
     let plaintext = encryption::decrypt_message(&ciphertext, &key)
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
-    String::from_utf8(plaintext)
-        .map_err(|e| JsValue::from_str(&e.to_string()))
+    String::from_utf8(plaintext).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
 // ─────────────────────── Forward Secrecy (Chain Key Evolution) ───────────────────────
@@ -148,7 +150,8 @@ pub fn decrypt_message(ciphertext_b64: &str, key_b64: &str) -> Result<String, Js
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn derive_root_key(shared_secret_b64: &str) -> Result<String, JsValue> {
-    let shared_secret = base64::engine::general_purpose::STANDARD.decode(shared_secret_b64)
+    let shared_secret = base64::engine::general_purpose::STANDARD
+        .decode(shared_secret_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64: {}", e)))?;
 
     let root_key = encryption::derive_root_key(&shared_secret, b"SecureLegion-RootKey-v1")
@@ -162,7 +165,8 @@ pub fn derive_root_key(shared_secret_b64: &str) -> Result<String, JsValue> {
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn evolve_chain_key(chain_key_b64: &str) -> Result<String, JsValue> {
-    let key_bytes = base64::engine::general_purpose::STANDARD.decode(chain_key_b64)
+    let key_bytes = base64::engine::general_purpose::STANDARD
+        .decode(chain_key_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64: {}", e)))?;
 
     if key_bytes.len() != 32 {
@@ -187,7 +191,8 @@ pub fn encrypt_message_evolved(
     chain_key_b64: &str,
     sequence: u64,
 ) -> Result<String, JsValue> {
-    let key_bytes = base64::engine::general_purpose::STANDARD.decode(chain_key_b64)
+    let key_bytes = base64::engine::general_purpose::STANDARD
+        .decode(chain_key_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64: {}", e)))?;
 
     if key_bytes.len() != 32 {
@@ -197,8 +202,9 @@ pub fn encrypt_message_evolved(
     let mut chain_key = [0u8; 32];
     chain_key.copy_from_slice(&key_bytes);
 
-    let result = encryption::encrypt_message_with_evolution(plaintext.as_bytes(), &mut chain_key, sequence)
-        .map_err(|e| JsValue::from_str(&e.to_string()))?;
+    let result =
+        encryption::encrypt_message_with_evolution(plaintext.as_bytes(), &mut chain_key, sequence)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
     let json = serde_json::json!({
         "ciphertext": base64::engine::general_purpose::STANDARD.encode(&result.ciphertext),
@@ -217,9 +223,11 @@ pub fn decrypt_message_evolved(
     chain_key_b64: &str,
     expected_sequence: u64,
 ) -> Result<String, JsValue> {
-    let ciphertext = base64::engine::general_purpose::STANDARD.decode(ciphertext_b64)
+    let ciphertext = base64::engine::general_purpose::STANDARD
+        .decode(ciphertext_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64: {}", e)))?;
-    let key_bytes = base64::engine::general_purpose::STANDARD.decode(chain_key_b64)
+    let key_bytes = base64::engine::general_purpose::STANDARD
+        .decode(chain_key_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64: {}", e)))?;
 
     if key_bytes.len() != 32 {
@@ -229,11 +237,12 @@ pub fn decrypt_message_evolved(
     let mut chain_key = [0u8; 32];
     chain_key.copy_from_slice(&key_bytes);
 
-    let result = encryption::decrypt_message_with_evolution(&ciphertext, &mut chain_key, expected_sequence)
-        .map_err(|e| JsValue::from_str(&e.to_string()))?;
+    let result =
+        encryption::decrypt_message_with_evolution(&ciphertext, &mut chain_key, expected_sequence)
+            .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
-    let plaintext = String::from_utf8(result.plaintext)
-        .map_err(|e| JsValue::from_str(&e.to_string()))?;
+    let plaintext =
+        String::from_utf8(result.plaintext).map_err(|e| JsValue::from_str(&e.to_string()))?;
 
     let json = serde_json::json!({
         "plaintext": plaintext,
@@ -250,9 +259,11 @@ pub fn decrypt_message_evolved(
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn sign_message(message_b64: &str, private_key_b64: &str) -> Result<String, JsValue> {
-    let message = base64::engine::general_purpose::STANDARD.decode(message_b64)
+    let message = base64::engine::general_purpose::STANDARD
+        .decode(message_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64 message: {}", e)))?;
-    let private_key = base64::engine::general_purpose::STANDARD.decode(private_key_b64)
+    let private_key = base64::engine::general_purpose::STANDARD
+        .decode(private_key_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64 key: {}", e)))?;
 
     let signature = signing::sign_data(&message, &private_key)
@@ -269,11 +280,14 @@ pub fn verify_signature(
     signature_b64: &str,
     public_key_b64: &str,
 ) -> Result<bool, JsValue> {
-    let message = base64::engine::general_purpose::STANDARD.decode(message_b64)
+    let message = base64::engine::general_purpose::STANDARD
+        .decode(message_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64 message: {}", e)))?;
-    let signature = base64::engine::general_purpose::STANDARD.decode(signature_b64)
+    let signature = base64::engine::general_purpose::STANDARD
+        .decode(signature_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64 signature: {}", e)))?;
-    let public_key = base64::engine::general_purpose::STANDARD.decode(public_key_b64)
+    let public_key = base64::engine::general_purpose::STANDARD
+        .decode(public_key_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64 key: {}", e)))?;
 
     signing::verify_signature(&message, &signature, &public_key)
@@ -286,16 +300,14 @@ pub fn verify_signature(
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn hash_password(password: &str) -> Result<String, JsValue> {
-    hashing::hash_password(password)
-        .map_err(|e| JsValue::from_str(&e.to_string()))
+    hashing::hash_password(password).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
 /// Verify a password against an Argon2id hash
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn verify_password(password: &str, hash: &str) -> Result<bool, JsValue> {
-    hashing::verify_password(password, hash)
-        .map_err(|e| JsValue::from_str(&e.to_string()))
+    hashing::verify_password(password, hash).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
 /// Hash password with specific salt — returns base64-encoded 32-byte key
@@ -303,7 +315,8 @@ pub fn verify_password(password: &str, hash: &str) -> Result<bool, JsValue> {
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn derive_key_from_password(password: &str, salt_b64: &str) -> Result<String, JsValue> {
-    let salt = base64::engine::general_purpose::STANDARD.decode(salt_b64)
+    let salt = base64::engine::general_purpose::STANDARD
+        .decode(salt_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64 salt: {}", e)))?;
 
     let key = hashing::hash_password_with_salt(password, &salt)
@@ -327,8 +340,8 @@ pub fn generate_salt() -> String {
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn generate_hybrid_keypair() -> Result<String, JsValue> {
-    let keypair = pqc::generate_hybrid_keypair_random()
-        .map_err(|e| JsValue::from_str(&e.to_string()))?;
+    let keypair =
+        pqc::generate_hybrid_keypair_random().map_err(|e| JsValue::from_str(&e.to_string()))?;
 
     let result = serde_json::json!({
         "x25519PublicKey": base64::engine::general_purpose::STANDARD.encode(keypair.x25519_public),
@@ -348,9 +361,11 @@ pub fn hybrid_encapsulate(
     recipient_x25519_public_b64: &str,
     recipient_kyber_public_b64: &str,
 ) -> Result<String, JsValue> {
-    let x25519_pub = base64::engine::general_purpose::STANDARD.decode(recipient_x25519_public_b64)
+    let x25519_pub = base64::engine::general_purpose::STANDARD
+        .decode(recipient_x25519_public_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64: {}", e)))?;
-    let kyber_pub = base64::engine::general_purpose::STANDARD.decode(recipient_kyber_public_b64)
+    let kyber_pub = base64::engine::general_purpose::STANDARD
+        .decode(recipient_kyber_public_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64: {}", e)))?;
 
     let ct = pqc::hybrid_encapsulate(&x25519_pub, &kyber_pub)
@@ -375,13 +390,17 @@ pub fn hybrid_decapsulate(
     our_x25519_secret_b64: &str,
     our_kyber_secret_b64: &str,
 ) -> Result<String, JsValue> {
-    let x25519_eph = base64::engine::general_purpose::STANDARD.decode(x25519_ephemeral_public_b64)
+    let x25519_eph = base64::engine::general_purpose::STANDARD
+        .decode(x25519_ephemeral_public_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64: {}", e)))?;
-    let kyber_ct = base64::engine::general_purpose::STANDARD.decode(kyber_ciphertext_b64)
+    let kyber_ct = base64::engine::general_purpose::STANDARD
+        .decode(kyber_ciphertext_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64: {}", e)))?;
-    let x25519_sk = base64::engine::general_purpose::STANDARD.decode(our_x25519_secret_b64)
+    let x25519_sk = base64::engine::general_purpose::STANDARD
+        .decode(our_x25519_secret_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64: {}", e)))?;
-    let kyber_sk = base64::engine::general_purpose::STANDARD.decode(our_kyber_secret_b64)
+    let kyber_sk = base64::engine::general_purpose::STANDARD
+        .decode(our_kyber_secret_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64: {}", e)))?;
 
     let shared_secret = pqc::hybrid_decapsulate(&x25519_eph, &kyber_ct, &x25519_sk, &kyber_sk)
@@ -404,10 +423,15 @@ pub fn create_contact_card(
 ) -> Result<String, JsValue> {
     use crate::protocol::ContactCard;
 
-    let public_key_bytes = base64::engine::general_purpose::STANDARD.decode(public_key_b64)
+    let public_key_bytes = base64::engine::general_purpose::STANDARD
+        .decode(public_key_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64: {}", e)))?;
 
-    let onion = if onion_address.is_empty() { None } else { Some(onion_address.to_string()) };
+    let onion = if onion_address.is_empty() {
+        None
+    } else {
+        Some(onion_address.to_string())
+    };
 
     let card = ContactCard::new(
         public_key_bytes,
@@ -430,7 +454,8 @@ pub fn sign_contact_card(card_json: &str, private_key_b64: &str) -> Result<Strin
     let card: ContactCard = serde_json::from_str(card_json)
         .map_err(|e| JsValue::from_str(&format!("Invalid JSON: {}", e)))?;
 
-    let private_key = base64::engine::general_purpose::STANDARD.decode(private_key_b64)
+    let private_key = base64::engine::general_purpose::STANDARD
+        .decode(private_key_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64: {}", e)))?;
 
     let data_to_sign = card.serialize_for_signing();
@@ -452,7 +477,8 @@ pub fn serialize_message(message_json: &str) -> Result<String, JsValue> {
     let msg: Message = serde_json::from_str(message_json)
         .map_err(|e| JsValue::from_str(&format!("Invalid JSON: {}", e)))?;
 
-    let bytes = msg.serialize()
+    let bytes = msg
+        .serialize()
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
 
     Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
@@ -465,14 +491,13 @@ pub fn serialize_message(message_json: &str) -> Result<String, JsValue> {
 pub fn deserialize_message(data_b64: &str) -> Result<String, JsValue> {
     use crate::protocol::Message;
 
-    let data = base64::engine::general_purpose::STANDARD.decode(data_b64)
+    let data = base64::engine::general_purpose::STANDARD
+        .decode(data_b64)
         .map_err(|e| JsValue::from_str(&format!("Invalid base64: {}", e)))?;
 
-    let msg = Message::deserialize(&data)
-        .map_err(|e| JsValue::from_str(&e.to_string()))?;
+    let msg = Message::deserialize(&data).map_err(|e| JsValue::from_str(&e.to_string()))?;
 
-    msg.to_json()
-        .map_err(|e| JsValue::from_str(&e.to_string()))
+    msg.to_json().map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
 // ─────────────────── Safety Numbers & Contact Verification ───────────────────
@@ -579,20 +604,15 @@ pub fn detect_identity_key_change(
         )
     };
 
-    let result = pqc::detect_identity_key_change(
-        &our_id,
-        stored.as_deref(),
-        &current_id,
-    );
+    let result = pqc::detect_identity_key_change(&our_id, stored.as_deref(), &current_id);
 
     let json = match result {
-        pqc::IdentityKeyChangeResult::FirstSeen => {
-            "{\"result\": \"FirstSeen\"}".to_string()
-        }
-        pqc::IdentityKeyChangeResult::Unchanged => {
-            "{\"result\": \"Unchanged\"}".to_string()
-        }
-        pqc::IdentityKeyChangeResult::Changed { previous_fingerprint, new_fingerprint } => {
+        pqc::IdentityKeyChangeResult::FirstSeen => "{\"result\": \"FirstSeen\"}".to_string(),
+        pqc::IdentityKeyChangeResult::Unchanged => "{\"result\": \"Unchanged\"}".to_string(),
+        pqc::IdentityKeyChangeResult::Changed {
+            previous_fingerprint,
+            new_fingerprint,
+        } => {
             format!(
                 "{{\"result\": \"Changed\", \"previousFingerprint\": \"{}\", \"newFingerprint\": \"{}\"}}",
                 previous_fingerprint, new_fingerprint

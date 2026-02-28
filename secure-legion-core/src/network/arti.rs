@@ -1,3 +1,4 @@
+use rand::{RngCore, SeedableRng};
 /// Arti (Pure Rust Tor) Integration Layer
 ///
 /// Provides a Rust-native Tor client interface using the Arti library.
@@ -16,16 +17,14 @@
 /// On Android, the existing C Tor (from tor-android) is preferred.
 /// This module is used on desktop/server environments where a pure-Rust
 /// Tor implementation is advantageous for reproducible builds.
-
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use thiserror::Error;
 use tokio::sync::Mutex;
 use tokio::time;
-use rand::{RngCore, SeedableRng};
-use thiserror::Error;
 
-use super::tor_dos_protection::{HsDoSProtection, HsDoSConfig, ConnectionDecision};
+use super::tor_dos_protection::{ConnectionDecision, HsDoSConfig, HsDoSProtection};
 
 #[derive(Error, Debug)]
 pub enum ArtiError {
@@ -319,7 +318,10 @@ impl ArtiTorManager {
         //   let (svc, onion_name) = client.launch_onion_service(svc_config)?;
         let mut addr_bytes = [0u8; 32];
         rand::rngs::OsRng.fill_bytes(&mut addr_bytes);
-        let onion_address = base32::encode(base32::Alphabet::Rfc4648Lower { padding: false }, &addr_bytes);
+        let onion_address = base32::encode(
+            base32::Alphabet::Rfc4648Lower { padding: false },
+            &addr_bytes,
+        );
 
         let service = EphemeralOnionService {
             onion_address: onion_address.clone(),
@@ -329,11 +331,17 @@ impl ArtiTorManager {
             created_at: Instant::now(),
         };
 
-        self.onion_services.lock().await
+        self.onion_services
+            .lock()
+            .await
             .insert(service_id.to_string(), service.clone());
 
-        log::info!("Created ephemeral onion service: {}.onion:{} → 127.0.0.1:{}",
-            &onion_address[..16], virtual_port, local_port);
+        log::info!(
+            "Created ephemeral onion service: {}.onion:{} → 127.0.0.1:{}",
+            &onion_address[..16],
+            virtual_port,
+            local_port
+        );
 
         Ok(service)
     }
@@ -355,7 +363,8 @@ impl ArtiTorManager {
     /// node from correlating traffic between different conversations.
     pub async fn get_isolation_token(&self, contact_id: &str) -> IsolationToken {
         let mut tokens = self.isolation_tokens.lock().await;
-        tokens.entry(contact_id.to_string())
+        tokens
+            .entry(contact_id.to_string())
             .or_insert_with(|| IsolationToken::new(contact_id))
             .clone()
     }
@@ -367,8 +376,11 @@ impl ArtiTorManager {
         let mut tokens = self.isolation_tokens.lock().await;
         if let Some(token) = tokens.get_mut(contact_id) {
             token.rotate();
-            log::info!("Rotated circuit for contact {}: generation {}",
-                contact_id, token.generation);
+            log::info!(
+                "Rotated circuit for contact {}: generation {}",
+                contact_id,
+                token.generation
+            );
         } else {
             let mut token = IsolationToken::new(contact_id);
             token.rotate();
@@ -386,7 +398,10 @@ impl ArtiTorManager {
     ///
     /// Returns the decision (Allow, RequirePoW, RateLimited, Banned, CapacityExceeded).
     /// The caller should handle each decision appropriately.
-    pub async fn evaluate_incoming_connection(&self, circuit_id: &str) -> Result<ConnectionDecision> {
+    pub async fn evaluate_incoming_connection(
+        &self,
+        circuit_id: &str,
+    ) -> Result<ConnectionDecision> {
         if !self.config.dos_protection_enabled {
             return Ok(ConnectionDecision::Allow);
         }
@@ -398,19 +413,32 @@ impl ArtiTorManager {
                 self.dos_protection.connection_opened();
             }
             ConnectionDecision::Banned { remaining_secs } => {
-                log::warn!("DoS: Banned circuit {} for {} more seconds", circuit_id, remaining_secs);
-                return Err(ArtiError::DoSRejected(
-                    format!("Circuit banned for {} seconds", remaining_secs)
-                ));
+                log::warn!(
+                    "DoS: Banned circuit {} for {} more seconds",
+                    circuit_id,
+                    remaining_secs
+                );
+                return Err(ArtiError::DoSRejected(format!(
+                    "Circuit banned for {} seconds",
+                    remaining_secs
+                )));
             }
             ConnectionDecision::RateLimited { retry_after_secs } => {
-                log::warn!("DoS: Rate limited circuit {}, retry after {}s", circuit_id, retry_after_secs);
+                log::warn!(
+                    "DoS: Rate limited circuit {}, retry after {}s",
+                    circuit_id,
+                    retry_after_secs
+                );
             }
             ConnectionDecision::CapacityExceeded => {
                 log::warn!("DoS: Capacity exceeded, rejecting circuit {}", circuit_id);
             }
             ConnectionDecision::RequirePoW { difficulty, .. } => {
-                log::info!("DoS: Requiring PoW (difficulty {}) from circuit {}", difficulty, circuit_id);
+                log::info!(
+                    "DoS: Requiring PoW (difficulty {}) from circuit {}",
+                    difficulty,
+                    circuit_id
+                );
             }
         }
 
@@ -456,19 +484,25 @@ impl ArtiTorManager {
         // Initialize circuit health tracking
         {
             let mut health = self.circuit_health.lock().await;
-            health.entry(contact_id.to_string()).or_insert(CircuitHealth {
-                contact_id: contact_id.to_string(),
-                established_at: Instant::now(),
-                bytes_sent: 0,
-                bytes_received: 0,
-                latency_ms: 0,
-                healthy: true,
-            });
+            health
+                .entry(contact_id.to_string())
+                .or_insert(CircuitHealth {
+                    contact_id: contact_id.to_string(),
+                    established_at: Instant::now(),
+                    bytes_sent: 0,
+                    bytes_received: 0,
+                    latency_ms: 0,
+                    healthy: true,
+                });
         }
 
         let proxy_addr = format!("socks5://127.0.0.1:{}", self.config.socks_port);
-        log::debug!("Isolated connection to {}.onion:{} for contact {}",
-            &onion_address[..16.min(onion_address.len())], port, contact_id);
+        log::debug!(
+            "Isolated connection to {}.onion:{} for contact {}",
+            &onion_address[..16.min(onion_address.len())],
+            port,
+            contact_id
+        );
 
         Ok(proxy_addr)
     }
@@ -523,10 +557,8 @@ impl ArtiTorManager {
                 }
 
                 // Random jitter: ±50% of the base interval (Poisson-like)
-                let jitter_ms = (rng.next_u64() % (interval_secs * 1000)) as u64;
-                let delay = Duration::from_millis(
-                    interval_secs * 500 + jitter_ms
-                );
+                let jitter_ms = rng.next_u64() % (interval_secs * 1000);
+                let delay = Duration::from_millis(interval_secs * 500 + jitter_ms);
                 time::sleep(delay).await;
 
                 // Generate and send cover traffic packet
@@ -568,8 +600,11 @@ impl ArtiTorManager {
 
                     // Rotate if circuit is too old
                     if age > max_age {
-                        log::info!("Circuit for {} exceeded max age ({:?}), scheduling rotation",
-                            contact_id, age);
+                        log::info!(
+                            "Circuit for {} exceeded max age ({:?}), scheduling rotation",
+                            contact_id,
+                            age
+                        );
                         to_rotate.push(contact_id.clone());
                         continue;
                     }
@@ -577,8 +612,11 @@ impl ArtiTorManager {
                     // Mark unhealthy if latency is very high (> 10 seconds)
                     if ch.latency_ms > 10_000 {
                         ch.healthy = false;
-                        log::warn!("Circuit for {} has high latency ({}ms), marking unhealthy",
-                            contact_id, ch.latency_ms);
+                        log::warn!(
+                            "Circuit for {} has high latency ({}ms), marking unhealthy",
+                            contact_id,
+                            ch.latency_ms
+                        );
                         to_rotate.push(contact_id.clone());
                     }
                 }
@@ -589,8 +627,11 @@ impl ArtiTorManager {
                     for contact_id in &to_rotate {
                         if let Some(token) = tokens.get_mut(contact_id) {
                             token.rotate();
-                            log::info!("Auto-rotated circuit for {}: generation {}",
-                                contact_id, token.generation);
+                            log::info!(
+                                "Auto-rotated circuit for {}: generation {}",
+                                contact_id,
+                                token.generation
+                            );
                         }
                         health.remove(contact_id);
                     }
@@ -652,7 +693,9 @@ impl ArtiTorManager {
 
     /// List all active onion services
     pub async fn list_onion_services(&self) -> Vec<(String, EphemeralOnionService)> {
-        self.onion_services.lock().await
+        self.onion_services
+            .lock()
+            .await
             .iter()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect()
@@ -710,7 +753,10 @@ mod tests {
         let manager = ArtiTorManager::new(test_config());
         manager.bootstrap().await.unwrap();
 
-        let svc = manager.create_onion_service("messaging", 8080, 9150).await.unwrap();
+        let svc = manager
+            .create_onion_service("messaging", 8080, 9150)
+            .await
+            .unwrap();
         assert!(svc.active);
         assert_eq!(svc.local_port, 8080);
         assert_eq!(svc.virtual_port, 9150);
@@ -753,7 +799,10 @@ mod tests {
         let manager = ArtiTorManager::new(config);
         manager.bootstrap().await.unwrap();
 
-        let addr = manager.connect_isolated("abcdef1234567890", 9150, "contact1").await.unwrap();
+        let addr = manager
+            .connect_isolated("abcdef1234567890", 9150, "contact1")
+            .await
+            .unwrap();
         assert!(addr.contains("19050"));
 
         // Verify circuit health tracking was initialized
@@ -780,7 +829,10 @@ mod tests {
         manager.bootstrap().await.unwrap();
 
         // Normal connection should be allowed
-        let decision = manager.evaluate_incoming_connection("circuit_1").await.unwrap();
+        let decision = manager
+            .evaluate_incoming_connection("circuit_1")
+            .await
+            .unwrap();
         assert_eq!(decision, ConnectionDecision::Allow);
 
         // Check stats
@@ -801,10 +853,15 @@ mod tests {
         manager.bootstrap().await.unwrap();
 
         // Connect to establish health tracking
-        manager.connect_isolated("test_onion", 9150, "alice").await.unwrap();
+        manager
+            .connect_isolated("test_onion", 9150, "alice")
+            .await
+            .unwrap();
 
         // Update metrics
-        manager.update_circuit_metrics("alice", 1024, 2048, 500).await;
+        manager
+            .update_circuit_metrics("alice", 1024, 2048, 500)
+            .await;
 
         let health = manager.circuit_health("alice").await.unwrap();
         assert_eq!(health.bytes_sent, 1024);

@@ -6,8 +6,13 @@
 pub mod quote;
 pub mod verify;
 
-pub use quote::{PaymentQuote, QuoteError, create_quote, create_quote_with_expiry, parse_quote_from_memo};
-pub use verify::{VerifyError, verify_payment, verify_payment_simple, extract_quote_hash_from_memo, VerificationResult};
+pub use quote::{
+    create_quote, create_quote_with_expiry, parse_quote_from_memo, PaymentQuote, QuoteError,
+};
+pub use verify::{
+    extract_quote_hash_from_memo, verify_payment, verify_payment_simple, VerificationResult,
+    VerifyError,
+};
 
 /// Protocol version for NLx402
 pub const PROTOCOL_VERSION: &str = "1.0.0";

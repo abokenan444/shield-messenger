@@ -10,7 +10,6 @@
 /// 3. **Proof-of-Work challenge** — Optional PoW for high-load scenarios
 /// 4. **Circuit-level throttling** — Slow down suspicious circuits
 /// 5. **Automatic blacklisting** — Temporarily ban abusive circuits
-
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -143,7 +142,9 @@ impl HsDoSProtection {
     /// Evaluate whether an incoming connection from `circuit_id` should be allowed.
     pub async fn evaluate_connection(&self, circuit_id: &str) -> ConnectionDecision {
         // 1. Check concurrent connection cap
-        let active = self.active_connections.load(std::sync::atomic::Ordering::Relaxed);
+        let active = self
+            .active_connections
+            .load(std::sync::atomic::Ordering::Relaxed);
         if active >= self.config.max_concurrent_connections {
             return ConnectionDecision::CapacityExceeded;
         }
@@ -180,7 +181,7 @@ impl HsDoSProtection {
         }
 
         // 4. Check per-circuit rate limit
-        let per_circuit_rate = {
+        let _per_circuit_rate = {
             let mut circuits = self.circuits.write().await;
             let state = circuits
                 .entry(circuit_id.to_string())
@@ -264,7 +265,9 @@ impl HsDoSProtection {
     /// Get current statistics for monitoring.
     pub async fn stats(&self) -> DoSStats {
         let circuits = self.circuits.read().await;
-        let active = self.active_connections.load(std::sync::atomic::Ordering::Relaxed);
+        let active = self
+            .active_connections
+            .load(std::sync::atomic::Ordering::Relaxed);
         let banned_count = circuits.values().filter(|s| s.is_banned()).count() as u32;
         let total_circuits = circuits.len() as u32;
 
@@ -297,10 +300,7 @@ impl HsDoSProtection {
         circuits.retain(|_id, state| {
             // Remove if: not banned AND no recent connections AND old enough
             let is_banned = state.is_banned();
-            let has_recent = state
-                .recent_connections
-                .iter()
-                .any(|t| *t > stale_cutoff);
+            let has_recent = state.recent_connections.iter().any(|t| *t > stale_cutoff);
             is_banned || has_recent || state.first_seen > stale_cutoff
         });
     }
@@ -338,7 +338,7 @@ impl std::fmt::Display for DoSStats {
 
 /// Generate a random 32-byte challenge for PoW.
 fn generate_pow_challenge() -> [u8; 32] {
-    use rand::{SeedableRng, RngCore};
+    use rand::{RngCore, SeedableRng};
     let mut rng = rand::rngs::StdRng::from_entropy();
     let mut challenge = [0u8; 32];
     rng.fill_bytes(&mut challenge);
@@ -356,7 +356,7 @@ fn verify_pow_solution(challenge: &[u8; 32], nonce: u64, difficulty: u8) -> bool
     use sha3::{Digest, Sha3_256};
     let mut hasher = Sha3_256::new();
     hasher.update(challenge);
-    hasher.update(&nonce.to_le_bytes());
+    hasher.update(nonce.to_le_bytes());
     let hash = hasher.finalize();
 
     // Check leading zero bits

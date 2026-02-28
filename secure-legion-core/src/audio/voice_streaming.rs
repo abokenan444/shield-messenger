@@ -6,7 +6,6 @@
 /// - P2P architecture: each device runs a listener, peers connect directly
 /// - Real-time audio packet streaming with encryption
 /// - VOICE_HELLO/OK handshake ensures both sides ready before audio starts
-
 use std::collections::HashMap;
 use std::error::Error;
 use std::net::SocketAddr;
@@ -72,7 +71,11 @@ pub struct VoiceSession {
 
 impl VoiceSession {
     /// Create new voice session
-    pub fn new(peer_addr: SocketAddr, peer_onion: String, audio_tx: mpsc::UnboundedSender<VoicePacket>) -> Self {
+    pub fn new(
+        peer_addr: SocketAddr,
+        peer_onion: String,
+        audio_tx: mpsc::UnboundedSender<VoicePacket>,
+    ) -> Self {
         VoiceSession {
             peer_addr,
             peer_onion,
@@ -164,7 +167,15 @@ impl VoiceStreamingListener {
 
                         // Spawn handler for this connection
                         tokio::spawn(async move {
-                            if let Err(e) = handle_voice_connection(socket, addr, sessions_clone, audio_callback_clone, signaling_callback_clone).await {
+                            if let Err(e) = handle_voice_connection(
+                                socket,
+                                addr,
+                                sessions_clone,
+                                audio_callback_clone,
+                                signaling_callback_clone,
+                            )
+                            .await
+                            {
                                 log::error!("Voice connection error: {}", e);
                             }
                         });
@@ -199,8 +210,7 @@ impl VoiceStreamingListener {
 
     /// Accept incoming connections (run in loop)
     pub async fn accept_connections(&mut self) -> Result<(), Box<dyn Error>> {
-        let listener = self.listener.as_ref()
-            .ok_or("Listener not started")?;
+        let listener = self.listener.as_ref().ok_or("Listener not started")?;
 
         loop {
             let (mut socket, addr) = listener.accept().await?;
@@ -217,7 +227,15 @@ impl VoiceStreamingListener {
 
             // Spawn handler for this connection
             tokio::spawn(async move {
-                if let Err(e) = handle_voice_connection(socket, addr, sessions, audio_callback, signaling_callback).await {
+                if let Err(e) = handle_voice_connection(
+                    socket,
+                    addr,
+                    sessions,
+                    audio_callback,
+                    signaling_callback,
+                )
+                .await
+                {
                     log::error!("Voice connection error: {}", e);
                 }
             });
@@ -232,31 +250,59 @@ impl VoiceStreamingListener {
         peer_onion: &str,
         num_circuits: usize,
     ) -> Result<(), Box<dyn Error>> {
-        log::info!("[VOICE_DEBUG] create_session called with num_circuits={}, peer_onion={}, call_id={}",
-                   num_circuits, peer_onion, call_id);
+        log::info!(
+            "[VOICE_DEBUG] create_session called with num_circuits={}, peer_onion={}, call_id={}",
+            num_circuits,
+            peer_onion,
+            call_id
+        );
 
         if num_circuits == 0 || num_circuits > 10 {
             log::error!("[VOICE_DEBUG] Invalid num_circuits: {}", num_circuits);
             return Err("num_circuits must be between 1 and 10".into());
         }
 
-        log::info!("Creating {} circuit(s) to {} for call {}", num_circuits, peer_onion, call_id);
+        log::info!(
+            "Creating {} circuit(s) to {} for call {}",
+            num_circuits,
+            peer_onion,
+            call_id
+        );
         log::info!("[VOICE_DEBUG] Starting circuit creation loop...");
 
         let mut circuit_sessions = Vec::with_capacity(num_circuits);
 
         // Create each circuit in parallel
         for circuit_index in 0..num_circuits {
-            log::info!("[VOICE_DEBUG] Loop iteration {}/{}", circuit_index, num_circuits);
+            log::info!(
+                "[VOICE_DEBUG] Loop iteration {}/{}",
+                circuit_index,
+                num_circuits
+            );
             // Connect to peer's voice hidden service via SOCKS5 proxy (Tor)
-            log::info!("Establishing circuit {} to {} via SOCKS5 proxy", circuit_index, peer_onion);
-            log::info!("[VOICE_DEBUG] About to call connect_via_socks5({}:9152)", peer_onion);
-            let mut stream = connect_via_socks5(peer_onion, 9152, circuit_index, &call_id, 0).await?;
-            log::info!("[VOICE_DEBUG] connect_via_socks5 returned successfully for circuit {}", circuit_index);
+            log::info!(
+                "Establishing circuit {} to {} via SOCKS5 proxy",
+                circuit_index,
+                peer_onion
+            );
+            log::info!(
+                "[VOICE_DEBUG] About to call connect_via_socks5({}:9152)",
+                peer_onion
+            );
+            let mut stream =
+                connect_via_socks5(peer_onion, 9152, circuit_index, &call_id, 0).await?;
+            log::info!(
+                "[VOICE_DEBUG] connect_via_socks5 returned successfully for circuit {}",
+                circuit_index
+            );
 
             // Disable Nagle's algorithm for real-time audio
             if let Err(e) = stream.set_nodelay(true) {
-                log::warn!("Failed to set TCP_NODELAY on circuit {}: {}", circuit_index, e);
+                log::warn!(
+                    "Failed to set TCP_NODELAY on circuit {}: {}",
+                    circuit_index,
+                    e
+                );
             }
 
             let peer_socket_addr = stream.peer_addr()?;
@@ -270,7 +316,10 @@ impl VoiceStreamingListener {
             let sessions = self.sessions.clone();
             let call_id_clone = call_id.clone();
             tokio::spawn(async move {
-                if let Err(e) = handle_voice_sender(stream, audio_rx, call_id_clone, sessions, circuit_index).await {
+                if let Err(e) =
+                    handle_voice_sender(stream, audio_rx, call_id_clone, sessions, circuit_index)
+                        .await
+                {
                     log::error!("Voice sender error on circuit {}: {}", circuit_index, e);
                 }
             });
@@ -279,19 +328,36 @@ impl VoiceStreamingListener {
         }
 
         // Store all circuit sessions
-        self.sessions.lock().unwrap().insert(call_id.clone(), circuit_sessions);
+        self.sessions
+            .lock()
+            .unwrap()
+            .insert(call_id.clone(), circuit_sessions);
 
-        log::info!("All {} outgoing voice circuits created for call: {}", num_circuits, call_id);
+        log::info!(
+            "All {} outgoing voice circuits created for call: {}",
+            num_circuits,
+            call_id
+        );
         Ok(())
     }
 
     /// Send audio packet to peer on specific circuit
     /// @param circuit_index Which circuit to use (0 to num_circuits-1)
-    pub fn send_audio(&self, call_id: &str, circuit_index: usize, packet: VoicePacket) -> Result<(), Box<dyn Error>> {
+    pub fn send_audio(
+        &self,
+        call_id: &str,
+        circuit_index: usize,
+        packet: VoicePacket,
+    ) -> Result<(), Box<dyn Error>> {
         let sessions = self.sessions.lock().unwrap();
         if let Some(circuit_sessions) = sessions.get(call_id) {
             if circuit_index >= circuit_sessions.len() {
-                return Err(format!("Circuit index {} out of range (max: {})", circuit_index, circuit_sessions.len() - 1).into());
+                return Err(format!(
+                    "Circuit index {} out of range (max: {})",
+                    circuit_index,
+                    circuit_sessions.len() - 1
+                )
+                .into());
             }
             circuit_sessions[circuit_index].send_audio(packet)?;
             Ok(())
@@ -336,16 +402,27 @@ impl VoiceStreamingListener {
         circuit_index: usize,
         rebuild_epoch: u32,
     ) -> Result<(), Box<dyn Error>> {
-        log::warn!("REBUILD_START callId={} circuit={} reason=PLC rebuild_epoch={}", call_id, circuit_index, rebuild_epoch);
+        log::warn!(
+            "REBUILD_START callId={} circuit={} reason=PLC rebuild_epoch={}",
+            call_id,
+            circuit_index,
+            rebuild_epoch
+        );
 
         // 1. Get peer onion from existing session and close it
         let peer_onion = {
             let sessions = self.sessions.lock().unwrap();
-            let circuit_sessions = sessions.get(call_id)
+            let circuit_sessions = sessions
+                .get(call_id)
                 .ok_or(format!("Session not found: {}", call_id))?;
 
             if circuit_index >= circuit_sessions.len() {
-                return Err(format!("Circuit index {} out of range (max: {})", circuit_index, circuit_sessions.len() - 1).into());
+                return Err(format!(
+                    "Circuit index {} out of range (max: {})",
+                    circuit_index,
+                    circuit_sessions.len() - 1
+                )
+                .into());
             }
 
             // Extract peer onion before closing circuit
@@ -361,12 +438,22 @@ impl VoiceStreamingListener {
         tokio::time::sleep(Duration::from_millis(100)).await;
 
         // 3. Connect to peer's voice hidden service via SOCKS5 with new isolation credentials
-        log::info!("Rebuilding circuit {} to {} via SOCKS5 proxy (rebuild_epoch={})", circuit_index, peer_onion, rebuild_epoch);
-        let mut stream = connect_via_socks5(&peer_onion, 9152, circuit_index, call_id, rebuild_epoch).await?;
+        log::info!(
+            "Rebuilding circuit {} to {} via SOCKS5 proxy (rebuild_epoch={})",
+            circuit_index,
+            peer_onion,
+            rebuild_epoch
+        );
+        let mut stream =
+            connect_via_socks5(&peer_onion, 9152, circuit_index, call_id, rebuild_epoch).await?;
 
         // Disable Nagle's algorithm for real-time audio
         if let Err(e) = stream.set_nodelay(true) {
-            log::warn!("Failed to set TCP_NODELAY on rebuilt circuit {}: {}", circuit_index, e);
+            log::warn!(
+                "Failed to set TCP_NODELAY on rebuilt circuit {}: {}",
+                circuit_index,
+                e
+            );
         }
 
         let peer_socket_addr = stream.peer_addr()?;
@@ -388,12 +475,23 @@ impl VoiceStreamingListener {
         let sessions = self.sessions.clone();
         let call_id_clone = call_id.to_string();
         tokio::spawn(async move {
-            if let Err(e) = handle_voice_sender(stream, audio_rx, call_id_clone, sessions, circuit_index).await {
-                log::error!("Voice sender error on rebuilt circuit {}: {}", circuit_index, e);
+            if let Err(e) =
+                handle_voice_sender(stream, audio_rx, call_id_clone, sessions, circuit_index).await
+            {
+                log::error!(
+                    "Voice sender error on rebuilt circuit {}: {}",
+                    circuit_index,
+                    e
+                );
             }
         });
 
-        log::info!("REBUILD_SUCCESS callId={} circuit={} rebuild_epoch={} elapsed_ms=<100", call_id, circuit_index, rebuild_epoch);
+        log::info!(
+            "REBUILD_SUCCESS callId={} circuit={} rebuild_epoch={} elapsed_ms=<100",
+            call_id,
+            circuit_index,
+            rebuild_epoch
+        );
         Ok(())
     }
 }
@@ -435,7 +533,7 @@ async fn handle_http_signaling(
         let mut byte = [0u8; 1];
         socket.read_exact(&mut byte).await?;
         request_line.push(byte[0]);
-        if request_line.len() >= 2 && &request_line[request_line.len()-2..] == b"\r\n" {
+        if request_line.len() >= 2 && &request_line[request_line.len() - 2..] == b"\r\n" {
             break;
         }
         if request_line.len() > 8192 {
@@ -454,7 +552,7 @@ async fn handle_http_signaling(
             let mut byte = [0u8; 1];
             socket.read_exact(&mut byte).await?;
             header_line.push(byte[0]);
-            if header_line.len() >= 2 && &header_line[header_line.len()-2..] == b"\r\n" {
+            if header_line.len() >= 2 && &header_line[header_line.len() - 2..] == b"\r\n" {
                 break;
             }
             if header_line.len() > 8192 {
@@ -469,7 +567,10 @@ async fn handle_http_signaling(
 
         let header_str = String::from_utf8_lossy(&header_line);
         if header_str.to_lowercase().starts_with("content-length:") {
-            let len_str = header_str.trim().split(':').nth(1)
+            let len_str = header_str
+                .trim()
+                .split(':')
+                .nth(1)
                 .ok_or("Invalid Content-Length header")?
                 .trim();
             content_length = Some(len_str.parse()?);
@@ -482,7 +583,11 @@ async fn handle_http_signaling(
     let mut body = vec![0u8; body_len];
     socket.read_exact(&mut body).await?;
 
-    log::info!("Received HTTP signaling message: {} bytes from {}", body.len(), addr);
+    log::info!(
+        "Received HTTP signaling message: {} bytes from {}",
+        body.len(),
+        addr
+    );
 
     // Extract sender X25519 public key (bytes 1-32) and wire message
     if body.len() < 33 {
@@ -529,7 +634,9 @@ async fn handle_audio_connection(
     let handshake_result = timeout(Duration::from_secs(HANDSHAKE_TIMEOUT_SECS), async {
         // Read "HELLO" (5 bytes)
         let mut hello_bytes = [0u8; 5];
-        socket.read_exact(&mut hello_bytes).await
+        socket
+            .read_exact(&mut hello_bytes)
+            .await
             .map_err(|e| format!("Failed to read VOICE_HELLO: {}", e))?;
 
         if &hello_bytes != VOICE_HELLO {
@@ -538,40 +645,68 @@ async fn handle_audio_connection(
 
         // Read version (1 byte)
         let mut version = [0u8; 1];
-        socket.read_exact(&mut version).await
+        socket
+            .read_exact(&mut version)
+            .await
             .map_err(|e| format!("Failed to read version: {}", e))?;
 
         let client_version = version[0];
 
         // Read flags (1 byte)
         let mut flags = [0u8; 1];
-        socket.read_exact(&mut flags).await
+        socket
+            .read_exact(&mut flags)
+            .await
             .map_err(|e| format!("Failed to read flags: {}", e))?;
 
         // Negotiate version: use minimum of (client_version, VOICE_PROTOCOL_VERSION_CURRENT)
         let negotiated_version = std::cmp::min(client_version, VOICE_PROTOCOL_VERSION_CURRENT);
 
-        log::info!("Received VOICE_HELLO (client_version: {}, flags: {}) for call: {}",
-                   client_version, flags[0], call_id);
-        log::info!("Negotiated protocol version: {} (v1=1, v2=2)", negotiated_version);
+        log::info!(
+            "Received VOICE_HELLO (client_version: {}, flags: {}) for call: {}",
+            client_version,
+            flags[0],
+            call_id
+        );
+        log::info!(
+            "Negotiated protocol version: {} (v1=1, v2=2)",
+            negotiated_version
+        );
 
         // Send VOICE_OK response with negotiated version
-        socket.write_all(VOICE_OK).await
+        socket
+            .write_all(VOICE_OK)
+            .await
             .map_err(|e| format!("Failed to write VOICE_OK: {}", e))?;
-        socket.write_all(&[negotiated_version]).await
+        socket
+            .write_all(&[negotiated_version])
+            .await
             .map_err(|e| format!("Failed to write version: {}", e))?;
-        socket.write_all(&[0x00]).await
+        socket
+            .write_all(&[0x00])
+            .await
             .map_err(|e| format!("Failed to write flags: {}", e))?;
-        socket.flush().await
+        socket
+            .flush()
+            .await
             .map_err(|e| format!("Failed to flush: {}", e))?;
 
-        log::info!("Sent VOICE_OK with negotiated version {} for call: {}", negotiated_version, call_id);
+        log::info!(
+            "Sent VOICE_OK with negotiated version {} for call: {}",
+            negotiated_version,
+            call_id
+        );
         Ok::<(u8), String>(negotiated_version)
-    }).await;
+    })
+    .await;
 
     let negotiated_version = match handshake_result {
         Ok(Ok(version)) => {
-            log::info!("Voice handshake complete for call: {} (version: {})", call_id, version);
+            log::info!(
+                "Voice handshake complete for call: {} (version: {})",
+                call_id,
+                version
+            );
             version
         }
         Ok(Err(e)) => {
@@ -580,7 +715,9 @@ async fn handle_audio_connection(
         }
         Err(_) => {
             log::error!("Voice handshake timeout for call: {}", call_id);
-            return Err(format!("Handshake timeout after {} seconds", HANDSHAKE_TIMEOUT_SECS).into());
+            return Err(
+                format!("Handshake timeout after {} seconds", HANDSHAKE_TIMEOUT_SECS).into(),
+            );
         }
     };
 
@@ -590,7 +727,7 @@ async fn handle_audio_connection(
             // V1 packet format: seq(4) + timestamp(8) + data_len(2) + payload
             let mut header = [0u8; 12];
             match socket.read_exact(&mut header).await {
-                Ok(_) => {},
+                Ok(_) => {}
                 Err(_) => {
                     log::info!("Voice audio connection closed: {}", call_id);
                     break;
@@ -599,8 +736,8 @@ async fn handle_audio_connection(
 
             let sequence = u32::from_be_bytes([header[0], header[1], header[2], header[3]]);
             let timestamp = u64::from_be_bytes([
-                header[4], header[5], header[6], header[7],
-                header[8], header[9], header[10], header[11],
+                header[4], header[5], header[6], header[7], header[8], header[9], header[10],
+                header[11],
             ]);
 
             // Read data length (2 bytes)
@@ -616,8 +753,8 @@ async fn handle_audio_connection(
                 sequence,
                 audio_data,
                 timestamp,
-                circuit_index: 0, // v1 doesn't have circuit_index
-                ptype: PTYPE_AUDIO, // v1 only has audio packets
+                circuit_index: 0,                 // v1 doesn't have circuit_index
+                ptype: PTYPE_AUDIO,               // v1 only has audio packets
                 redundant_audio_data: Vec::new(), // v1 doesn't have redundancy
                 redundant_sequence: 0,
             }
@@ -626,7 +763,7 @@ async fn handle_audio_connection(
             // data_len(2) + payload + redundant_seq(4) + redundant_len(2) + redundant_payload
             let mut header = [0u8; 14];
             match socket.read_exact(&mut header).await {
-                Ok(_) => {},
+                Ok(_) => {}
                 Err(_) => {
                     log::info!("Voice audio connection closed: {}", call_id);
                     break;
@@ -635,8 +772,8 @@ async fn handle_audio_connection(
 
             let sequence = u32::from_be_bytes([header[0], header[1], header[2], header[3]]);
             let timestamp = u64::from_be_bytes([
-                header[4], header[5], header[6], header[7],
-                header[8], header[9], header[10], header[11],
+                header[4], header[5], header[6], header[7], header[8], header[9], header[10],
+                header[11],
             ]);
             let circuit_index = header[12];
             let ptype = header[13];
@@ -667,7 +804,9 @@ async fn handle_audio_connection(
                 socket.read_exact(&mut redundant_data).await?;
 
                 Ok::<_, std::io::Error>((redundant_data, redundant_seq))
-            }.await {
+            }
+            .await
+            {
                 Ok((data, seq)) => (data, seq),
                 Err(_) => {
                     // No redundant data (old client or end of stream) - that's OK
@@ -709,20 +848,31 @@ async fn handle_voice_sender(
 
     // ========== VOICE_HELLO/OK HANDSHAKE ==========
     // Send VOICE_HELLO message (offer our highest version)
-    log::debug!("Sending VOICE_HELLO for call: {} circuit: {}", call_id, circuit_index);
+    log::debug!(
+        "Sending VOICE_HELLO for call: {} circuit: {}",
+        call_id,
+        circuit_index
+    );
     socket.write_all(VOICE_HELLO).await?;
     socket.write_all(&[VOICE_PROTOCOL_VERSION_CURRENT]).await?; // Offer v2
     socket.write_all(&[0x00]).await?; // flags
     socket.flush().await?;
 
-    log::info!("Sent VOICE_HELLO (offered version: {}) for call: {} circuit: {}", VOICE_PROTOCOL_VERSION_CURRENT, call_id, circuit_index);
+    log::info!(
+        "Sent VOICE_HELLO (offered version: {}) for call: {} circuit: {}",
+        VOICE_PROTOCOL_VERSION_CURRENT,
+        call_id,
+        circuit_index
+    );
 
     // Wait for VOICE_OK response (with timeout)
     log::debug!("Waiting for VOICE_OK from peer...");
     let handshake_result = timeout(Duration::from_secs(HANDSHAKE_TIMEOUT_SECS), async {
         // Read "OK" (2 bytes)
         let mut ok_bytes = [0u8; 2];
-        socket.read_exact(&mut ok_bytes).await
+        socket
+            .read_exact(&mut ok_bytes)
+            .await
             .map_err(|e| format!("Failed to read VOICE_OK: {}", e))?;
 
         if &ok_bytes != VOICE_OK {
@@ -731,34 +881,60 @@ async fn handle_voice_sender(
 
         // Read negotiated version (1 byte)
         let mut version = [0u8; 1];
-        socket.read_exact(&mut version).await
+        socket
+            .read_exact(&mut version)
+            .await
             .map_err(|e| format!("Failed to read version: {}", e))?;
 
         let negotiated_version = version[0];
 
         // Read flags (1 byte)
         let mut flags = [0u8; 1];
-        socket.read_exact(&mut flags).await
+        socket
+            .read_exact(&mut flags)
+            .await
             .map_err(|e| format!("Failed to read flags: {}", e))?;
 
-        log::info!("Received VOICE_OK (negotiated_version: {}, flags: {}) for call: {} circuit: {}",
-                   negotiated_version, flags[0], call_id, circuit_index);
+        log::info!(
+            "Received VOICE_OK (negotiated_version: {}, flags: {}) for call: {} circuit: {}",
+            negotiated_version,
+            flags[0],
+            call_id,
+            circuit_index
+        );
 
         Ok::<(u8), String>(negotiated_version)
-    }).await;
+    })
+    .await;
 
     let negotiated_version = match handshake_result {
         Ok(Ok(version)) => {
-            log::info!("Voice handshake complete for call: {} circuit: {} (version: {})", call_id, circuit_index, version);
+            log::info!(
+                "Voice handshake complete for call: {} circuit: {} (version: {})",
+                call_id,
+                circuit_index,
+                version
+            );
             version
         }
         Ok(Err(e)) => {
-            log::error!("Voice handshake failed for call {} circuit {}: {}", call_id, circuit_index, e);
+            log::error!(
+                "Voice handshake failed for call {} circuit {}: {}",
+                call_id,
+                circuit_index,
+                e
+            );
             return Err(e.into());
         }
         Err(_) => {
-            log::error!("Voice handshake timeout for call: {} circuit: {}", call_id, circuit_index);
-            return Err(format!("Handshake timeout after {} seconds", HANDSHAKE_TIMEOUT_SECS).into());
+            log::error!(
+                "Voice handshake timeout for call: {} circuit: {}",
+                call_id,
+                circuit_index
+            );
+            return Err(
+                format!("Handshake timeout after {} seconds", HANDSHAKE_TIMEOUT_SECS).into(),
+            );
         }
     };
 
@@ -768,7 +944,9 @@ async fn handle_voice_sender(
             // V1 packet format: seq(4) + timestamp(8) + data_len(2) + payload
             socket.write_all(&packet.sequence.to_be_bytes()).await?;
             socket.write_all(&packet.timestamp.to_be_bytes()).await?;
-            socket.write_all(&(packet.audio_data.len() as u16).to_be_bytes()).await?;
+            socket
+                .write_all(&(packet.audio_data.len() as u16).to_be_bytes())
+                .await?;
             socket.write_all(&packet.audio_data).await?;
         } else {
             // V2 packet format (Phase 3): seq(4) + timestamp(8) + circuit_index(1) + ptype(1) +
@@ -777,19 +955,29 @@ async fn handle_voice_sender(
             socket.write_all(&packet.timestamp.to_be_bytes()).await?;
             socket.write_all(&[packet.circuit_index]).await?;
             socket.write_all(&[packet.ptype]).await?;
-            socket.write_all(&(packet.audio_data.len() as u16).to_be_bytes()).await?;
+            socket
+                .write_all(&(packet.audio_data.len() as u16).to_be_bytes())
+                .await?;
             socket.write_all(&packet.audio_data).await?;
 
             // Phase 3: Write redundant frame (FREE via Tor cell padding - no bandwidth cost!)
-            socket.write_all(&packet.redundant_sequence.to_be_bytes()).await?;
-            socket.write_all(&(packet.redundant_audio_data.len() as u16).to_be_bytes()).await?;
+            socket
+                .write_all(&packet.redundant_sequence.to_be_bytes())
+                .await?;
+            socket
+                .write_all(&(packet.redundant_audio_data.len() as u16).to_be_bytes())
+                .await?;
             socket.write_all(&packet.redundant_audio_data).await?;
         }
         socket.flush().await?;
     }
 
     // Note: Don't remove session here - end_session() handles cleanup for all circuits
-    log::info!("Voice sender task ended for call: {} circuit: {}", call_id, circuit_index);
+    log::info!(
+        "Voice sender task ended for call: {} circuit: {}",
+        call_id,
+        circuit_index
+    );
 
     Ok(())
 }
@@ -953,7 +1141,11 @@ pub async fn connect_via_socks5(
         }
     }
 
-    log::info!("SOCKS5 connection established to {}:{}", target_host, target_port);
+    log::info!(
+        "SOCKS5 connection established to {}:{}",
+        target_host,
+        target_port
+    );
     Ok(stream)
 }
 
@@ -970,7 +1162,7 @@ mod tests {
             circuit_index: 0,
             ptype: PTYPE_AUDIO,
             redundant_audio_data: vec![5, 6, 7, 8], // Phase 3: Previous frame
-            redundant_sequence: 0, // Phase 3: Previous sequence
+            redundant_sequence: 0,                  // Phase 3: Previous sequence
         };
         assert_eq!(packet.sequence, 1);
         assert_eq!(packet.audio_data.len(), 4);

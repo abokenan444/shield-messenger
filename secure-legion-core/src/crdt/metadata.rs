@@ -3,7 +3,6 @@
 /// Tracks group name, avatar, and topic as independent LWW registers.
 /// Each register stores the latest value, the lamport of the writer, and the
 /// OpID for deterministic tie-breaking.
-
 use std::collections::BTreeMap;
 use thiserror::Error;
 
@@ -38,6 +37,12 @@ pub struct LWWRegister {
 #[derive(Clone, Debug)]
 pub struct MetadataState {
     registers: BTreeMap<MetadataKey, LWWRegister>,
+}
+
+impl Default for MetadataState {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MetadataState {
@@ -84,8 +89,7 @@ impl MetadataState {
         let should_update = match self.registers.get(&payload.key) {
             None => true,
             Some(reg) => {
-                op.lamport > reg.lamport
-                    || (op.lamport == reg.lamport && op.op_id > reg.writer_op)
+                op.lamport > reg.lamport || (op.lamport == reg.lamport && op.op_id > reg.writer_op)
             }
         };
 

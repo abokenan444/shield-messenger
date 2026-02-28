@@ -6,14 +6,13 @@
 ///   kicked members.
 /// - Role changes use LWW (Last-Writer-Wins) by lamport, tie-break by OpID.
 /// - `rekey_required` flag set on all active members after a Kick (rotation deferred to v2).
-
 use std::collections::BTreeMap;
 use thiserror::Error;
 
 use crate::crdt::ids::{DeviceID, OpID};
 use crate::crdt::ops::{
-    GroupCreatePayload, MemberAcceptPayload, MemberInvitePayload, MemberRemovePayload,
-    OpEnvelope, OpType, RemoveReason, Role, RoleSetPayload,
+    GroupCreatePayload, MemberAcceptPayload, MemberInvitePayload, MemberRemovePayload, OpEnvelope,
+    OpType, RemoveReason, Role, RoleSetPayload,
 };
 
 // ---------------------------------------------------------------------------
@@ -98,6 +97,12 @@ pub struct MemberEntry {
 pub struct MembershipState {
     members: BTreeMap<DeviceID, MemberEntry>,
     created: bool,
+}
+
+impl Default for MembershipState {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MembershipState {
@@ -301,10 +306,7 @@ impl MembershipState {
                     return Err(MembershipError::LeaveAuthorMismatch);
                 }
 
-                let target_mut = self
-                    .members
-                    .get_mut(&payload.target_device_id)
-                    .unwrap();
+                let target_mut = self.members.get_mut(&payload.target_device_id).unwrap();
                 target_mut.removed = true;
                 target_mut.remove_op = Some(op.op_id);
             }
@@ -339,10 +341,7 @@ impl MembershipState {
         }
 
         // Apply the update
-        let target = self
-            .members
-            .get_mut(&payload.target_device_id)
-            .unwrap();
+        let target = self.members.get_mut(&payload.target_device_id).unwrap();
         target.role = payload.new_role;
         target.role_lamport = op.lamport;
         target.role_op = op.op_id;
@@ -365,10 +364,9 @@ impl MembershipState {
                 matches!(op_type, OpType::MemberAccept)
             }
             Some(member) => match op_type {
-                OpType::MsgAdd
-                | OpType::MsgEdit
-                | OpType::MsgDelete
-                | OpType::ReactionSet => member.role != Role::ReadOnly,
+                OpType::MsgAdd | OpType::MsgEdit | OpType::MsgDelete | OpType::ReactionSet => {
+                    member.role != Role::ReadOnly
+                }
 
                 OpType::MemberInvite | OpType::MemberRemove => {
                     member.role == Role::Owner || member.role == Role::Admin
@@ -433,10 +431,9 @@ mod tests {
             group_name: "Test Group".into(),
             encrypted_group_secret: vec![1, 2, 3],
         };
-        let op = OpEnvelope::create_signed(
-            gid, OpType::GroupCreate, &payload, 1, 100, pub_k, &priv_k,
-        )
-        .unwrap();
+        let op =
+            OpEnvelope::create_signed(gid, OpType::GroupCreate, &payload, 1, 100, pub_k, &priv_k)
+                .unwrap();
         (op, gid, pub_k, priv_k)
     }
 
@@ -458,7 +455,13 @@ mod tests {
             encrypted_group_secret: vec![10, 20, 30],
         };
         OpEnvelope::create_signed(
-            gid, OpType::MemberInvite, &payload, lamport, nonce, inviter_pub, inviter_priv,
+            gid,
+            OpType::MemberInvite,
+            &payload,
+            lamport,
+            nonce,
+            inviter_pub,
+            inviter_priv,
         )
         .unwrap()
     }
@@ -474,7 +477,13 @@ mod tests {
     ) -> OpEnvelope {
         let payload = MemberAcceptPayload { invite_op_id };
         OpEnvelope::create_signed(
-            gid, OpType::MemberAccept, &payload, lamport, nonce, accepter_pub, accepter_priv,
+            gid,
+            OpType::MemberAccept,
+            &payload,
+            lamport,
+            nonce,
+            accepter_pub,
+            accepter_priv,
         )
         .unwrap()
     }
@@ -495,7 +504,13 @@ mod tests {
             reason,
         };
         OpEnvelope::create_signed(
-            gid, OpType::MemberRemove, &payload, lamport, nonce, author_pub, author_priv,
+            gid,
+            OpType::MemberRemove,
+            &payload,
+            lamport,
+            nonce,
+            author_pub,
+            author_priv,
         )
         .unwrap()
     }
@@ -516,7 +531,13 @@ mod tests {
             new_role,
         };
         OpEnvelope::create_signed(
-            gid, OpType::RoleSet, &payload, lamport, nonce, author_pub, author_priv,
+            gid,
+            OpType::RoleSet,
+            &payload,
+            lamport,
+            nonce,
+            author_pub,
+            author_priv,
         )
         .unwrap()
     }
@@ -560,10 +581,9 @@ mod tests {
             group_name: "Bad".into(),
             encrypted_group_secret: vec![],
         };
-        let op = OpEnvelope::create_signed(
-            gid, OpType::GroupCreate, &payload, 5, 0, pub_k, &priv_k,
-        )
-        .unwrap();
+        let op =
+            OpEnvelope::create_signed(gid, OpType::GroupCreate, &payload, 5, 0, pub_k, &priv_k)
+                .unwrap();
 
         let mut state = MembershipState::new();
         let err = state.apply_group_create(&op).unwrap_err();
@@ -578,9 +598,7 @@ mod tests {
 
         // Invite Alice
         let (alice_pub, alice_priv) = keypair();
-        let invite_op = make_invite(
-            gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member,
-        );
+        let invite_op = make_invite(gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member);
         state.apply_member_invite(&invite_op).unwrap();
 
         let alice_device = DeviceID::from_pubkey(&alice_pub);
@@ -613,24 +631,30 @@ mod tests {
 
         // Invite and accept Alice + Bob
         let (alice_pub, alice_priv) = keypair();
-        let invite_a = make_invite(
-            gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member,
-        );
+        let invite_a = make_invite(gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member);
         state.apply_member_invite(&invite_a).unwrap();
         state
             .apply_member_accept(&make_accept(
-                gid, alice_pub, &alice_priv, invite_a.op_id, 3, 300,
+                gid,
+                alice_pub,
+                &alice_priv,
+                invite_a.op_id,
+                3,
+                300,
             ))
             .unwrap();
 
         let (bob_pub, bob_priv) = keypair();
-        let invite_b = make_invite(
-            gid, owner_pub, &owner_priv, bob_pub, 4, 400, Role::Member,
-        );
+        let invite_b = make_invite(gid, owner_pub, &owner_priv, bob_pub, 4, 400, Role::Member);
         state.apply_member_invite(&invite_b).unwrap();
         state
             .apply_member_accept(&make_accept(
-                gid, bob_pub, &bob_priv, invite_b.op_id, 5, 500,
+                gid,
+                bob_pub,
+                &bob_priv,
+                invite_b.op_id,
+                5,
+                500,
             ))
             .unwrap();
 
@@ -639,7 +663,13 @@ mod tests {
 
         // Owner kicks Alice
         let kick = make_remove(
-            gid, owner_pub, &owner_priv, alice_pub, RemoveReason::Kick, 6, 600,
+            gid,
+            owner_pub,
+            &owner_priv,
+            alice_pub,
+            RemoveReason::Kick,
+            6,
+            600,
         );
         state.apply_member_remove(&kick).unwrap();
 
@@ -663,19 +693,28 @@ mod tests {
         state.apply_group_create(&create_op).unwrap();
 
         let (alice_pub, alice_priv) = keypair();
-        let invite = make_invite(
-            gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member,
-        );
+        let invite = make_invite(gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member);
         state.apply_member_invite(&invite).unwrap();
         state
             .apply_member_accept(&make_accept(
-                gid, alice_pub, &alice_priv, invite.op_id, 3, 300,
+                gid,
+                alice_pub,
+                &alice_priv,
+                invite.op_id,
+                3,
+                300,
             ))
             .unwrap();
 
         // Alice leaves voluntarily
         let leave = make_remove(
-            gid, alice_pub, &alice_priv, alice_pub, RemoveReason::Leave, 4, 400,
+            gid,
+            alice_pub,
+            &alice_priv,
+            alice_pub,
+            RemoveReason::Leave,
+            4,
+            400,
         );
         state.apply_member_remove(&leave).unwrap();
 
@@ -697,17 +736,26 @@ mod tests {
 
         // Invite → accept → kick Alice
         let (alice_pub, alice_priv) = keypair();
-        let invite1 = make_invite(
-            gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member,
-        );
+        let invite1 = make_invite(gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member);
         state.apply_member_invite(&invite1).unwrap();
         state
             .apply_member_accept(&make_accept(
-                gid, alice_pub, &alice_priv, invite1.op_id, 3, 300,
+                gid,
+                alice_pub,
+                &alice_priv,
+                invite1.op_id,
+                3,
+                300,
             ))
             .unwrap();
         let kick = make_remove(
-            gid, owner_pub, &owner_priv, alice_pub, RemoveReason::Kick, 4, 400,
+            gid,
+            owner_pub,
+            &owner_priv,
+            alice_pub,
+            RemoveReason::Kick,
+            4,
+            400,
         );
         state.apply_member_remove(&kick).unwrap();
 
@@ -715,9 +763,7 @@ mod tests {
         assert!(state.get_active_member(&alice_device).is_none());
 
         // Re-invite with HIGHER lamport (5 > 4) — succeeds
-        let invite2 = make_invite(
-            gid, owner_pub, &owner_priv, alice_pub, 5, 500, Role::Admin,
-        );
+        let invite2 = make_invite(gid, owner_pub, &owner_priv, alice_pub, 5, 500, Role::Admin);
         state.apply_member_invite(&invite2).unwrap();
 
         let entry = state.members().get(&alice_device).unwrap();
@@ -728,7 +774,12 @@ mod tests {
         // Accept the re-invite
         state
             .apply_member_accept(&make_accept(
-                gid, alice_pub, &alice_priv, invite2.op_id, 6, 600,
+                gid,
+                alice_pub,
+                &alice_priv,
+                invite2.op_id,
+                6,
+                600,
             ))
             .unwrap();
         let alice = state.get_active_member(&alice_device).unwrap();
@@ -744,24 +795,32 @@ mod tests {
 
         // Invite → accept → kick Alice at lamport=4
         let (alice_pub, alice_priv) = keypair();
-        let invite1 = make_invite(
-            gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member,
-        );
+        let invite1 = make_invite(gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member);
         state.apply_member_invite(&invite1).unwrap();
         state
             .apply_member_accept(&make_accept(
-                gid, alice_pub, &alice_priv, invite1.op_id, 3, 300,
+                gid,
+                alice_pub,
+                &alice_priv,
+                invite1.op_id,
+                3,
+                300,
             ))
             .unwrap();
         let kick = make_remove(
-            gid, owner_pub, &owner_priv, alice_pub, RemoveReason::Kick, 4, 400,
+            gid,
+            owner_pub,
+            &owner_priv,
+            alice_pub,
+            RemoveReason::Kick,
+            4,
+            400,
         );
         state.apply_member_remove(&kick).unwrap();
 
         // Stale invite with LOWER lamport (2 < 4) — silently dropped
-        let stale_invite = make_invite(
-            gid, owner_pub, &owner_priv, alice_pub, 2, 201, Role::Member,
-        );
+        let stale_invite =
+            make_invite(gid, owner_pub, &owner_priv, alice_pub, 2, 201, Role::Member);
         state.apply_member_invite(&stale_invite).unwrap(); // no error, just ignored
 
         // Alice is still removed
@@ -902,19 +961,28 @@ mod tests {
         state.apply_group_create(&create_op).unwrap();
 
         let (admin_pub, admin_priv) = keypair();
-        let invite = make_invite(
-            gid, owner_pub, &owner_priv, admin_pub, 2, 200, Role::Admin,
-        );
+        let invite = make_invite(gid, owner_pub, &owner_priv, admin_pub, 2, 200, Role::Admin);
         state.apply_member_invite(&invite).unwrap();
         state
             .apply_member_accept(&make_accept(
-                gid, admin_pub, &admin_priv, invite.op_id, 3, 300,
+                gid,
+                admin_pub,
+                &admin_priv,
+                invite.op_id,
+                3,
+                300,
             ))
             .unwrap();
 
         // Admin tries to kick Owner — should fail
         let kick = make_remove(
-            gid, admin_pub, &admin_priv, owner_pub, RemoveReason::Kick, 4, 400,
+            gid,
+            admin_pub,
+            &admin_priv,
+            owner_pub,
+            RemoveReason::Kick,
+            4,
+            400,
         );
         let err = state.apply_member_remove(&kick).unwrap_err();
         assert!(matches!(err, MembershipError::InsufficientRoleForKick));
@@ -928,24 +996,38 @@ mod tests {
 
         // Add admin and member through proper ops
         let (admin_pub, admin_priv) = keypair();
-        let invite_admin = make_invite(
-            gid, owner_pub, &owner_priv, admin_pub, 2, 200, Role::Admin,
-        );
+        let invite_admin = make_invite(gid, owner_pub, &owner_priv, admin_pub, 2, 200, Role::Admin);
         state.apply_member_invite(&invite_admin).unwrap();
         state
             .apply_member_accept(&make_accept(
-                gid, admin_pub, &admin_priv, invite_admin.op_id, 3, 300,
+                gid,
+                admin_pub,
+                &admin_priv,
+                invite_admin.op_id,
+                3,
+                300,
             ))
             .unwrap();
 
         let (member_pub, member_priv) = keypair();
         let invite_member = make_invite(
-            gid, owner_pub, &owner_priv, member_pub, 4, 400, Role::Member,
+            gid,
+            owner_pub,
+            &owner_priv,
+            member_pub,
+            4,
+            400,
+            Role::Member,
         );
         state.apply_member_invite(&invite_member).unwrap();
         state
             .apply_member_accept(&make_accept(
-                gid, member_pub, &member_priv, invite_member.op_id, 5, 500,
+                gid,
+                member_pub,
+                &member_priv,
+                invite_member.op_id,
+                5,
+                500,
             ))
             .unwrap();
 
@@ -953,7 +1035,13 @@ mod tests {
 
         // Admin kicks member — should succeed
         let kick = make_remove(
-            gid, admin_pub, &admin_priv, member_pub, RemoveReason::Kick, 6, 600,
+            gid,
+            admin_pub,
+            &admin_priv,
+            member_pub,
+            RemoveReason::Kick,
+            6,
+            600,
         );
         state.apply_member_remove(&kick).unwrap();
 
@@ -970,26 +1058,33 @@ mod tests {
 
         // Invite Alice (accepted) and Bob (not accepted)
         let (alice_pub, alice_priv) = keypair();
-        let invite_alice = make_invite(
-            gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Admin,
-        );
+        let invite_alice = make_invite(gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Admin);
         state.apply_member_invite(&invite_alice).unwrap();
         state
             .apply_member_accept(&make_accept(
-                gid, alice_pub, &alice_priv, invite_alice.op_id, 3, 300,
+                gid,
+                alice_pub,
+                &alice_priv,
+                invite_alice.op_id,
+                3,
+                300,
             ))
             .unwrap();
 
         let (bob_pub, bob_priv) = keypair();
-        let invite_bob = make_invite(
-            gid, owner_pub, &owner_priv, bob_pub, 4, 400, Role::Admin,
-        );
+        let invite_bob = make_invite(gid, owner_pub, &owner_priv, bob_pub, 4, 400, Role::Admin);
         state.apply_member_invite(&invite_bob).unwrap();
         // Bob does NOT accept — he's pending, not active
 
         // Bob (pending, not active) tries to kick Alice — should fail
         let kick = make_remove(
-            gid, bob_pub, &bob_priv, alice_pub, RemoveReason::Kick, 5, 500,
+            gid,
+            bob_pub,
+            &bob_priv,
+            alice_pub,
+            RemoveReason::Kick,
+            5,
+            500,
         );
         let err = state.apply_member_remove(&kick).unwrap_err();
         assert!(matches!(err, MembershipError::KickerNotActive));
@@ -1006,13 +1101,16 @@ mod tests {
         state.apply_group_create(&create_op).unwrap();
 
         let (alice_pub, alice_priv) = keypair();
-        let invite = make_invite(
-            gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member,
-        );
+        let invite = make_invite(gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member);
         state.apply_member_invite(&invite).unwrap();
         state
             .apply_member_accept(&make_accept(
-                gid, alice_pub, &alice_priv, invite.op_id, 3, 300,
+                gid,
+                alice_pub,
+                &alice_priv,
+                invite.op_id,
+                3,
+                300,
             ))
             .unwrap();
 
@@ -1023,9 +1121,7 @@ mod tests {
         );
 
         // Promote to Admin at lamport=4
-        let role_op = make_role_set(
-            gid, owner_pub, &owner_priv, alice_pub, Role::Admin, 4, 400,
-        );
+        let role_op = make_role_set(gid, owner_pub, &owner_priv, alice_pub, Role::Admin, 4, 400);
         state.apply_role_set(&role_op).unwrap();
         assert_eq!(
             state.get_active_member(&alice_device).unwrap().role,
@@ -1034,7 +1130,13 @@ mod tests {
 
         // Stale op at lamport=3 — silently ignored
         let stale = make_role_set(
-            gid, owner_pub, &owner_priv, alice_pub, Role::ReadOnly, 3, 350,
+            gid,
+            owner_pub,
+            &owner_priv,
+            alice_pub,
+            Role::ReadOnly,
+            3,
+            350,
         );
         state.apply_role_set(&stale).unwrap();
         assert_eq!(
@@ -1050,22 +1152,29 @@ mod tests {
         state.apply_group_create(&create_op).unwrap();
 
         let (alice_pub, alice_priv) = keypair();
-        let invite = make_invite(
-            gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member,
-        );
+        let invite = make_invite(gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member);
         state.apply_member_invite(&invite).unwrap();
         state
             .apply_member_accept(&make_accept(
-                gid, alice_pub, &alice_priv, invite.op_id, 3, 300,
+                gid,
+                alice_pub,
+                &alice_priv,
+                invite.op_id,
+                3,
+                300,
             ))
             .unwrap();
 
         // Two role sets at same lamport, different nonces
-        let role_a = make_role_set(
-            gid, owner_pub, &owner_priv, alice_pub, Role::Admin, 4, 100,
-        );
+        let role_a = make_role_set(gid, owner_pub, &owner_priv, alice_pub, Role::Admin, 4, 100);
         let role_b = make_role_set(
-            gid, owner_pub, &owner_priv, alice_pub, Role::ReadOnly, 4, 999,
+            gid,
+            owner_pub,
+            &owner_priv,
+            alice_pub,
+            Role::ReadOnly,
+            4,
+            999,
         );
 
         // Apply in both orders — should converge
@@ -1094,20 +1203,21 @@ mod tests {
         state.apply_group_create(&create_op).unwrap();
 
         let (alice_pub, alice_priv) = keypair();
-        let invite = make_invite(
-            gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member,
-        );
+        let invite = make_invite(gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member);
         state.apply_member_invite(&invite).unwrap();
         state
             .apply_member_accept(&make_accept(
-                gid, alice_pub, &alice_priv, invite.op_id, 3, 300,
+                gid,
+                alice_pub,
+                &alice_priv,
+                invite.op_id,
+                3,
+                300,
             ))
             .unwrap();
 
         // Double-invite while active — should fail
-        let invite2 = make_invite(
-            gid, owner_pub, &owner_priv, alice_pub, 4, 400, Role::Admin,
-        );
+        let invite2 = make_invite(gid, owner_pub, &owner_priv, alice_pub, 4, 400, Role::Admin);
         let err = state.apply_member_invite(&invite2).unwrap_err();
         assert!(matches!(err, MembershipError::AlreadyActiveMember));
     }
@@ -1119,9 +1229,7 @@ mod tests {
         state.apply_group_create(&create_op).unwrap();
 
         let (alice_pub, alice_priv) = keypair();
-        let invite = make_invite(
-            gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member,
-        );
+        let invite = make_invite(gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member);
         state.apply_member_invite(&invite).unwrap();
 
         let bogus_op_id = OpID::new(DeviceID::from_bytes([0xFF; 16]), 99, 99);
@@ -1137,9 +1245,7 @@ mod tests {
         state.apply_group_create(&create_op).unwrap();
 
         let (alice_pub, alice_priv) = keypair();
-        let invite = make_invite(
-            gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member,
-        );
+        let invite = make_invite(gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member);
         state.apply_member_invite(&invite).unwrap();
 
         let accept = make_accept(gid, alice_pub, &alice_priv, invite.op_id, 3, 300);
@@ -1157,23 +1263,38 @@ mod tests {
         state.apply_group_create(&create_op).unwrap();
 
         let (alice_pub, alice_priv) = keypair();
-        let invite = make_invite(
-            gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member,
-        );
+        let invite = make_invite(gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member);
         state.apply_member_invite(&invite).unwrap();
         state
             .apply_member_accept(&make_accept(
-                gid, alice_pub, &alice_priv, invite.op_id, 3, 300,
+                gid,
+                alice_pub,
+                &alice_priv,
+                invite.op_id,
+                3,
+                300,
             ))
             .unwrap();
 
         let kick = make_remove(
-            gid, owner_pub, &owner_priv, alice_pub, RemoveReason::Kick, 4, 400,
+            gid,
+            owner_pub,
+            &owner_priv,
+            alice_pub,
+            RemoveReason::Kick,
+            4,
+            400,
         );
         state.apply_member_remove(&kick).unwrap();
 
         let kick2 = make_remove(
-            gid, owner_pub, &owner_priv, alice_pub, RemoveReason::Kick, 5, 500,
+            gid,
+            owner_pub,
+            &owner_priv,
+            alice_pub,
+            RemoveReason::Kick,
+            5,
+            500,
         );
         let err = state.apply_member_remove(&kick2).unwrap_err();
         assert!(matches!(err, MembershipError::AlreadyRemoved));
@@ -1186,19 +1307,28 @@ mod tests {
         state.apply_group_create(&create_op).unwrap();
 
         let (alice_pub, alice_priv) = keypair();
-        let invite = make_invite(
-            gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member,
-        );
+        let invite = make_invite(gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member);
         state.apply_member_invite(&invite).unwrap();
         state
             .apply_member_accept(&make_accept(
-                gid, alice_pub, &alice_priv, invite.op_id, 3, 300,
+                gid,
+                alice_pub,
+                &alice_priv,
+                invite.op_id,
+                3,
+                300,
             ))
             .unwrap();
 
         // Owner tries to "leave" Alice — author != target
         let bad_leave = make_remove(
-            gid, owner_pub, &owner_priv, alice_pub, RemoveReason::Leave, 4, 400,
+            gid,
+            owner_pub,
+            &owner_priv,
+            alice_pub,
+            RemoveReason::Leave,
+            4,
+            400,
         );
         let err = state.apply_member_remove(&bad_leave).unwrap_err();
         assert!(matches!(err, MembershipError::LeaveAuthorMismatch));
@@ -1211,15 +1341,11 @@ mod tests {
         state.apply_group_create(&create_op).unwrap();
 
         let (alice_pub, _) = keypair();
-        let invite = make_invite(
-            gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member,
-        );
+        let invite = make_invite(gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member);
         state.apply_member_invite(&invite).unwrap();
         // Alice never accepts
 
-        let role_op = make_role_set(
-            gid, owner_pub, &owner_priv, alice_pub, Role::Admin, 3, 300,
-        );
+        let role_op = make_role_set(gid, owner_pub, &owner_priv, alice_pub, Role::Admin, 3, 300);
         let err = state.apply_role_set(&role_op).unwrap_err();
         assert!(matches!(err, MembershipError::TargetNotActive));
     }
@@ -1241,35 +1367,47 @@ mod tests {
         assert!(!state.is_author_active_for_render(&alice_device));
 
         // Invited but not accepted
-        let invite = make_invite(
-            gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member,
-        );
+        let invite = make_invite(gid, owner_pub, &owner_priv, alice_pub, 2, 200, Role::Member);
         state.apply_member_invite(&invite).unwrap();
         assert!(!state.is_author_active_for_render(&alice_device));
 
         // Accepted
         state
             .apply_member_accept(&make_accept(
-                gid, alice_pub, &alice_priv, invite.op_id, 3, 300,
+                gid,
+                alice_pub,
+                &alice_priv,
+                invite.op_id,
+                3,
+                300,
             ))
             .unwrap();
         assert!(state.is_author_active_for_render(&alice_device));
 
         // Kicked
         let kick = make_remove(
-            gid, owner_pub, &owner_priv, alice_pub, RemoveReason::Kick, 4, 400,
+            gid,
+            owner_pub,
+            &owner_priv,
+            alice_pub,
+            RemoveReason::Kick,
+            4,
+            400,
         );
         state.apply_member_remove(&kick).unwrap();
         assert!(!state.is_author_active_for_render(&alice_device));
 
         // Re-invited + accepted → active again
-        let invite2 = make_invite(
-            gid, owner_pub, &owner_priv, alice_pub, 5, 500, Role::Member,
-        );
+        let invite2 = make_invite(gid, owner_pub, &owner_priv, alice_pub, 5, 500, Role::Member);
         state.apply_member_invite(&invite2).unwrap();
         state
             .apply_member_accept(&make_accept(
-                gid, alice_pub, &alice_priv, invite2.op_id, 6, 600,
+                gid,
+                alice_pub,
+                &alice_priv,
+                invite2.op_id,
+                6,
+                600,
             ))
             .unwrap();
         assert!(state.is_author_active_for_render(&alice_device));

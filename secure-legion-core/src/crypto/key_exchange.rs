@@ -42,10 +42,7 @@ pub fn generate_static_keypair() -> ([u8; 32], [u8; 32]) {
 ///
 /// # Returns
 /// 32-byte shared secret
-pub fn derive_shared_secret(
-    our_private_key: &[u8],
-    their_public_key: &[u8],
-) -> Result<[u8; 32]> {
+pub fn derive_shared_secret(our_private_key: &[u8], their_public_key: &[u8]) -> Result<[u8; 32]> {
     if our_private_key.len() != 32 {
         return Err(KeyExchangeError::InvalidKeyLength);
     }

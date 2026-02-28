@@ -60,9 +60,9 @@ impl Message {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PingToken {
     pub protocol_version: u8,
-    pub sender_pubkey: [u8; 32], // Ed25519 signing public key
-    pub recipient_pubkey: [u8; 32], // Ed25519 signing public key
-    pub sender_x25519_pubkey: [u8; 32], // X25519 encryption public key
+    pub sender_pubkey: [u8; 32],           // Ed25519 signing public key
+    pub recipient_pubkey: [u8; 32],        // Ed25519 signing public key
+    pub sender_x25519_pubkey: [u8; 32],    // X25519 encryption public key
     pub recipient_x25519_pubkey: [u8; 32], // X25519 encryption public key
     pub nonce: [u8; 24],
     pub timestamp: i64,
@@ -125,7 +125,7 @@ impl PongToken {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeliveryConfirmationToken {
-    pub message_id: String, // ID of the message being confirmed
+    pub message_id: String,         // ID of the message being confirmed
     pub recipient_pubkey: [u8; 32], // Recipient's signing public key
     pub timestamp: i64,
     #[serde(with = "BigArray")]
@@ -155,7 +155,7 @@ impl DeliveryConfirmationToken {
 /// Sender responds with TAP_ACK to confirm "I got your check-in"
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TapAckToken {
-    pub tap_nonce: [u8; 24], // Nonce from the TAP being acknowledged
+    pub tap_nonce: [u8; 24],        // Nonce from the TAP being acknowledged
     pub recipient_pubkey: [u8; 32], // Recipient's signing public key
     pub timestamp: i64,
     #[serde(with = "BigArray")]
@@ -186,7 +186,7 @@ impl TapAckToken {
 /// - MESSAGE_ACK = "Decrypted, verified, and saved to database"
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PongAckToken {
-    pub pong_nonce: [u8; 24], // Nonce from the PONG being acknowledged
+    pub pong_nonce: [u8; 24],       // Nonce from the PONG being acknowledged
     pub recipient_pubkey: [u8; 32], // Recipient's signing public key
     pub timestamp: i64,
     #[serde(with = "BigArray")]

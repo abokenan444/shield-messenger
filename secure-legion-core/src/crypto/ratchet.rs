@@ -8,16 +8,14 @@
 /// The KEM ratchet provides post-compromise security against quantum adversaries.
 /// Even if a session key is compromised, future keys cannot be derived without
 /// breaking both X25519 AND ML-KEM-1024.
-
 use hmac::{Hmac, Mac};
+use serde::{Deserialize, Serialize};
 use sha2::Sha256;
-use zeroize::Zeroize;
 use thiserror::Error;
-use serde::{Serialize, Deserialize};
+use zeroize::Zeroize;
 
 use crate::crypto::{
-    encryption,
-    key_exchange,
+    encryption, key_exchange,
     pqc::{self, HybridKEMKeypair},
 };
 
@@ -102,7 +100,7 @@ pub struct PQDoubleRatchet {
 
     // ── KEM ratchet state ──
     our_kem_keypair: Option<HybridKEMKeypair>,
-    their_kem_ek: Option<Vec<u8>>,       // Their ML-KEM encapsulation key
+    their_kem_ek: Option<Vec<u8>>, // Their ML-KEM encapsulation key
     total_messages_sent: u64,
 
     // ── Previous chain length (for header) ──
@@ -178,10 +176,7 @@ impl PQDoubleRatchet {
     /// # Arguments
     /// * `shared_secret` - Pre-shared secret from X3DH/hybrid handshake (64 bytes)
     /// * `our_dh_keypair` - Bob's DH ratchet keypair from handshake
-    pub fn init_bob(
-        shared_secret: &[u8],
-        our_dh_keypair: ([u8; 32], [u8; 32]),
-    ) -> Result<Self> {
+    pub fn init_bob(shared_secret: &[u8], our_dh_keypair: ([u8; 32], [u8; 32])) -> Result<Self> {
         let root_key = kdf_root_init(shared_secret);
         let (our_dh_public, our_dh_secret) = our_dh_keypair;
 
@@ -209,8 +204,7 @@ impl PQDoubleRatchet {
     ///
     /// Returns (header, ciphertext) to be sent to the peer.
     pub fn encrypt(&mut self, plaintext: &[u8]) -> Result<(RatchetHeader, Vec<u8>)> {
-        let send_ck = self.send_chain_key
-            .ok_or(RatchetError::NotInitialized)?;
+        let send_ck = self.send_chain_key.ok_or(RatchetError::NotInitialized)?;
 
         // Derive message key from chain key
         let (new_chain_key, message_key) = kdf_chain(&send_ck);
@@ -231,7 +225,10 @@ impl PQDoubleRatchet {
 
         // KEM ratchet step: periodically encapsulate to their KEM key
         self.total_messages_sent += 1;
-        if self.total_messages_sent % KEM_RATCHET_INTERVAL == 0 {
+        if self
+            .total_messages_sent
+            .is_multiple_of(KEM_RATCHET_INTERVAL)
+        {
             if let Some(ref their_kem_ek) = self.their_kem_ek {
                 if let Some(ref our_kem) = self.our_kem_keypair {
                     // Encapsulate to their KEM key
@@ -240,7 +237,8 @@ impl PQDoubleRatchet {
                         their_kem_ek,
                     ) {
                         // Mix KEM shared secret into root key
-                        let (new_root, new_send_ck) = kdf_root(&self.root_key, &kem_ct.shared_secret[..32]);
+                        let (new_root, new_send_ck) =
+                            kdf_root(&self.root_key, &kem_ct.shared_secret[..32]);
                         self.root_key = new_root;
                         self.send_chain_key = Some(new_send_ck);
 
@@ -269,8 +267,7 @@ impl PQDoubleRatchet {
         }
 
         // If new DH ratchet public key, perform DH ratchet step
-        let their_dh_changed = self.their_dh_public
-            .map_or(true, |k| k != header.dh_public);
+        let their_dh_changed = self.their_dh_public != Some(header.dh_public);
 
         if their_dh_changed {
             // Skip any remaining messages in the current receiving chain
@@ -291,8 +288,7 @@ impl PQDoubleRatchet {
         self.skip_messages(header.message_number)?;
 
         // Derive message key for this message
-        let recv_ck = self.recv_chain_key
-            .ok_or(RatchetError::NotInitialized)?;
+        let recv_ck = self.recv_chain_key.ok_or(RatchetError::NotInitialized)?;
         let (new_chain_key, message_key) = kdf_chain(&recv_ck);
         self.recv_chain_key = Some(new_chain_key);
         self.recv_message_number += 1;
@@ -346,7 +342,8 @@ impl PQDoubleRatchet {
                 kem_ciphertext,
                 &our_kem.x25519_secret,
                 &our_kem.kyber_secret,
-            ).map_err(|e: pqc::PqcError| RatchetError::KEMRatchetFailed(e.to_string()))?;
+            )
+            .map_err(|e: pqc::PqcError| RatchetError::KEMRatchetFailed(e.to_string()))?;
 
             // Mix KEM shared secret into root key
             let (new_root, new_recv_ck) = kdf_root(&self.root_key, &shared[..32]);
@@ -361,7 +358,7 @@ impl PQDoubleRatchet {
             // Regenerate our KEM keypair
             self.our_kem_keypair = Some(
                 pqc::generate_hybrid_keypair_random()
-                    .map_err(|e: pqc::PqcError| RatchetError::KEMRatchetFailed(e.to_string()))?
+                    .map_err(|e: pqc::PqcError| RatchetError::KEMRatchetFailed(e.to_string()))?,
             );
         }
         Ok(())
@@ -423,7 +420,9 @@ impl PQDoubleRatchet {
 
     /// Get our current KEM encapsulation key (for sending to peer so they can encapsulate to us)
     pub fn our_kem_encapsulation_key(&self) -> Option<Vec<u8>> {
-        self.our_kem_keypair.as_ref().map(|kp| kp.kyber_public.clone())
+        self.our_kem_keypair
+            .as_ref()
+            .map(|kp| kp.kyber_public.clone())
     }
 
     /// Serialize the ratchet state for persistent storage
@@ -440,8 +439,14 @@ impl PQDoubleRatchet {
             their_kem_ek: self.their_kem_ek.clone(),
             total_messages_sent: self.total_messages_sent,
             previous_chain_length: self.previous_chain_length,
-            our_kem_public: self.our_kem_keypair.as_ref().map(|kp| kp.kyber_public.clone()),
-            our_kem_secret: self.our_kem_keypair.as_ref().map(|kp| kp.kyber_secret.clone()),
+            our_kem_public: self
+                .our_kem_keypair
+                .as_ref()
+                .map(|kp| kp.kyber_public.clone()),
+            our_kem_secret: self
+                .our_kem_keypair
+                .as_ref()
+                .map(|kp| kp.kyber_secret.clone()),
             our_kem_x25519_public: self.our_kem_keypair.as_ref().map(|kp| kp.x25519_public),
             our_kem_x25519_secret: self.our_kem_keypair.as_ref().map(|kp| kp.x25519_secret),
         }
@@ -455,14 +460,12 @@ impl PQDoubleRatchet {
             state.our_kem_x25519_public,
             state.our_kem_x25519_secret,
         ) {
-            (Some(pub_k), Some(sec_k), Some(x_pub), Some(x_sec)) => {
-                Some(HybridKEMKeypair {
-                    x25519_public: x_pub,
-                    x25519_secret: x_sec,
-                    kyber_public: pub_k,
-                    kyber_secret: sec_k,
-                })
-            }
+            (Some(pub_k), Some(sec_k), Some(x_pub), Some(x_sec)) => Some(HybridKEMKeypair {
+                x25519_public: x_pub,
+                x25519_secret: x_sec,
+                kyber_public: pub_k,
+                kyber_secret: sec_k,
+            }),
             _ => None,
         };
 
@@ -525,13 +528,11 @@ fn kdf_root(root_key: &[u8; 32], dh_output: &[u8]) -> ([u8; 32], [u8; 32]) {
 
 /// Chain KDF: derive new chain key and message key from current chain key
 fn kdf_chain(chain_key: &[u8; 32]) -> ([u8; 32], [u8; 32]) {
-    let mut mac_ck = <HmacSha256 as Mac>::new_from_slice(chain_key)
-        .expect("HMAC key length valid");
+    let mut mac_ck = <HmacSha256 as Mac>::new_from_slice(chain_key).expect("HMAC key length valid");
     mac_ck.update(&[0x01]); // 0x01 → next chain key
     let new_chain_key: [u8; 32] = mac_ck.finalize().into_bytes().into();
 
-    let mut mac_mk = <HmacSha256 as Mac>::new_from_slice(chain_key)
-        .expect("HMAC key length valid");
+    let mut mac_mk = <HmacSha256 as Mac>::new_from_slice(chain_key).expect("HMAC key length valid");
     mac_mk.update(&[0x02]); // 0x02 → message key
     let message_key: [u8; 32] = mac_mk.finalize().into_bytes().into();
 

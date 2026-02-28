@@ -41,7 +41,11 @@ pub enum EncryptionError {
     #[error("Replay attack detected: sequence {received} < expected {expected}")]
     ReplayAttack { received: u64, expected: u64 },
     #[error("Sequence too far ahead: received {received}, expected {expected}, max {max}")]
-    SequenceTooFar { received: u64, expected: u64, max: u64 },
+    SequenceTooFar {
+        received: u64,
+        expected: u64,
+        max: u64,
+    },
     #[error("Out of order message: received {received}, expected {expected}")]
     OutOfOrder { received: u64, expected: u64 },
 }
@@ -63,8 +67,8 @@ pub fn encrypt_message(plaintext: &[u8], key: &[u8]) -> Result<Vec<u8>> {
     }
 
     // Create cipher
-    let cipher = XChaCha20Poly1305::new_from_slice(key)
-        .map_err(|_| EncryptionError::InvalidKeyLength)?;
+    let cipher =
+        XChaCha20Poly1305::new_from_slice(key).map_err(|_| EncryptionError::InvalidKeyLength)?;
 
     // Generate random nonce
     let mut nonce_bytes = [0u8; 24];
@@ -108,8 +112,8 @@ pub fn decrypt_message(encrypted_data: &[u8], key: &[u8]) -> Result<Vec<u8>> {
     let nonce = XNonce::from_slice(nonce_bytes);
 
     // Create cipher
-    let cipher = XChaCha20Poly1305::new_from_slice(key)
-        .map_err(|_| EncryptionError::InvalidKeyLength)?;
+    let cipher =
+        XChaCha20Poly1305::new_from_slice(key).map_err(|_| EncryptionError::InvalidKeyLength)?;
 
     // Decrypt
     let plaintext = cipher
@@ -396,8 +400,9 @@ pub fn decrypt_message_with_evolution(
     }
 
     let sequence = u64::from_be_bytes(
-        encrypted_data[1..9].try_into()
-            .map_err(|_| EncryptionError::DecryptionFailed)?
+        encrypted_data[1..9]
+            .try_into()
+            .map_err(|_| EncryptionError::DecryptionFailed)?,
     );
 
     // Windowed sequence acceptance (prevents replay while allowing out-of-order delivery)
@@ -451,9 +456,9 @@ pub fn decrypt_message_with_evolution(
 
 // ==================== TWO-PHASE RATCHET COMMIT (Fix #6) ====================
 
-use std::sync::Mutex;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 /// Result of deferred encryption (ratchet not yet committed)
 #[derive(Debug, Clone)]
@@ -522,10 +527,10 @@ pub fn encrypt_message_deferred(
 /// Pending ratchet advancement waiting for PING_ACK
 #[derive(Clone)]
 struct PendingRatchetAdvancement {
-    contact_id: String, // Contact identifier (pubkey or onion)
-    message_id: String, // Message ID (for tracking)
+    contact_id: String,       // Contact identifier (pubkey or onion)
+    message_id: String,       // Message ID (for tracking)
     next_chain_key: [u8; 32], // Next chain key (uncommitted)
-    next_sequence: u64, // Next sequence number (uncommitted)
+    next_sequence: u64,       // Next sequence number (uncommitted)
     created_at: std::time::SystemTime,
 }
 
@@ -546,7 +551,8 @@ pub fn store_pending_ratchet_advancement(
     next_chain_key: [u8; 32],
     next_sequence: u64,
 ) -> Result<()> {
-    let mut pending = PENDING_RATCHETS.lock()
+    let mut pending = PENDING_RATCHETS
+        .lock()
         .map_err(|_| EncryptionError::EncryptionFailed)?;
 
     let advancement = PendingRatchetAdvancement {
@@ -559,8 +565,11 @@ pub fn store_pending_ratchet_advancement(
 
     pending.insert(contact_id.to_string(), advancement);
 
-    log::info!("Stored pending ratchet advancement for contact {}, message {}",
-        contact_id, message_id);
+    log::info!(
+        "Stored pending ratchet advancement for contact {}, message {}",
+        contact_id,
+        message_id
+    );
 
     Ok(())
 }
@@ -575,19 +584,27 @@ pub fn store_pending_ratchet_advancement(
 ///
 /// # Returns
 /// (next_chain_key, next_sequence) to persist, or None if no pending advancement
-pub fn commit_ratchet_advancement(
-    contact_id: &str,
-) -> Result<Option<([u8; 32], u64)>> {
-    let mut pending = PENDING_RATCHETS.lock()
+pub fn commit_ratchet_advancement(contact_id: &str) -> Result<Option<([u8; 32], u64)>> {
+    let mut pending = PENDING_RATCHETS
+        .lock()
         .map_err(|_| EncryptionError::EncryptionFailed)?;
 
     if let Some(advancement) = pending.remove(contact_id) {
-        log::info!("Committed ratchet advancement for contact {}, message {}",
-            contact_id, advancement.message_id);
+        log::info!(
+            "Committed ratchet advancement for contact {}, message {}",
+            contact_id,
+            advancement.message_id
+        );
 
-        Ok(Some((advancement.next_chain_key, advancement.next_sequence)))
+        Ok(Some((
+            advancement.next_chain_key,
+            advancement.next_sequence,
+        )))
     } else {
-        log::warn!("No pending ratchet advancement found for contact {}", contact_id);
+        log::warn!(
+            "No pending ratchet advancement found for contact {}",
+            contact_id
+        );
         Ok(None)
     }
 }
@@ -599,12 +616,16 @@ pub fn commit_ratchet_advancement(
 /// # Arguments
 /// * `contact_id` - Contact identifier
 pub fn rollback_ratchet_advancement(contact_id: &str) -> Result<()> {
-    let mut pending = PENDING_RATCHETS.lock()
+    let mut pending = PENDING_RATCHETS
+        .lock()
         .map_err(|_| EncryptionError::EncryptionFailed)?;
 
     if let Some(advancement) = pending.remove(contact_id) {
-        log::info!("Rolled back ratchet advancement for contact {}, message {}",
-            contact_id, advancement.message_id);
+        log::info!(
+            "Rolled back ratchet advancement for contact {}, message {}",
+            contact_id,
+            advancement.message_id
+        );
     }
 
     Ok(())
@@ -613,7 +634,8 @@ pub fn rollback_ratchet_advancement(contact_id: &str) -> Result<()> {
 /// Clear all pending ratchet advancements and zeroize keys (for Duress PIN).
 /// Call this when the user enters the Duress PIN so no sensitive key material remains in memory.
 pub fn clear_all_pending_ratchets_for_duress() -> Result<()> {
-    let mut pending = PENDING_RATCHETS.lock()
+    let mut pending = PENDING_RATCHETS
+        .lock()
         .map_err(|_| EncryptionError::EncryptionFailed)?;
     for (_, mut advancement) in pending.drain() {
         advancement.next_chain_key.zeroize();
@@ -624,7 +646,8 @@ pub fn clear_all_pending_ratchets_for_duress() -> Result<()> {
 
 /// Clean up expired pending ratchet advancements (older than 5 minutes)
 pub fn cleanup_expired_pending_ratchets() -> Result<()> {
-    let mut pending = PENDING_RATCHETS.lock()
+    let mut pending = PENDING_RATCHETS
+        .lock()
         .map_err(|_| EncryptionError::EncryptionFailed)?;
 
     let now = std::time::SystemTime::now();
@@ -633,8 +656,11 @@ pub fn cleanup_expired_pending_ratchets() -> Result<()> {
     pending.retain(|contact_id, advancement| {
         if let Ok(age) = now.duration_since(advancement.created_at) {
             if age > MAX_AGE {
-                log::warn!("Expired pending ratchet for contact {} (age: {:?})",
-                    contact_id, age);
+                log::warn!(
+                    "Expired pending ratchet for contact {} (age: {:?})",
+                    contact_id,
+                    age
+                );
                 return false;
             }
         }

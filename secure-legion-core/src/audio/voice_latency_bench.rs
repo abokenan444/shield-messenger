@@ -8,7 +8,6 @@
 ///
 /// These benchmarks help tune voice call parameters for optimal
 /// quality over high-latency Tor connections.
-
 use std::time::{Duration, Instant};
 
 /// Voice call performance metrics
@@ -75,9 +74,9 @@ impl Default for BenchConfig {
     fn default() -> Self {
         Self {
             frame_count: 1000,
-            frame_size: 960,   // 20ms at 48kHz
+            frame_size: 960, // 20ms at 48kHz
             sample_rate: 48000,
-            bitrate: 24000,    // 24 kbps — good quality over Tor
+            bitrate: 24000,                     // 24 kbps — good quality over Tor
             simulated_rtt_range_ms: (300, 800), // Typical Tor latency
             simulated_loss_pct: 5.0,
         }
@@ -104,10 +103,10 @@ impl QualityThresholds {
     /// (more lenient than traditional VoIP due to Tor overhead)
     pub fn tor_standard() -> Self {
         Self {
-            max_one_way_latency_ms: 500,  // ITU-T G.114: 150ms ideal, 400ms max for PSTN
+            max_one_way_latency_ms: 500, // ITU-T G.114: 150ms ideal, 400ms max for PSTN
             max_jitter_ms: 100,
             max_packet_loss_pct: 10.0,
-            min_mos_score: 2.5,           // "Fair" quality — acceptable for secure comms
+            min_mos_score: 2.5, // "Fair" quality — acceptable for secure comms
         }
     }
 
@@ -138,7 +137,8 @@ impl QualityThresholds {
             packet_loss_pass: loss_ok,
             mos_pass: mos_ok,
             recommendation: if all_pass {
-                "Voice call quality meets requirements for secure communication over Tor.".to_string()
+                "Voice call quality meets requirements for secure communication over Tor."
+                    .to_string()
             } else {
                 let mut issues = Vec::new();
                 if !latency_ok {
@@ -232,7 +232,7 @@ pub fn estimate_mos(rtt_ms: u64, jitter_ms: u64, loss_pct: f64, codec_delay_ms: 
 
     // Equipment impairment for Opus codec (Ie = 0 for wideband Opus)
     // Loss impairment: Ie_eff = Ie + (95 - Ie) * loss / (loss + Bpl)
-    let ie = 0.0;  // Opus has very low intrinsic impairment
+    let ie = 0.0; // Opus has very low intrinsic impairment
     let bpl = 25.0; // Packet loss robustness factor for Opus with FEC
     let ie_eff = ie + (95.0 - ie) * loss_pct / (loss_pct + bpl);
 
@@ -253,7 +253,11 @@ pub fn estimate_mos(rtt_ms: u64, jitter_ms: u64, loss_pct: f64, codec_delay_ms: 
 
 /// Step function for E-model calculation
 fn step(x: f64) -> f64 {
-    if x >= 0.0 { 1.0 } else { 0.0 }
+    if x >= 0.0 {
+        1.0
+    } else {
+        0.0
+    }
 }
 
 /// Run a simulated voice call benchmark (no actual network I/O).
@@ -278,23 +282,35 @@ pub fn run_simulated_bench(config: &BenchConfig) -> VoiceCallMetrics {
         // Simulate encode
         let start = Instant::now();
         // Opus encode: typically 50-200µs per 20ms frame
-        let encode_work: u64 = audio_frame.iter().map(|&s| (s as u64).wrapping_mul(7)).sum();
+        let encode_work: u64 = audio_frame
+            .iter()
+            .map(|&s| (s as u64).wrapping_mul(7))
+            .sum();
         let _ = encode_work; // Prevent optimization
         let encode_time = start.elapsed();
         encode_times.push(encode_time);
 
         // Simulate decode
         let start = Instant::now();
-        let decode_work: u64 = audio_frame.iter().map(|&s| (s as u64).wrapping_add(3)).sum();
+        let decode_work: u64 = audio_frame
+            .iter()
+            .map(|&s| (s as u64).wrapping_add(3))
+            .sum();
         let _ = decode_work;
         let decode_time = start.elapsed();
         decode_times.push(decode_time);
     }
 
     // Calculate codec latencies
-    let avg_encode_us = encode_times.iter().map(|d| d.as_micros() as u64).sum::<u64>()
+    let avg_encode_us = encode_times
+        .iter()
+        .map(|d| d.as_micros() as u64)
+        .sum::<u64>()
         / config.frame_count as u64;
-    let avg_decode_us = decode_times.iter().map(|d| d.as_micros() as u64).sum::<u64>()
+    let avg_decode_us = decode_times
+        .iter()
+        .map(|d| d.as_micros() as u64)
+        .sum::<u64>()
         / config.frame_count as u64;
 
     // Simulate network conditions
@@ -333,15 +349,27 @@ mod tests {
     fn test_mos_estimation_good_conditions() {
         // Low latency, no loss
         let mos = estimate_mos(100, 10, 0.0, 5);
-        assert!(mos > 4.0, "MOS should be > 4.0 for good conditions, got {}", mos);
+        assert!(
+            mos > 4.0,
+            "MOS should be > 4.0 for good conditions, got {}",
+            mos
+        );
     }
 
     #[test]
     fn test_mos_estimation_tor_conditions() {
         // Typical Tor: 500ms RTT, 50ms jitter, 5% loss
         let mos = estimate_mos(500, 50, 5.0, 5);
-        assert!(mos > 1.5, "MOS should be > 1.5 for Tor conditions, got {}", mos);
-        assert!(mos < 4.0, "MOS should be < 4.0 for Tor conditions, got {}", mos);
+        assert!(
+            mos > 1.5,
+            "MOS should be > 1.5 for Tor conditions, got {}",
+            mos
+        );
+        assert!(
+            mos < 4.0,
+            "MOS should be < 4.0 for Tor conditions, got {}",
+            mos
+        );
     }
 
     #[test]
@@ -349,7 +377,11 @@ mod tests {
         // Very bad: 2000ms RTT, 200ms jitter, 30% loss
         let mos = estimate_mos(2000, 200, 30.0, 5);
         assert!(mos >= 1.0, "MOS should be >= 1.0, got {}", mos);
-        assert!(mos < 2.5, "MOS should be < 2.5 for bad conditions, got {}", mos);
+        assert!(
+            mos < 2.5,
+            "MOS should be < 2.5 for bad conditions, got {}",
+            mos
+        );
     }
 
     #[test]
@@ -366,7 +398,10 @@ mod tests {
             sample_count: 100,
         };
         let assessment = thresholds.evaluate(&good_metrics);
-        assert!(assessment.overall_pass, "Good metrics should pass Tor thresholds");
+        assert!(
+            assessment.overall_pass,
+            "Good metrics should pass Tor thresholds"
+        );
     }
 
     #[test]
@@ -383,7 +418,10 @@ mod tests {
             sample_count: 100,
         };
         let assessment = thresholds.evaluate(&bad_metrics);
-        assert!(!assessment.overall_pass, "Bad metrics should fail strict thresholds");
+        assert!(
+            !assessment.overall_pass,
+            "Bad metrics should fail strict thresholds"
+        );
         assert!(!assessment.latency_pass);
         assert!(!assessment.jitter_pass);
         assert!(!assessment.packet_loss_pass);

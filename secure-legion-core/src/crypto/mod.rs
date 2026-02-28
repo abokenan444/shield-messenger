@@ -1,53 +1,43 @@
-pub mod constant_time;
-pub mod encryption;
-pub mod signing;
-pub mod key_exchange;
-pub mod hashing;
-pub mod pqc;
-pub mod pq_ratchet;
-pub mod replay_cache;
 pub mod ack_state;
-pub mod zkproofs;
-pub mod ratchet;
 pub mod backup;
+pub mod constant_time;
 pub mod deadman;
 pub mod duress;
+pub mod encryption;
+pub mod hashing;
+pub mod key_exchange;
+pub mod pq_ratchet;
+pub mod pqc;
+pub mod ratchet;
+pub mod replay_cache;
+pub mod signing;
+pub mod zkproofs;
 
-pub use constant_time::{eq_32, eq_64, eq_24, eq_slices};
-pub use pq_ratchet::{PQRatchetState, PQRatchetError, ChainDirection};
+pub use constant_time::{eq_24, eq_32, eq_64, eq_slices};
+pub use pq_ratchet::{ChainDirection, PQRatchetError, PQRatchetState};
 
-pub use encryption::{
-    encrypt_message,
-    decrypt_message,
-    derive_root_key,
-    evolve_chain_key,
-    derive_message_key,
-    encrypt_message_with_evolution,
-    decrypt_message_with_evolution,
-    derive_receive_key_at_sequence,
+pub use backup::{
+    create_encrypted_backup, reconstruct_secret, restore_encrypted_backup, split_secret,
+    BackupBlob, SecretShare,
 };
-pub use signing::{sign_data, verify_signature, generate_keypair};
+pub use deadman::{CheckInResult, DeadManSwitch, WipeAction};
+pub use duress::{
+    execute_emergency_wipe, DecoyProfile, DuressConfig, DuressError, DuressManager,
+    PinVerifyResult, WipeActions as DuressWipeActions,
+};
+pub use encryption::{
+    decrypt_message, decrypt_message_with_evolution, derive_message_key,
+    derive_receive_key_at_sequence, derive_root_key, encrypt_message,
+    encrypt_message_with_evolution, evolve_chain_key,
+};
+pub use hashing::{hash_handle, hash_password};
 pub use key_exchange::{derive_shared_secret, generate_ephemeral_key};
-pub use hashing::{hash_password, hash_handle};
 pub use pqc::{
-    generate_hybrid_keypair_from_seed,
-    generate_hybrid_keypair_random,
-    hybrid_encapsulate,
-    hybrid_decapsulate,
-    generate_safety_number,
-    verify_safety_number,
-    verify_contact_fingerprint,
-    detect_identity_key_change,
-    HybridKEMKeypair,
-    HybridCiphertext,
-    FingerprintQrPayload,
-    VerificationStatus,
-    IdentityKeyChangeResult,
-    TrustLevel,
-    ContactVerificationRecord,
+    detect_identity_key_change, generate_hybrid_keypair_from_seed, generate_hybrid_keypair_random,
+    generate_safety_number, hybrid_decapsulate, hybrid_encapsulate, verify_contact_fingerprint,
+    verify_safety_number, ContactVerificationRecord, FingerprintQrPayload, HybridCiphertext,
+    HybridKEMKeypair, IdentityKeyChangeResult, TrustLevel, VerificationStatus,
 };
 pub use ratchet::{PQDoubleRatchet, RatchetHeader, RatchetState};
-pub use backup::{create_encrypted_backup, restore_encrypted_backup, split_secret, reconstruct_secret, BackupBlob, SecretShare};
-pub use deadman::{DeadManSwitch, WipeAction, CheckInResult};
-pub use duress::{DuressManager, DuressConfig, DuressError, PinVerifyResult, WipeActions as DuressWipeActions, DecoyProfile, execute_emergency_wipe};
+pub use signing::{generate_keypair, sign_data, verify_signature};
 pub use zkproofs::{generate_range_proof, verify_range_proof};

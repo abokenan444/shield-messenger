@@ -7,7 +7,6 @@
 //! 4. Quote hasn't expired
 //! 5. Transaction signature hasn't been used before (replay protection)
 
-use sha3::{Digest, Sha3_256};
 use thiserror::Error;
 
 use super::quote::PaymentQuote;
@@ -230,14 +229,7 @@ mod tests {
 
     #[test]
     fn test_verify_payment_success() {
-        let quote = create_quote(
-            "TestRecipient123",
-            1_000_000,
-            "SOL",
-            None,
-            None,
-            None,
-        ).unwrap();
+        let quote = create_quote("TestRecipient123", 1_000_000, "SOL", None, None, None).unwrap();
 
         let memo = quote.to_memo();
 
@@ -259,14 +251,7 @@ mod tests {
 
     #[test]
     fn test_verify_insufficient_amount() {
-        let quote = create_quote(
-            "TestRecipient",
-            1_000_000,
-            "SOL",
-            None,
-            None,
-            None,
-        ).unwrap();
+        let quote = create_quote("TestRecipient", 1_000_000, "SOL", None, None, None).unwrap();
 
         let memo = quote.to_memo();
 
@@ -281,19 +266,15 @@ mod tests {
             |_| false,
         );
 
-        assert!(matches!(result, Err(VerifyError::InsufficientAmount { .. })));
+        assert!(matches!(
+            result,
+            Err(VerifyError::InsufficientAmount { .. })
+        ));
     }
 
     #[test]
     fn test_verify_recipient_mismatch() {
-        let quote = create_quote(
-            "CorrectRecipient",
-            1_000_000,
-            "SOL",
-            None,
-            None,
-            None,
-        ).unwrap();
+        let quote = create_quote("CorrectRecipient", 1_000_000, "SOL", None, None, None).unwrap();
 
         let memo = quote.to_memo();
 
@@ -313,14 +294,7 @@ mod tests {
 
     #[test]
     fn test_verify_replay_detected() {
-        let quote = create_quote(
-            "TestRecipient",
-            1_000_000,
-            "SOL",
-            None,
-            None,
-            None,
-        ).unwrap();
+        let quote = create_quote("TestRecipient", 1_000_000, "SOL", None, None, None).unwrap();
 
         let memo = quote.to_memo();
 
@@ -340,24 +314,11 @@ mod tests {
 
     #[test]
     fn test_verify_simple() {
-        let quote = create_quote(
-            "TestRecipient",
-            1_000_000,
-            "USDC",
-            None,
-            None,
-            None,
-        ).unwrap();
+        let quote = create_quote("TestRecipient", 1_000_000, "USDC", None, None, None).unwrap();
 
         let memo = quote.to_memo();
 
-        let result = verify_payment_simple(
-            &quote,
-            &memo,
-            1_000_000,
-            "TestRecipient",
-            "USDC",
-        );
+        let result = verify_payment_simple(&quote, &memo, 1_000_000, "TestRecipient", "USDC");
 
         assert!(result.is_ok());
     }

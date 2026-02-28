@@ -2,9 +2,9 @@
 #[cfg(target_os = "android")]
 pub mod android;
 #[cfg(target_os = "android")]
-pub mod keystore;
-#[cfg(target_os = "android")]
 pub mod crdt;
+#[cfg(target_os = "android")]
+pub mod keystore;
 
 // iOS C FFI bindings (compiled for aarch64-apple-ios)
 #[cfg(target_os = "ios")]
@@ -17,9 +17,9 @@ pub mod wasm;
 #[cfg(target_os = "android")]
 pub use android::*;
 #[cfg(target_os = "android")]
-pub use keystore::*;
-#[cfg(target_os = "android")]
 pub use crdt::*;
+#[cfg(target_os = "android")]
+pub use keystore::*;
 
 #[cfg(target_os = "ios")]
 pub use ios::*;

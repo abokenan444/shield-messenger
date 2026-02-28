@@ -2,7 +2,6 @@
 ///
 /// Implements SOCKS5 protocol to route HTTP requests through Tor proxy (127.0.0.1:9050)
 /// Supports .onion addresses and standard HTTP GET/POST operations
-
 use std::io::{Read, Write};
 use std::net::TcpStream;
 use std::time::Duration;
@@ -84,7 +83,11 @@ impl Socks5Client {
              Connection: close\r\n\
              \r\n\
              {}",
-            path, host, content_type, body.len(), body
+            path,
+            host,
+            content_type,
+            body.len(),
+            body
         );
 
         stream.write_all(request.as_bytes())?;
@@ -110,7 +113,10 @@ impl Socks5Client {
              Content-Length: {}\r\n\
              Connection: close\r\n\
              \r\n",
-            path, host, content_type, body.len()
+            path,
+            host,
+            content_type,
+            body.len()
         );
 
         stream.write_all(headers.as_bytes())?;
@@ -127,10 +133,7 @@ impl Socks5Client {
     fn connect_socks5(&self, target_host: &str, target_port: u16) -> Result<TcpStream> {
         // Connect to SOCKS5 proxy
         let proxy_addr = format!("{}:{}", self.proxy_host, self.proxy_port);
-        let mut stream = TcpStream::connect_timeout(
-            &proxy_addr.parse()?,
-            self.timeout,
-        )?;
+        let mut stream = TcpStream::connect_timeout(&proxy_addr.parse()?, self.timeout)?;
 
         stream.set_read_timeout(Some(self.timeout))?;
         stream.set_write_timeout(Some(self.timeout))?;
@@ -233,7 +236,11 @@ impl Socks5Client {
             }
         }
 
-        log::info!("SOCKS5 connection established to {}:{}", target_host, target_port);
+        log::info!(
+            "SOCKS5 connection established to {}:{}",
+            target_host,
+            target_port
+        );
         Ok(stream)
     }
 }
@@ -262,7 +269,8 @@ fn parse_url(url: &str) -> Result<(String, u16, String)> {
     let (host, port) = if let Some(colon_idx) = host_port.rfind(':') {
         let host = &host_port[..colon_idx];
         let port_str = &host_port[colon_idx + 1..];
-        let port = port_str.parse::<u16>()
+        let port = port_str
+            .parse::<u16>()
             .map_err(|_| format!("Invalid port: {}", port_str))?;
         (host.to_string(), port)
     } else {

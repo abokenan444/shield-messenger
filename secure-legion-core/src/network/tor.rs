@@ -3,15 +3,14 @@
 ///
 /// The Android OnionProxyManager handles Tor lifecycle, we just use SOCKS5.
 /// Traffic analysis resistance: fixed-size padding and optional random delays (see crate::network::padding).
-
 use super::padding::{self, FIXED_PACKET_SIZE};
 use std::error::Error;
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU32, AtomicU64, Ordering};
-use tokio::io::{AsyncWriteExt, AsyncReadExt, BufReader, AsyncBufReadExt};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 #[cfg(unix)]
 use tokio::net::UnixStream as TokioUnixStream;
+use tokio::net::{TcpListener, TcpStream};
 
 /// Platform-specific control stream type:
 /// Unix uses domain sockets, non-Unix falls back to TCP.
@@ -20,12 +19,13 @@ type ControlStream = TokioUnixStream;
 #[cfg(not(unix))]
 type ControlStream = TcpStream;
 
-use tokio::sync::Mutex;
+use base64::Engine;
 use ed25519_dalek::{SigningKey, VerifyingKey};
-use sha3::{Digest, Sha3_256};
-use std::sync::Mutex as StdMutex;
-use std::collections::HashMap;
 use once_cell::sync::Lazy;
+use sha3::{Digest, Sha3_256};
+use std::collections::HashMap;
+use std::sync::Mutex as StdMutex;
+use tokio::sync::Mutex;
 
 /// Global bootstrap status (0-100%) - updated by event listener
 pub static BOOTSTRAP_STATUS: AtomicU32 = AtomicU32::new(0);
@@ -47,8 +47,8 @@ pub fn compute_onion_address_from_ed25519_seed(ed25519_seed: &[u8; 32]) -> Strin
     // Checksum per rend-spec-v3
     let mut hasher = Sha3_256::new();
     hasher.update(b".onion checksum");
-    hasher.update(&pubkey_bytes);
-    hasher.update(&[0x03]);
+    hasher.update(pubkey_bytes);
+    hasher.update([0x03]);
     let checksum = hasher.finalize();
 
     // onion_bytes = pubkey(32) || checksum(2) || version(1) = 35 bytes
@@ -57,8 +57,8 @@ pub fn compute_onion_address_from_ed25519_seed(ed25519_seed: &[u8; 32]) -> Strin
     onion_bytes.extend_from_slice(&checksum[..2]);
     onion_bytes.push(0x03);
 
-    let onion_addr = base32::encode(base32::Alphabet::Rfc4648 { padding: false }, &onion_bytes)
-        .to_lowercase();
+    let onion_addr =
+        base32::encode(base32::Alphabet::Rfc4648 { padding: false }, &onion_bytes).to_lowercase();
     format!("{}.onion", onion_addr)
 }
 
@@ -78,7 +78,10 @@ pub fn get_bootstrap_status_fast() -> u32 {
 
     // Atomic is 0 — kick off a persistent background poller (at most one at a time)
     static QUERY_RUNNING: AtomicBool = AtomicBool::new(false);
-    if QUERY_RUNNING.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
+    if QUERY_RUNNING
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_ok()
+    {
         std::thread::spawn(move || {
             #[cfg(unix)]
             bootstrap_direct_poll_loop();
@@ -148,12 +151,18 @@ fn bootstrap_direct_poll_loop() {
         // If the event listener has already updated the atomic, we can stop
         let current = BOOTSTRAP_STATUS.load(Ordering::SeqCst);
         if current >= 100 {
-            log::info!("Direct bootstrap poller: event listener caught up ({}%), stopping", current);
+            log::info!(
+                "Direct bootstrap poller: event listener caught up ({}%), stopping",
+                current
+            );
             break;
         }
 
         // Send GETINFO
-        if stream.write_all(b"GETINFO status/bootstrap-phase\r\n").is_err() {
+        if stream
+            .write_all(b"GETINFO status/bootstrap-phase\r\n")
+            .is_err()
+        {
             break;
         }
 
@@ -161,9 +170,14 @@ fn bootstrap_direct_poll_loop() {
         let mut resp = String::new();
         loop {
             let n = match stream.read(&mut buf) {
-                Ok(0) => { resp.clear(); break; }
+                Ok(0) => {
+                    resp.clear();
+                    break;
+                }
                 Ok(n) => n,
-                Err(_) => { break; }
+                Err(_) => {
+                    break;
+                }
             };
             resp.push_str(&String::from_utf8_lossy(&buf[..n]));
             if resp.contains("\r\n250 OK\r\n") || resp.ends_with("250 OK\r\n") {
@@ -267,7 +281,8 @@ pub enum TorEventType {
 type TorEventCallback = Arc<dyn Fn(TorEventType) + Send + Sync>;
 
 /// Global event callback (set by Kotlin via FFI)
-static GLOBAL_TOR_EVENT_CALLBACK: Lazy<StdMutex<Option<TorEventCallback>>> = Lazy::new(|| StdMutex::new(None));
+static GLOBAL_TOR_EVENT_CALLBACK: Lazy<StdMutex<Option<TorEventCallback>>> =
+    Lazy::new(|| StdMutex::new(None));
 
 /// Register a callback to receive Tor events
 /// Called from FFI layer (android.rs) to set the Kotlin callback
@@ -391,13 +406,19 @@ async fn bootstrap_event_listener_task() -> Result<(), Box<dyn Error + Send + Sy
             }
             match ControlStream::connect(&socket_path).await {
                 Ok(s) => {
-                    log::info!("Event listener: Connected to ControlSocket on attempt {}", attempt);
+                    log::info!(
+                        "Event listener: Connected to ControlSocket on attempt {}",
+                        attempt
+                    );
                     control = Some(s);
                     break;
                 }
                 Err(e) => {
                     if attempt == 1 {
-                        log::info!("Event listener: Waiting for ControlSocket to become ready ({})...", socket_path);
+                        log::info!(
+                            "Event listener: Waiting for ControlSocket to become ready ({})...",
+                            socket_path
+                        );
                     }
                     if attempt == 300 {
                         log::error!("Event listener: Failed to connect to ControlSocket after 300 attempts: {}", e);
@@ -411,7 +432,10 @@ async fn bootstrap_event_listener_task() -> Result<(), Box<dyn Error + Send + Sy
             Some(c) => c,
             None => {
                 // Connection failed after all retries — backoff and retry
-                log::warn!("Event listener: Connection failed, backing off {}ms before retry", backoff_ms);
+                log::warn!(
+                    "Event listener: Connection failed, backing off {}ms before retry",
+                    backoff_ms
+                );
                 invalidate_listener_state();
                 sleep(Duration::from_millis(backoff_ms)).await;
                 backoff_ms = apply_backoff_with_jitter(backoff_ms);
@@ -444,7 +468,10 @@ async fn bootstrap_event_listener_task() -> Result<(), Box<dyn Error + Send + Sy
         log::info!("Event listener: Authenticated to control port");
 
         // ----- Phase 3: Subscribe to events -----
-        if let Err(e) = control.write_all(b"SETEVENTS STATUS_CLIENT CIRC HS_DESC STATUS_GENERAL\r\n").await {
+        if let Err(e) = control
+            .write_all(b"SETEVENTS STATUS_CLIENT CIRC HS_DESC STATUS_GENERAL\r\n")
+            .await
+        {
             log::error!("Event listener: Failed to send SETEVENTS: {}", e);
             invalidate_listener_state();
             sleep(Duration::from_millis(backoff_ms)).await;
@@ -463,7 +490,9 @@ async fn bootstrap_event_listener_task() -> Result<(), Box<dyn Error + Send + Sy
             continue;
         }
 
-        log::info!("Event listener: Subscribed to STATUS_CLIENT, CIRC, HS_DESC, STATUS_GENERAL events");
+        log::info!(
+            "Event listener: Subscribed to STATUS_CLIENT, CIRC, HS_DESC, STATUS_GENERAL events"
+        );
 
         // ----- Phase 4: Get initial state -----
         poll_initial_state(&mut control, &mut buf).await;
@@ -471,7 +500,10 @@ async fn bootstrap_event_listener_task() -> Result<(), Box<dyn Error + Send + Sy
         // Connection + auth + subscribe succeeded — reset backoff
         backoff_ms = 1_000;
         if consecutive_failures > 0 {
-            log::info!("Event listener: Recovered after {} consecutive failures", consecutive_failures);
+            log::info!(
+                "Event listener: Recovered after {} consecutive failures",
+                consecutive_failures
+            );
         }
         consecutive_failures = 0;
         touch_listener_heartbeat();
@@ -657,7 +689,10 @@ async fn bootstrap_event_listener_task() -> Result<(), Box<dyn Error + Send + Sy
         // Do NOT clear BOOTSTRAP_STATUS — the Tor daemon may still be running fine,
         // and zeroing it would flash the UI from 100% → 0% unnecessarily.
         let reason = inner_break_reason.unwrap_or_else(|| "unknown".into());
-        log::warn!("Event listener: Connection lost ({}), clearing stale state", reason);
+        log::warn!(
+            "Event listener: Connection lost ({}), clearing stale state",
+            reason
+        );
         invalidate_listener_state();
 
         // Backoff with jitter before reconnecting
@@ -683,7 +718,9 @@ fn build_control_auth_command() -> String {
 fn invalidate_listener_state() {
     CIRCUIT_ESTABLISHED.store(0, Ordering::SeqCst);
     LAST_LISTENER_HEARTBEAT.store(0, Ordering::SeqCst);
-    log::warn!("Event listener: Cleared CIRCUIT_ESTABLISHED=0, heartbeat=0 (BOOTSTRAP_STATUS preserved)");
+    log::warn!(
+        "Event listener: Cleared CIRCUIT_ESTABLISHED=0, heartbeat=0 (BOOTSTRAP_STATUS preserved)"
+    );
 }
 
 /// Read from control socket until we see "250 OK" or timeout.
@@ -699,7 +736,9 @@ async fn read_until_250_ok(
     let deadline = tokio::time::Instant::now() + timeout_duration;
     loop {
         let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
-        if remaining.is_zero() { break; }
+        if remaining.is_zero() {
+            break;
+        }
         let n = match tokio::time::timeout(remaining, stream.read(buf)).await {
             Ok(Ok(0)) => break,
             Ok(Ok(n)) => n,
@@ -707,27 +746,33 @@ async fn read_until_250_ok(
             Err(_) => break,
         };
         resp.push_str(&String::from_utf8_lossy(&buf[..n]));
-        if resp.contains("250 OK") { return true; }
-        if resp.len() > 4096 { break; }
+        if resp.contains("250 OK") {
+            return true;
+        }
+        if resp.len() > 4096 {
+            break;
+        }
     }
     false
 }
 
 /// Poll initial bootstrap and circuit-established state after (re)connecting.
 /// Non-fatal: if polls fail, the event loop will get updated values later.
-async fn poll_initial_state(
-    control: &mut ControlStream,
-    buf: &mut [u8],
-) {
+async fn poll_initial_state(control: &mut ControlStream, buf: &mut [u8]) {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     // Bootstrap status
-    if let Ok(()) = control.write_all(b"GETINFO status/bootstrap-phase\r\n").await {
+    if let Ok(()) = control
+        .write_all(b"GETINFO status/bootstrap-phase\r\n")
+        .await
+    {
         let mut resp = String::new();
         let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_millis(1500);
         loop {
             let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
-            if remaining.is_zero() { break; }
+            if remaining.is_zero() {
+                break;
+            }
             let n = match tokio::time::timeout(remaining, control.read(buf)).await {
                 Ok(Ok(0)) => break,
                 Ok(Ok(n)) => n,
@@ -735,8 +780,12 @@ async fn poll_initial_state(
                 Err(_) => break,
             };
             resp.push_str(&String::from_utf8_lossy(&buf[..n]));
-            if resp.contains("\r\n250 OK\r\n") || resp.ends_with("250 OK\r\n") { break; }
-            if resp.len() > 16_384 { break; }
+            if resp.contains("\r\n250 OK\r\n") || resp.ends_with("250 OK\r\n") {
+                break;
+            }
+            if resp.len() > 16_384 {
+                break;
+            }
         }
         if let Some(progress) = parse_bootstrap_progress(&resp) {
             BOOTSTRAP_STATUS.store(progress, Ordering::SeqCst);
@@ -747,12 +796,17 @@ async fn poll_initial_state(
     }
 
     // Circuit-established status
-    if let Ok(()) = control.write_all(b"GETINFO status/circuit-established\r\n").await {
+    if let Ok(()) = control
+        .write_all(b"GETINFO status/circuit-established\r\n")
+        .await
+    {
         let mut resp = String::new();
         let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_millis(1500);
         loop {
             let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
-            if remaining.is_zero() { break; }
+            if remaining.is_zero() {
+                break;
+            }
             let n = match tokio::time::timeout(remaining, control.read(buf)).await {
                 Ok(Ok(0)) => break,
                 Ok(Ok(n)) => n,
@@ -760,12 +814,23 @@ async fn poll_initial_state(
                 Err(_) => break,
             };
             resp.push_str(&String::from_utf8_lossy(&buf[..n]));
-            if resp.contains("\r\n250 OK\r\n") || resp.ends_with("250 OK\r\n") { break; }
-            if resp.len() > 16_384 { break; }
+            if resp.contains("\r\n250 OK\r\n") || resp.ends_with("250 OK\r\n") {
+                break;
+            }
+            if resp.len() > 16_384 {
+                break;
+            }
         }
-        let circuits_established = if resp.contains("circuit-established=1") { 1 } else { 0 };
+        let circuits_established = if resp.contains("circuit-established=1") {
+            1
+        } else {
+            0
+        };
         CIRCUIT_ESTABLISHED.store(circuits_established, Ordering::SeqCst);
-        log::info!("Event listener: Initial circuit-established: {}", circuits_established);
+        log::info!(
+            "Event listener: Initial circuit-established: {}",
+            circuits_established
+        );
     }
 }
 
@@ -932,11 +997,11 @@ pub const MSG_TYPE_STICKER: u8 = 0x0E; // Sticker/GIF message (asset path as pay
 pub const MSG_TYPE_PROFILE_UPDATE: u8 = 0x0F; // Profile photo update (hidden, not shown in chat)
 
 // CRDT group wire types (not per-member encrypted — ops are Ed25519-signed, content is XChaCha20 group-secret encrypted)
-pub const MSG_TYPE_CRDT_OPS: u8 = 0x30;       // CRDT op bundle: [groupId:32][packedOps]
-pub const MSG_TYPE_SYNC_REQUEST: u8 = 0x32;    // Sync request: [groupId:32][afterLamport:u64 BE][limit:u32 BE]
-pub const MSG_TYPE_SYNC_CHUNK: u8 = 0x33;      // Sync chunk response: [groupId:32][packedOps]
-pub const MSG_TYPE_ROUTING_UPDATE: u8 = 0x35;   // Routing directory: [groupId:32][senderPk:32][sig:64][count:u16 BE][entries...]
-pub const MSG_TYPE_ROUTING_REQUEST: u8 = 0x36;  // Routing request: [groupId:32][senderPk:32][sig:64][requestedPubkey:32]
+pub const MSG_TYPE_CRDT_OPS: u8 = 0x30; // CRDT op bundle: [groupId:32][packedOps]
+pub const MSG_TYPE_SYNC_REQUEST: u8 = 0x32; // Sync request: [groupId:32][afterLamport:u64 BE][limit:u32 BE]
+pub const MSG_TYPE_SYNC_CHUNK: u8 = 0x33; // Sync chunk response: [groupId:32][packedOps]
+pub const MSG_TYPE_ROUTING_UPDATE: u8 = 0x35; // Routing directory: [groupId:32][senderPk:32][sig:64][count:u16 BE][entries...]
+pub const MSG_TYPE_ROUTING_REQUEST: u8 = 0x36; // Routing request: [groupId:32][senderPk:32][sig:64][requestedPubkey:32]
 
 /// Canonical port constants (from PORT_MAP.md)
 pub const PORT_HS_PING_PONG: u16 = 9150; // Message HS: PING/PONG/ACK
@@ -955,7 +1020,10 @@ pub const PORT_SOCKS: u16 = 9050; // SOCKS5 proxy port
 /// Connects to a .onion address through the local Tor SOCKS5 proxy.
 /// Safe to call concurrently from multiple tasks — only opens new TCP
 /// connections to the SOCKS proxy (no shared mutable state).
-pub async fn connect_to_onion(onion_address: &str, port: u16) -> Result<TorConnection, Box<dyn Error + Send + Sync>> {
+pub async fn connect_to_onion(
+    onion_address: &str,
+    port: u16,
+) -> Result<TorConnection, Box<dyn Error + Send + Sync>> {
     let socks_addr = format!("127.0.0.1:{}", PORT_SOCKS);
     let mut stream = TcpStream::connect(&socks_addr).await.map_err(|e| {
         log::error!("SOCKS proxy unreachable at {}: {}", socks_addr, e);
@@ -972,7 +1040,11 @@ pub async fn connect_to_onion(onion_address: &str, port: u16) -> Result<TorConne
 }
 
 /// Standalone SOCKS5 handshake — pure protocol, no TorManager state.
-async fn socks5_handshake(stream: &mut TcpStream, addr: &str, port: u16) -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn socks5_handshake(
+    stream: &mut TcpStream,
+    addr: &str,
+    port: u16,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
     // SOCKS5 greeting: version 5, 1 method, no auth
     stream.write_all(&[0x05, 0x01, 0x00]).await?;
 
@@ -1015,7 +1087,8 @@ async fn socks5_handshake(stream: &mut TcpStream, addr: &str, port: u16) -> Resu
         return Err(format!(
             "SOCKS5 connect to {}:{} failed: status 0x{:02x} ({})",
             addr, port, rep, error_message
-        ).into());
+        )
+        .into());
     }
 
     // Consume BND.ADDR + BND.PORT (must read to clear stream, values unused)
@@ -1077,23 +1150,31 @@ pub static CONNECTION_ID_COUNTER: Lazy<Arc<StdMutex<u64>>> =
 /// Global friend request channel sender
 /// Separate from regular message channels to avoid interference with working message system
 /// Initialized from JNI via startFriendRequestListener()
-pub static FRIEND_REQUEST_TX: once_cell::sync::OnceCell<Arc<StdMutex<tokio::sync::mpsc::UnboundedSender<Vec<u8>>>>> = once_cell::sync::OnceCell::new();
+pub static FRIEND_REQUEST_TX: once_cell::sync::OnceCell<
+    Arc<StdMutex<tokio::sync::mpsc::UnboundedSender<Vec<u8>>>>,
+> = once_cell::sync::OnceCell::new();
 
 /// Global channel for MESSAGE types (TEXT/VOICE/IMAGE/PAYMENT)
 /// Separate from PING channel to enable direct routing without trial decryption
 /// Initialized when listener starts
-pub static MESSAGE_TX: once_cell::sync::OnceCell<Arc<StdMutex<tokio::sync::mpsc::UnboundedSender<(u64, Vec<u8>)>>>> = once_cell::sync::OnceCell::new();
+pub static MESSAGE_TX: once_cell::sync::OnceCell<
+    Arc<StdMutex<tokio::sync::mpsc::UnboundedSender<(u64, Vec<u8>)>>>,
+> = once_cell::sync::OnceCell::new();
 
 /// Global channel for VOICE CALL types (CALL_SIGNALING)
 /// Completely separate from MESSAGE to allow simultaneous text messaging during voice calls
 /// Initialized when voice listener starts
-pub static VOICE_TX: once_cell::sync::OnceCell<Arc<StdMutex<tokio::sync::mpsc::UnboundedSender<(u64, Vec<u8>)>>>> = once_cell::sync::OnceCell::new();
+pub static VOICE_TX: once_cell::sync::OnceCell<
+    Arc<StdMutex<tokio::sync::mpsc::UnboundedSender<(u64, Vec<u8>)>>>,
+> = once_cell::sync::OnceCell::new();
 
 /// Global channel for DELIVERY_CONFIRMATION (ACK) types
 /// Shared between port 8080 (main listener - error recovery) and port 9153 (dedicated ACK listener)
 /// This ensures ACKs arriving on wrong port still get processed (no message loss)
 /// Initialized when ACK listener starts on port 9153
-pub static ACK_TX: once_cell::sync::OnceCell<Arc<StdMutex<tokio::sync::mpsc::UnboundedSender<(u64, Vec<u8>)>>>> = once_cell::sync::OnceCell::new();
+pub static ACK_TX: once_cell::sync::OnceCell<
+    Arc<StdMutex<tokio::sync::mpsc::UnboundedSender<(u64, Vec<u8>)>>>,
+> = once_cell::sync::OnceCell::new();
 /// Line-oriented Tor control protocol reader
 /// CRITICAL: Handles multi-line Tor responses properly
 /// Response formats:
@@ -1129,7 +1210,7 @@ impl TorControlReader {
             // Check if this is the final line (status code without dash)
             // Tor format: "250 ..." (final) or "250-..." (continuation)
             if line.len() >= 4 {
-                let status_code = &line[0..3];
+                let _status_code = &line[0..3];
                 if let Some(fourth_char) = line.chars().nth(3) {
                     is_final = fourth_char == ' ' || fourth_char == '\r' || fourth_char == '\n';
                 }
@@ -1143,7 +1224,11 @@ impl TorControlReader {
 
     /// Read until a specific pattern is found
     /// Used for events that don't have strict response format
-    async fn read_until_pattern(&mut self, pattern: &str, timeout_secs: u64) -> Result<String, Box<dyn Error + Send + Sync>> {
+    async fn read_until_pattern(
+        &mut self,
+        pattern: &str,
+        timeout_secs: u64,
+    ) -> Result<String, Box<dyn Error + Send + Sync>> {
         let mut response = String::new();
         let mut line = String::new();
 
@@ -1156,10 +1241,9 @@ impl TorControlReader {
             }
 
             line.clear();
-            match tokio::time::timeout(
-                timeout - start.elapsed(),
-                self.reader.read_line(&mut line)
-            ).await {
+            match tokio::time::timeout(timeout - start.elapsed(), self.reader.read_line(&mut line))
+                .await
+            {
                 Ok(Ok(0)) => return Err("Connection closed".into()),
                 Ok(Ok(_)) => {
                     response.push_str(&line);
@@ -1217,9 +1301,9 @@ impl TorManager {
                 subscribed_events: Vec::new(),
             },
             hs_service_port: PORT_HS_PING_PONG, // 9150: PING/PONG/ACK
-            hs_local_port: PORT_LOCAL_HS, // 8080: Local listener
-            socks_port: PORT_SOCKS, // 9050: SOCKS proxy
-            bound_port: None, // No port bound initially
+            hs_local_port: PORT_LOCAL_HS,       // 8080: Local listener
+            socks_port: PORT_SOCKS,             // 9050: SOCKS proxy
+            bound_port: None,                   // No port bound initially
         })
     }
 
@@ -1240,8 +1324,10 @@ impl TorManager {
 
         match tokio::time::timeout(
             std::time::Duration::from_secs(3),
-            stream.write_all(b"GETINFO version\r\n")
-        ).await {
+            stream.write_all(b"GETINFO version\r\n"),
+        )
+        .await
+        {
             Ok(Ok(_)) => {
                 // Connection is alive
                 Ok(true)
@@ -1264,7 +1350,8 @@ impl TorManager {
     /// Reconnect to Tor ControlSocket with re-authentication and re-subscription
     /// CRITICAL: Called when connection drops
     async fn reconnect_control_port(&mut self) -> Result<(), Box<dyn Error>> {
-        let socket_path = CONTROL_SOCKET_PATH.lock()
+        let socket_path = CONTROL_SOCKET_PATH
+            .lock()
             .map_err(|e| format!("Failed to read ControlSocket path: {}", e))?
             .clone()
             .ok_or("ControlSocket path not set")?;
@@ -1272,7 +1359,7 @@ impl TorManager {
         log::info!("Reconnecting to Tor ControlSocket: {}...", socket_path);
 
         // Connect to ControlSocket (Unix domain socket)
-        let mut control = ControlStream::connect(&socket_path).await?;;
+        let mut control = ControlStream::connect(&socket_path).await?;
 
         // Authenticate with empty auth (GP CookieAuthentication 0)
         control.write_all(b"AUTHENTICATE\r\n").await?;
@@ -1282,7 +1369,11 @@ impl TorManager {
         let response = String::from_utf8_lossy(&buf[..n]);
 
         if !response.contains("250 OK") {
-            return Err(format!("ControlSocket authentication failed after reconnect: {}", response).into());
+            return Err(format!(
+                "ControlSocket authentication failed after reconnect: {}",
+                response
+            )
+            .into());
         }
 
         log::info!("Reconnected to Tor ControlSocket");
@@ -1314,7 +1405,9 @@ impl TorManager {
     async fn reconcile_hidden_services(&mut self) -> Result<(u32, u32), Box<dyn Error>> {
         log::info!("Reconciling hidden services after startup...");
 
-        let control = self.control_stream.as_ref()
+        let control = self
+            .control_stream
+            .as_ref()
             .ok_or("Control port not connected")?;
 
         let mut stream = control.lock().await;
@@ -1379,7 +1472,8 @@ impl TorManager {
             if del_response.contains("250 OK") {
                 log::info!("Deleted orphaned service: {}", service_id);
                 // Guess whether it was message or voice based on expected (heuristic)
-                if service_id.len() > 16 { // v3 onion addresses are 56 chars
+                if service_id.len() > 16 {
+                    // v3 onion addresses are 56 chars
                     msg_deleted += 1;
                 } else {
                     voice_deleted += 1;
@@ -1390,7 +1484,11 @@ impl TorManager {
         }
 
         if msg_deleted > 0 || voice_deleted > 0 {
-            log::info!("Reconciliation complete: deleted {} message HS, {} voice HS", msg_deleted, voice_deleted);
+            log::info!(
+                "Reconciliation complete: deleted {} message HS, {} voice HS",
+                msg_deleted,
+                voice_deleted
+            );
         } else {
             log::info!("No orphaned services found");
         }
@@ -1402,7 +1500,8 @@ impl TorManager {
     /// Returns status message
     pub async fn initialize(&mut self) -> Result<String, Box<dyn Error>> {
         // Get ControlSocket path from global (set by Kotlin via JNI)
-        let socket_path = CONTROL_SOCKET_PATH.lock()
+        let socket_path = CONTROL_SOCKET_PATH
+            .lock()
             .map_err(|e| format!("Failed to read ControlSocket path: {}", e))?
             .clone()
             .ok_or("ControlSocket path not set — call startBootstrapListener first")?;
@@ -1410,7 +1509,7 @@ impl TorManager {
         log::info!("Connecting to Tor ControlSocket: {}...", socket_path);
 
         // Connect to ControlSocket (GP tor-android creates this Unix domain socket)
-        let mut control = ControlStream::connect(&socket_path).await?;;
+        let mut control = ControlStream::connect(&socket_path).await?;
 
         // Authenticate with empty auth (GP uses CookieAuthentication 0)
         control.write_all(b"AUTHENTICATE\r\n").await?;
@@ -1455,7 +1554,10 @@ impl TorManager {
     /// Connect to VOICE Tor control port (port 9052 - Single Onion Service instance)
     /// This is a separate Tor daemon specifically for voice hidden service
     /// Must be called AFTER voice Tor daemon is started by TorManager.kt
-    pub async fn initialize_voice_control(&mut self, cookie_path: &str) -> Result<String, Box<dyn Error>> {
+    pub async fn initialize_voice_control(
+        &mut self,
+        cookie_path: &str,
+    ) -> Result<String, Box<dyn Error>> {
         log::info!("Connecting to VOICE Tor control port (9052)...");
 
         // Connect to voice Tor control port
@@ -1477,7 +1579,9 @@ impl TorManager {
         let response = String::from_utf8_lossy(&buf[..n]);
 
         if !response.contains("250 OK") {
-            return Err(format!("Voice Tor control port authentication failed: {}", response).into());
+            return Err(
+                format!("Voice Tor control port authentication failed: {}", response).into(),
+            );
         }
 
         self.voice_control_stream = Some(Arc::new(Mutex::new(control)));
@@ -1501,7 +1605,12 @@ impl TorManager {
             }
 
             if attempt % 10 == 0 {
-                log::info!("Tor bootstrapping: {}% (attempt {}/{})", status, attempt, max_attempts);
+                log::info!(
+                    "Tor bootstrapping: {}% (attempt {}/{})",
+                    status,
+                    attempt,
+                    max_attempts
+                );
             }
 
             tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
@@ -1512,13 +1621,17 @@ impl TorManager {
 
     /// Get current Tor bootstrap percentage
     pub async fn get_bootstrap_status(&self) -> Result<u32, Box<dyn Error>> {
-        let control_stream = self.control_stream.as_ref()
+        let control_stream = self
+            .control_stream
+            .as_ref()
             .ok_or("Control port not connected")?;
 
         let mut control = control_stream.lock().await;
 
         // Send GETINFO status/bootstrap-phase command
-        control.write_all(b"GETINFO status/bootstrap-phase\r\n").await?;
+        control
+            .write_all(b"GETINFO status/bootstrap-phase\r\n")
+            .await?;
 
         let mut buf = vec![0u8; 2048];
         let n = control.read(&mut buf).await?;
@@ -1586,7 +1699,7 @@ impl TorManager {
 
         // Format private key for ADD_ONION command (base64 of 64-byte expanded key)
         let expanded_key = signing_key.to_keypair_bytes();
-        let key_base64 = base64::encode(&expanded_key);
+        let key_base64 = base64::engine::general_purpose::STANDARD.encode(expanded_key);
 
         // NOTE: HS_DESC event subscription is handled by the main event listener (spawn_event_listener)
         // No need to subscribe again here - would cause duplicate events
@@ -1597,12 +1710,17 @@ impl TorManager {
             Ok(true) => log::info!("Control port healthy for create_hidden_service"),
             Ok(false) => log::warn!("Control port check returned false, attempting anyway..."),
             Err(e) => {
-                log::error!("Control port reconnection failed: {} - will retry from Kotlin side", e);
+                log::error!(
+                    "Control port reconnection failed: {} - will retry from Kotlin side",
+                    e
+                );
                 return Err(format!("Control port not available: {}", e).into());
             }
         }
 
-        let control = self.control_stream.as_ref()
+        let control = self
+            .control_stream
+            .as_ref()
             .ok_or("Control port not connected")?;
 
         // Now create the hidden service - descriptors will be uploaded and we'll receive events
@@ -1611,7 +1729,7 @@ impl TorManager {
         // - Port 8080 → local 8080 (Pong listener - SAME as main listener for routing)
         // - Port 9151 → local 9151 (Tap listener)
         // - Port 9153 → local 9153 (ACK/Delivery Confirmation listener)
-        let (actual_onion_address, is_new_service) = {
+        let (actual_onion_address, _is_new_service) = {
             let mut stream = control.lock().await;
 
             // Create ephemeral hidden service with Detach flag
@@ -1662,7 +1780,11 @@ impl TorManager {
                     log::info!("ADD_ONION retry response: {}", response);
 
                     if !response.contains("250 OK") {
-                        return Err(format!("Failed to create hidden service after cleanup: {}", response).into());
+                        return Err(format!(
+                            "Failed to create hidden service after cleanup: {}",
+                            response
+                        )
+                        .into());
                     }
                 } else {
                     return Err(format!("Failed to create hidden service: {}", response).into());
@@ -1670,21 +1792,26 @@ impl TorManager {
             }
 
             // Successfully created new service - extract the actual ServiceID from Tor's response
-            let actual_onion = if let Some(service_line) = response.lines().find(|l| l.contains("ServiceID=")) {
-                if let Some(start_idx) = service_line.find("ServiceID=") {
-                    let service_id = &service_line[start_idx + 10..]; // Skip "ServiceID="
-                    format!("{}.onion", service_id.trim())
+            let actual_onion =
+                if let Some(service_line) = response.lines().find(|l| l.contains("ServiceID=")) {
+                    if let Some(start_idx) = service_line.find("ServiceID=") {
+                        let service_id = &service_line[start_idx + 10..]; // Skip "ServiceID="
+                        format!("{}.onion", service_id.trim())
+                    } else {
+                        full_address.clone()
+                    }
                 } else {
                     full_address.clone()
-                }
-            } else {
-                full_address.clone()
-            };
+                };
 
             self.hidden_service_address = Some(actual_onion.clone());
             self.hs_state.message_hs_address = Some(actual_onion.clone()); // Track for crash recovery
             log::info!("Hidden service registered: {}", actual_onion);
-            log::info!("Service port: {}, Local forward: 127.0.0.1:{}", service_port, local_port);
+            log::info!(
+                "Service port: {}, Local forward: 127.0.0.1:{}",
+                service_port,
+                local_port
+            );
             // Return the address and mark as new
             (actual_onion, true)
         };
@@ -1727,8 +1854,8 @@ impl TorManager {
         // Add checksum
         let mut hasher = Sha3_256::new();
         hasher.update(b".onion checksum");
-        hasher.update(&verifying_key.to_bytes());
-        hasher.update(&[0x03]); // version 3
+        hasher.update(verifying_key.to_bytes());
+        hasher.update([0x03]); // version 3
         let checksum = hasher.finalize();
         onion_bytes.extend_from_slice(&checksum[..2]);
 
@@ -1742,13 +1869,14 @@ impl TorManager {
 
         // Format private key for ADD_ONION command (base64 of 64-byte expanded key)
         let expanded_key = signing_key.to_keypair_bytes();
-        let key_base64 = base64::encode(&expanded_key);
+        let key_base64 = base64::engine::general_purpose::STANDARD.encode(expanded_key);
 
         // Create voice hidden service on port 9152 using VOICE TOR (port 9052)
         // Voice Tor is configured with HiddenServiceNonAnonymousMode 1 and HiddenServiceSingleHopMode 1
         // This creates a Single Onion Service (3-hop instead of 6-hop)
-        let control = self.voice_control_stream.as_ref()
-            .ok_or("Voice Tor control port not connected - did you call initialize_voice_control()?")?;
+        let control = self.voice_control_stream.as_ref().ok_or(
+            "Voice Tor control port not connected - did you call initialize_voice_control()?",
+        )?;
 
         let actual_onion_address = {
             let mut stream = control.lock().await;
@@ -1791,7 +1919,10 @@ impl TorManager {
         self.voice_hidden_service_address = Some(actual_onion_address.clone());
         self.hs_state.voice_hs_address = Some(actual_onion_address.clone());
 
-        log::info!("VOICE SINGLE ONION SERVICE registered: {}", actual_onion_address);
+        log::info!(
+            "VOICE SINGLE ONION SERVICE registered: {}",
+            actual_onion_address
+        );
         log::info!("Voice service port: 9152 → local 9152 (voice streaming)");
         log::info!("Service mode: Single Onion (3-hop latency, service location visible)");
 
@@ -1799,10 +1930,15 @@ impl TorManager {
     }
 
     /// Wait for HS_DESC UPLOADED events (assumes events are already subscribed)
-    async fn wait_for_descriptor_uploads_already_subscribed(&self, onion_address: &str) -> Result<(), Box<dyn Error>> {
+    async fn wait_for_descriptor_uploads_already_subscribed(
+        &self,
+        onion_address: &str,
+    ) -> Result<(), Box<dyn Error>> {
         log::info!("Waiting for UPLOADED events for {}", onion_address);
 
-        let control = self.control_stream.as_ref()
+        let control = self
+            .control_stream
+            .as_ref()
             .ok_or("Control port not connected")?;
 
         let mut stream = control.lock().await;
@@ -1819,7 +1955,12 @@ impl TorManager {
             // Read events with timeout
             let mut event_buf = vec![0u8; 4096];
 
-            match tokio::time::timeout(tokio::time::Duration::from_secs(5), stream.read(&mut event_buf)).await {
+            match tokio::time::timeout(
+                tokio::time::Duration::from_secs(5),
+                stream.read(&mut event_buf),
+            )
+            .await
+            {
                 Ok(Ok(n)) if n > 0 => {
                     let event = String::from_utf8_lossy(&event_buf[..n]);
 
@@ -1827,40 +1968,65 @@ impl TorManager {
                     log::info!("Received Tor event: {}", event.trim());
 
                     // Check for HS_DESC UPLOADED event for our onion address
-                    if event.contains("HS_DESC") && event.contains("UPLOADED") && event.contains(short_onion) {
+                    if event.contains("HS_DESC")
+                        && event.contains("UPLOADED")
+                        && event.contains(short_onion)
+                    {
                         uploaded_count += 1;
-                        log::info!("Descriptor uploaded to HSDir ({}/{})", uploaded_count, target_uploads);
+                        log::info!(
+                            "Descriptor uploaded to HSDir ({}/{})",
+                            uploaded_count,
+                            target_uploads
+                        );
                     }
-                },
+                }
                 Ok(Ok(_)) => {
                     // Connection closed
                     break;
-                },
+                }
                 Ok(Err(e)) => {
                     log::error!("Error reading HS_DESC events: {}", e);
                     break;
-                },
+                }
                 Err(_) => {
                     // Timeout - continue waiting
-                    if start_time.elapsed().as_secs() % 10 == 0 {
-                        log::info!("Still waiting for descriptor uploads... ({}/{})", uploaded_count, target_uploads);
+                    if start_time.elapsed().as_secs().is_multiple_of(10) {
+                        log::info!(
+                            "Still waiting for descriptor uploads... ({}/{})",
+                            uploaded_count,
+                            target_uploads
+                        );
                     }
                 }
             }
         }
 
         if uploaded_count >= target_uploads {
-            log::info!("Successfully uploaded descriptors to {} HSDirs", uploaded_count);
+            log::info!(
+                "Successfully uploaded descriptors to {} HSDirs",
+                uploaded_count
+            );
         } else if start_time.elapsed() >= timeout {
-            log::warn!("Descriptor upload timeout after 90s - continuing anyway (uploaded to {} HSDirs)", uploaded_count);
+            log::warn!(
+                "Descriptor upload timeout after 90s - continuing anyway (uploaded to {} HSDirs)",
+                uploaded_count
+            );
         }
 
         Ok(())
     }
 
     /// Connect to a peer via Tor SOCKS5 proxy (.onion address)
-    pub async fn connect(&self, onion_address: &str, port: u16) -> Result<TorConnection, Box<dyn Error>> {
-        log::info!("Connecting to {}:{} via Tor SOCKS5 proxy", onion_address, port);
+    pub async fn connect(
+        &self,
+        onion_address: &str,
+        port: u16,
+    ) -> Result<TorConnection, Box<dyn Error>> {
+        log::info!(
+            "Connecting to {}:{} via Tor SOCKS5 proxy",
+            onion_address,
+            port
+        );
 
         // Connect to local SOCKS5 proxy
         log::info!("Connecting to SOCKS5 proxy at 127.0.0.1:{}...", PORT_SOCKS);
@@ -1881,8 +2047,13 @@ impl TorManager {
         };
 
         // Perform SOCKS5 handshake
-        log::info!("Performing SOCKS5 handshake for {}:{}...", onion_address, port);
-        self.socks5_connect(&mut stream, onion_address, port).await?;
+        log::info!(
+            "Performing SOCKS5 handshake for {}:{}...",
+            onion_address,
+            port
+        );
+        self.socks5_connect(&mut stream, onion_address, port)
+            .await?;
 
         log::info!("Successfully connected to {}", onion_address);
 
@@ -1894,7 +2065,12 @@ impl TorManager {
     }
 
     /// Perform SOCKS5 handshake to connect to .onion address
-    async fn socks5_connect(&self, stream: &mut TcpStream, addr: &str, port: u16) -> Result<(), Box<dyn Error>> {
+    async fn socks5_connect(
+        &self,
+        stream: &mut TcpStream,
+        addr: &str,
+        port: u16,
+    ) -> Result<(), Box<dyn Error>> {
         // SOCKS5 greeting: [version, num_methods, methods...]
         stream.write_all(&[0x05, 0x01, 0x00]).await?; // Version 5, 1 method, No auth
 
@@ -1918,7 +2094,7 @@ impl TorManager {
 
         // Read SOCKS5 response
         let mut response = [0u8; 10];
-        stream.read(&mut response).await?;
+        stream.read_exact(&mut response).await?;
 
         if response[0] != 0x05 || response[1] != 0x00 {
             let status_code = response[1];
@@ -1935,7 +2111,11 @@ impl TorManager {
                 _ => format!("Unknown error code {}", status_code),
             };
 
-            log::error!("SOCKS5 connect failed: status {} ({})", status_code, error_message);
+            log::error!(
+                "SOCKS5 connect failed: status {} ({})",
+                status_code,
+                error_message
+            );
             log::error!("Target: {}:{}", addr, port);
 
             // Provide specific diagnostic hints based on error code
@@ -1945,7 +2125,10 @@ impl TorManager {
                     log::error!("Possible causes:");
                     log::error!("1. Tor not fully bootstrapped (check bootstrap status)");
                     log::error!("2. Recipient's hidden service not reachable");
-                    log::error!("3. Recipient's hidden service listener not running on port {}", port);
+                    log::error!(
+                        "3. Recipient's hidden service listener not running on port {}",
+                        port
+                    );
                     log::error!("4. .onion address is invalid or doesn't exist");
                     log::error!("Recommended action: Verify Tor bootstrap is 100% before retrying");
                 }
@@ -1964,7 +2147,11 @@ impl TorManager {
                 _ => {}
             }
 
-            return Err(format!("SOCKS5 connect failed: status {} ({})", status_code, error_message).into());
+            return Err(format!(
+                "SOCKS5 connect failed: status {} ({})",
+                status_code, error_message
+            )
+            .into());
         }
 
         log::info!("SOCKS5 handshake complete");
@@ -1978,12 +2165,24 @@ impl TorManager {
     /// 2. Await stop_listener() to ensure port is released before rebind
     /// 3. Retry on EADDRINUSE with exponential backoff (bounded)
     /// 4. Detailed logging at each fallible step
-    pub async fn start_listener(&mut self, local_port: Option<u16>) -> Result<(tokio::sync::mpsc::UnboundedReceiver<(u64, Vec<u8>)>, tokio::sync::mpsc::UnboundedReceiver<(u64, Vec<u8>)>), Box<dyn Error>> {
+    pub async fn start_listener(
+        &mut self,
+        local_port: Option<u16>,
+    ) -> Result<
+        (
+            tokio::sync::mpsc::UnboundedReceiver<(u64, Vec<u8>)>,
+            tokio::sync::mpsc::UnboundedReceiver<(u64, Vec<u8>)>,
+        ),
+        Box<dyn Error>,
+    > {
         let port = local_port.unwrap_or(self.hs_local_port);
 
         // IDEMPOTENCY: If already running on same port, return success (NO-OP)
         if self.listener_handle.is_some() && self.bound_port == Some(port) {
-            log::info!("Listener already running on port {}, returning success (idempotent NO-OP)", port);
+            log::info!(
+                "Listener already running on port {}, returning success (idempotent NO-OP)",
+                port
+            );
 
             // Create dummy channels to satisfy return type (both receivers already stored in FFI)
             // FFI wrapper will try to store them in GLOBAL_PING_RECEIVER and GLOBAL_PONG_RECEIVER (already set),
@@ -2000,15 +2199,18 @@ impl TorManager {
         // }
 
         let bind_addr = format!("127.0.0.1:{}", port);
-        log::info!("Starting hidden service listener on {} (requested port: {})", bind_addr, port);
+        log::info!(
+            "Starting hidden service listener on {} (requested port: {})",
+            bind_addr,
+            port
+        );
 
         // BIND WITH RETRY: Handle EADDRINUSE with exponential backoff
         log::info!("Creating TCP socket...");
-        let listener = self.bind_with_retry(&bind_addr).await
-            .map_err(|e| {
-                log::error!("FATAL: Failed to bind listener on {}: {:?}", bind_addr, e);
-                e
-            })?;
+        let listener = self.bind_with_retry(&bind_addr).await.map_err(|e| {
+            log::error!("FATAL: Failed to bind listener on {}: {:?}", bind_addr, e);
+            e
+        })?;
 
         log::info!("Successfully bound to {}", bind_addr);
 
@@ -2027,7 +2229,10 @@ impl TorManager {
         // Spawn listener task
         log::info!("Spawning listener accept loop...");
         let handle = tokio::spawn(async move {
-            log::info!("Listener task started, waiting for connections on {}...", bind_addr_for_task);
+            log::info!(
+                "Listener task started, waiting for connections on {}...",
+                bind_addr_for_task
+            );
 
             loop {
                 match listener.accept().await {
@@ -2045,7 +2250,10 @@ impl TorManager {
                         let ping_tx = incoming_tx.clone();
                         let pong_tx = incoming_pong_tx.clone();
                         tokio::spawn(async move {
-                            if let Err(e) = Self::handle_incoming_connection(socket, conn_id, ping_tx, pong_tx).await {
+                            if let Err(e) =
+                                Self::handle_incoming_connection(socket, conn_id, ping_tx, pong_tx)
+                                    .await
+                            {
                                 log::error!("Error handling connection {}: {}", conn_id, e);
                             }
                         });
@@ -2108,13 +2316,24 @@ impl TorManager {
                         }
                         Err(e) if e.kind() == io::ErrorKind::AddrInUse => {
                             if attempt < MAX_ATTEMPTS {
-                                log::warn!("bind() EADDRINUSE (attempt {}), retrying in {}ms...", attempt, delay_ms);
+                                log::warn!(
+                                    "bind() EADDRINUSE (attempt {}), retrying in {}ms...",
+                                    attempt,
+                                    delay_ms
+                                );
                                 sleep(Duration::from_millis(delay_ms)).await;
                                 delay_ms = (delay_ms * 2).min(500); // Exponential backoff, cap at 500ms
                                 continue;
                             } else {
-                                log::error!("FATAL: bind() EADDRINUSE after {} attempts, giving up", MAX_ATTEMPTS);
-                                return Err(format!("bind({}) exhausted {} retry attempts (EADDRINUSE)", addr, MAX_ATTEMPTS).into());
+                                log::error!(
+                                    "FATAL: bind() EADDRINUSE after {} attempts, giving up",
+                                    MAX_ATTEMPTS
+                                );
+                                return Err(format!(
+                                    "bind({}) exhausted {} retry attempts (EADDRINUSE)",
+                                    addr, MAX_ATTEMPTS
+                                )
+                                .into());
                             }
                         }
                         Err(e) => {
@@ -2130,7 +2349,11 @@ impl TorManager {
             }
         }
 
-        Err(format!("bind_with_retry: unreachable (exhausted {} attempts)", MAX_ATTEMPTS).into())
+        Err(format!(
+            "bind_with_retry: unreachable (exhausted {} attempts)",
+            MAX_ATTEMPTS
+        )
+        .into())
     }
 
     /// Handle incoming connection (receive Ping token)
@@ -2170,14 +2393,26 @@ impl TorManager {
         log::info!("len: {} bytes", buf.len());
         if !buf.is_empty() {
             log::info!("type_byte: 0x{:02x}", buf[0]);
-            log::info!("first 8 bytes: {}",
-                buf.iter().take(8).map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join(" "));
+            log::info!(
+                "first 8 bytes: {}",
+                buf.iter()
+                    .take(8)
+                    .map(|b| format!("{:02x}", b))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            );
             if buf.len() > 1 {
                 log::info!("second byte: 0x{:02x}", buf[1]);
             }
             if buf[0] == MSG_TYPE_PING && buf.len() >= 5 {
-                log::info!("PING pubkey_first4: {}",
-                    buf[1..5].iter().map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join(" "));
+                log::info!(
+                    "PING pubkey_first4: {}",
+                    buf[1..5]
+                        .iter()
+                        .map(|b| format!("{:02x}", b))
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                );
             }
         }
         log::info!("");
@@ -2194,33 +2429,41 @@ impl TorManager {
         // This prevents random pubkey first bytes from legacy packets (missing type byte)
         // from accidentally passing validation (~5% chance of being in 0x01-0x0D range)
         match msg_type {
-            MSG_TYPE_PING |
-            MSG_TYPE_PONG |
-            MSG_TYPE_TEXT |
-            MSG_TYPE_VOICE |
-            MSG_TYPE_TAP |
-            MSG_TYPE_DELIVERY_CONFIRMATION |
-            MSG_TYPE_FRIEND_REQUEST |
-            MSG_TYPE_FRIEND_REQUEST_ACCEPTED |
-            MSG_TYPE_IMAGE |
-            MSG_TYPE_PAYMENT_REQUEST |
-            MSG_TYPE_PAYMENT_SENT |
-            MSG_TYPE_PAYMENT_ACCEPTED |
-            MSG_TYPE_CALL_SIGNALING |
-            MSG_TYPE_PROFILE_UPDATE |
-            MSG_TYPE_CRDT_OPS |
-            MSG_TYPE_SYNC_REQUEST |
-            MSG_TYPE_SYNC_CHUNK |
-            MSG_TYPE_ROUTING_UPDATE |
-            MSG_TYPE_ROUTING_REQUEST => {
+            MSG_TYPE_PING
+            | MSG_TYPE_PONG
+            | MSG_TYPE_TEXT
+            | MSG_TYPE_VOICE
+            | MSG_TYPE_TAP
+            | MSG_TYPE_DELIVERY_CONFIRMATION
+            | MSG_TYPE_FRIEND_REQUEST
+            | MSG_TYPE_FRIEND_REQUEST_ACCEPTED
+            | MSG_TYPE_IMAGE
+            | MSG_TYPE_PAYMENT_REQUEST
+            | MSG_TYPE_PAYMENT_SENT
+            | MSG_TYPE_PAYMENT_ACCEPTED
+            | MSG_TYPE_CALL_SIGNALING
+            | MSG_TYPE_PROFILE_UPDATE
+            | MSG_TYPE_CRDT_OPS
+            | MSG_TYPE_SYNC_REQUEST
+            | MSG_TYPE_SYNC_CHUNK
+            | MSG_TYPE_ROUTING_UPDATE
+            | MSG_TYPE_ROUTING_REQUEST => {
                 // Valid type, continue to length check
             }
             _ => {
-                log::error!("INVALID_MSG_TYPE_DROP: 0x{:02x} (not in known protocol types)", msg_type);
-                log::error!("Connection {}, {} bytes, first 4 bytes: {:02x} {:02x} {:02x} {:02x}",
-                    conn_id, buf.len(),
-                    buf.get(0).unwrap_or(&0), buf.get(1).unwrap_or(&0),
-                    buf.get(2).unwrap_or(&0), buf.get(3).unwrap_or(&0));
+                log::error!(
+                    "INVALID_MSG_TYPE_DROP: 0x{:02x} (not in known protocol types)",
+                    msg_type
+                );
+                log::error!(
+                    "Connection {}, {} bytes, first 4 bytes: {:02x} {:02x} {:02x} {:02x}",
+                    conn_id,
+                    buf.len(),
+                    buf.first().unwrap_or(&0),
+                    buf.get(1).unwrap_or(&0),
+                    buf.get(2).unwrap_or(&0),
+                    buf.get(3).unwrap_or(&0)
+                );
                 return Err(format!("Invalid message type: 0x{:02x}", msg_type).into());
             }
         }
@@ -2228,24 +2471,56 @@ impl TorManager {
         // MINIMUM LENGTH CHECK: protocol messages have format [type][pubkey32][encrypted_payload]
         // CRDT types (0x30,0x32,0x33) are NOT evolution-encrypted: [type][pubkey32][groupId32][data]
         let min_wire_len: usize = match msg_type {
-            MSG_TYPE_CRDT_OPS | MSG_TYPE_SYNC_REQUEST | MSG_TYPE_SYNC_CHUNK |
-            MSG_TYPE_ROUTING_UPDATE | MSG_TYPE_ROUTING_REQUEST => 1 + 32 + 32, // type + X25519 + groupId
+            MSG_TYPE_CRDT_OPS
+            | MSG_TYPE_SYNC_REQUEST
+            | MSG_TYPE_SYNC_CHUNK
+            | MSG_TYPE_ROUTING_UPDATE
+            | MSG_TYPE_ROUTING_REQUEST => 1 + 32 + 32, // type + X25519 + groupId
             _ => 1 + 32 + 16, // type + pubkey + smallest possible ciphertext
         };
         if buf.len() < min_wire_len {
-            log::error!("WIRE_TOO_SHORT_DROP: type=0x{:02x}, len={} (min={})", msg_type, buf.len(), min_wire_len);
-            log::error!("Connection {}, rejecting packet (likely garbage/corruption)", conn_id);
-            return Err(format!("Wire message too short: {} bytes (min {})", buf.len(), min_wire_len).into());
+            log::error!(
+                "WIRE_TOO_SHORT_DROP: type=0x{:02x}, len={} (min={})",
+                msg_type,
+                buf.len(),
+                min_wire_len
+            );
+            log::error!(
+                "Connection {}, rejecting packet (likely garbage/corruption)",
+                conn_id
+            );
+            return Err(format!(
+                "Wire message too short: {} bytes (min {})",
+                buf.len(),
+                min_wire_len
+            )
+            .into());
         }
 
         log::info!("");
-        log::info!("INCOMING CONNECTION {} (type=0x{:02x}, {} bytes total)", conn_id, msg_type, buf.len());
+        log::info!(
+            "INCOMING CONNECTION {} (type=0x{:02x}, {} bytes total)",
+            conn_id,
+            msg_type,
+            buf.len()
+        );
         log::info!("First byte: 0x{:02x} (validated as known type)", msg_type);
         log::info!("");
 
         // ROUTER INVARIANT: Log route decision for debugging
-        let head_hex: String = buf.iter().take(8).map(|b| format!("{:02x}", b)).collect::<Vec<_>>().join("");
-        log::info!("ROUTE: type=0x{:02x} conn={} len={} head={}", msg_type, conn_id, buf.len(), head_hex);
+        let head_hex: String = buf
+            .iter()
+            .take(8)
+            .map(|b| format!("{:02x}", b))
+            .collect::<Vec<_>>()
+            .join("");
+        log::info!(
+            "ROUTE: type=0x{:02x} conn={} len={} head={}",
+            msg_type,
+            conn_id,
+            buf.len(),
+            head_hex
+        );
 
         // Route based on message type (buf INCLUDES type byte at offset 0)
         match msg_type {
@@ -2256,16 +2531,23 @@ impl TorManager {
                 // BRIEF LOCK: Insert only, no async operations held
                 {
                     let mut pending = PENDING_CONNECTIONS.lock().unwrap();
-                    pending.insert(conn_id, PendingConnection {
-                        socket,
-                        encrypted_ping: buf.clone(),
-                    });
+                    pending.insert(
+                        conn_id,
+                        PendingConnection {
+                            socket,
+                            encrypted_ping: buf.clone(),
+                        },
+                    );
                 }
 
                 // ROUTER INVARIANT: Check send result
                 let buf_len = buf.len();
-                if let Err(_) = ping_tx.send((conn_id, buf)) {
-                    log::error!("ROUTER_DROP: PING_TX send failed (receiver dropped), conn={} len={}", conn_id, buf_len);
+                if ping_tx.send((conn_id, buf)).is_err() {
+                    log::error!(
+                        "ROUTER_DROP: PING_TX send failed (receiver dropped), conn={} len={}",
+                        conn_id,
+                        buf_len
+                    );
                 }
             }
             MSG_TYPE_PONG => {
@@ -2273,16 +2555,30 @@ impl TorManager {
                 // Pongs don't need connection stored (no reply needed)
                 // Send full buffer (INCLUDING type byte at offset 0) to PONG_TX (NOT PING_TX!)
                 // ROUTER INVARIANT: Check send result
-                if let Err(_) = pong_tx.send((conn_id, buf.clone())) {
+                if pong_tx.send((conn_id, buf.clone())).is_err() {
                     log::error!("ROUTER_DROP: PONG_TX send failed (receiver dropped), conn={} len={} head={}", conn_id, buf.len(), head_hex);
                 } else {
-                    log::info!("ROUTER: PONG dispatch ok, conn={} len={}", conn_id, buf.len());
+                    log::info!(
+                        "ROUTER: PONG dispatch ok, conn={} len={}",
+                        conn_id,
+                        buf.len()
+                    );
                 }
             }
-            MSG_TYPE_TEXT | MSG_TYPE_VOICE | MSG_TYPE_IMAGE | MSG_TYPE_PAYMENT_REQUEST | MSG_TYPE_PAYMENT_SENT | MSG_TYPE_PAYMENT_ACCEPTED | MSG_TYPE_PROFILE_UPDATE |
-            MSG_TYPE_CRDT_OPS | MSG_TYPE_SYNC_REQUEST | MSG_TYPE_SYNC_CHUNK |
-            MSG_TYPE_ROUTING_UPDATE | MSG_TYPE_ROUTING_REQUEST => {
-                log::info!("→ Routing to MESSAGE handler (separate channel, type={})",
+            MSG_TYPE_TEXT
+            | MSG_TYPE_VOICE
+            | MSG_TYPE_IMAGE
+            | MSG_TYPE_PAYMENT_REQUEST
+            | MSG_TYPE_PAYMENT_SENT
+            | MSG_TYPE_PAYMENT_ACCEPTED
+            | MSG_TYPE_PROFILE_UPDATE
+            | MSG_TYPE_CRDT_OPS
+            | MSG_TYPE_SYNC_REQUEST
+            | MSG_TYPE_SYNC_CHUNK
+            | MSG_TYPE_ROUTING_UPDATE
+            | MSG_TYPE_ROUTING_REQUEST => {
+                log::info!(
+                    "→ Routing to MESSAGE handler (separate channel, type={})",
                     match msg_type {
                         MSG_TYPE_TEXT => "TEXT",
                         MSG_TYPE_VOICE => "VOICE",
@@ -2296,17 +2592,21 @@ impl TorManager {
                         MSG_TYPE_SYNC_CHUNK => "SYNC_CHUNK",
                         MSG_TYPE_ROUTING_UPDATE => "ROUTING_UPDATE",
                         MSG_TYPE_ROUTING_REQUEST => "ROUTING_REQUEST",
-                        _ => "UNKNOWN"
-                    });
+                        _ => "UNKNOWN",
+                    }
+                );
 
                 // Messages might need connection stored for delivery confirmation
                 // BRIEF LOCK: Insert only, no async operations held
                 {
                     let mut pending = PENDING_CONNECTIONS.lock().unwrap();
-                    pending.insert(conn_id, PendingConnection {
-                        socket,
-                        encrypted_ping: buf.clone(),
-                    });
+                    pending.insert(
+                        conn_id,
+                        PendingConnection {
+                            socket,
+                            encrypted_ping: buf.clone(),
+                        },
+                    );
                 }
 
                 // Route to MESSAGE channel (not PING channel)
@@ -2317,12 +2617,14 @@ impl TorManager {
                         log::error!("Failed to send message to MESSAGE channel: {}", e);
                     } else {
                         #[cfg(target_os = "android")]
-                        crate::ffi::android::RX_MESSAGE_ACCEPT_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        crate::ffi::android::RX_MESSAGE_ACCEPT_COUNT
+                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     }
                 } else {
                     log::warn!("MESSAGE channel not initialized - dropping message");
                     #[cfg(target_os = "android")]
-                    crate::ffi::android::RX_MESSAGE_TX_DROP_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    crate::ffi::android::RX_MESSAGE_TX_DROP_COUNT
+                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 }
             }
             MSG_TYPE_CALL_SIGNALING => {
@@ -2332,10 +2634,13 @@ impl TorManager {
                 // BRIEF LOCK: Insert only, no async operations held
                 {
                     let mut pending = PENDING_CONNECTIONS.lock().unwrap();
-                    pending.insert(conn_id, PendingConnection {
-                        socket,
-                        encrypted_ping: buf.clone(),
-                    });
+                    pending.insert(
+                        conn_id,
+                        PendingConnection {
+                            socket,
+                            encrypted_ping: buf.clone(),
+                        },
+                    );
                 }
 
                 // Route to VOICE channel (separate from MESSAGE to allow simultaneous messaging during calls)
@@ -2393,7 +2698,8 @@ impl TorManager {
                 // buf already includes type byte at offset 0 so Kotlin can distinguish Phase 1 (0x07) from Phase 2 (0x08)
                 if let Some(friend_tx) = FRIEND_REQUEST_TX.get() {
                     let tx_lock = friend_tx.lock().unwrap();
-                    if let Err(e) = tx_lock.send(buf) { // Changed from constructing wire_data
+                    if let Err(e) = tx_lock.send(buf) {
+                        // Changed from constructing wire_data
                         log::error!("Failed to send friend request accepted to channel: {}", e);
                     }
                 } else {
@@ -2407,10 +2713,13 @@ impl TorManager {
                 // BRIEF LOCK: Insert only, no async operations held
                 {
                     let mut pending = PENDING_CONNECTIONS.lock().unwrap();
-                    pending.insert(conn_id, PendingConnection {
-                        socket,
-                        encrypted_ping: buf.clone(),
-                    });
+                    pending.insert(
+                        conn_id,
+                        PendingConnection {
+                            socket,
+                            encrypted_ping: buf.clone(),
+                        },
+                    );
                 }
 
                 ping_tx.send((conn_id, buf)).ok();
@@ -2438,7 +2747,9 @@ impl TorManager {
             // This prevents EADDRINUSE when rebinding immediately after
             match handle.await {
                 Ok(_) => log::info!("Hidden service listener exited cleanly"),
-                Err(e) if e.is_cancelled() => log::info!("Hidden service listener aborted (cancelled)"),
+                Err(e) if e.is_cancelled() => {
+                    log::info!("Hidden service listener aborted (cancelled)")
+                }
                 Err(e) => log::warn!("Hidden service listener aborted with error: {:?}", e),
             }
 
@@ -2450,7 +2761,10 @@ impl TorManager {
         let mut pending = PENDING_CONNECTIONS.lock().unwrap();
         let count = pending.len();
         if count > 0 {
-            log::info!("Closing {} pending connection(s) with stale circuits", count);
+            log::info!(
+                "Closing {} pending connection(s) with stale circuits",
+                count
+            );
             pending.clear(); // Dropping TcpStream closes the socket
         }
     }
@@ -2461,7 +2775,9 @@ impl TorManager {
     pub async fn clear_all_ephemeral_services(&self) -> Result<u32, Box<dyn Error>> {
         log::info!("Clearing all ephemeral hidden services...");
 
-        let control = self.control_stream.as_ref()
+        let control = self
+            .control_stream
+            .as_ref()
             .ok_or("Control port not connected")?;
 
         let mut stream = control.lock().await;
@@ -2494,7 +2810,11 @@ impl TorManager {
             return Ok(0);
         }
 
-        log::info!("Found {} ephemeral service(s) to delete: {:?}", service_ids.len(), service_ids);
+        log::info!(
+            "Found {} ephemeral service(s) to delete: {:?}",
+            service_ids.len(),
+            service_ids
+        );
 
         // Delete each service
         let mut deleted_count = 0;
@@ -2536,8 +2856,8 @@ impl TorManager {
     /// Retries once on transient errors (EAGAIN/WouldBlock/TimedOut) since Tor
     /// can temporarily return these under CPU load without actually being dead.
     pub fn is_socks_proxy_running(&self) -> bool {
+        use std::io::{ErrorKind, Read, Write};
         use std::net::TcpStream;
-        use std::io::{Write, Read, ErrorKind};
         use std::time::Duration;
 
         for attempt in 0..2u8 {
@@ -2549,8 +2869,7 @@ impl TorManager {
             let mut stream = match stream_res {
                 Ok(s) => s,
                 Err(e) => {
-                    let is_transient =
-                        e.kind() == ErrorKind::WouldBlock ||
+                    let is_transient = e.kind() == ErrorKind::WouldBlock ||
                         e.kind() == ErrorKind::TimedOut ||
                         e.kind() == ErrorKind::PermissionDenied || // SELinux on Android
                         e.raw_os_error() == Some(11); // EAGAIN
@@ -2578,7 +2897,10 @@ impl TorManager {
             // Set timeouts (non-fatal if they fail — connect already has 3s timeout)
             let _ = stream.set_write_timeout(Some(Duration::from_millis(3000)));
             if let Err(e) = stream.set_read_timeout(Some(Duration::from_millis(3000))) {
-                log::warn!("SOCKS health: Failed to set read timeout (non-fatal): {}", e);
+                log::warn!(
+                    "SOCKS health: Failed to set read timeout (non-fatal): {}",
+                    e
+                );
                 // Don't return false — proceed with the handshake anyway.
                 // On Android, SELinux can deny certain socket operations without
                 // meaning SOCKS is actually dead.
@@ -2595,21 +2917,29 @@ impl TorManager {
             match stream.read_exact(&mut response) {
                 Ok(_) => {
                     if response == [0x05, 0x00] {
-                        log::debug!("SOCKS health: Proxy reachable (127.0.0.1:{})", self.socks_port);
+                        log::debug!(
+                            "SOCKS health: Proxy reachable (127.0.0.1:{})",
+                            self.socks_port
+                        );
                         return true;
                     }
-                    log::warn!("SOCKS health: Unexpected handshake response: {:?}", response);
+                    log::warn!(
+                        "SOCKS health: Unexpected handshake response: {:?}",
+                        response
+                    );
                     return false;
                 }
                 Err(e) => {
-                    let is_transient =
-                        e.kind() == ErrorKind::WouldBlock ||
+                    let is_transient = e.kind() == ErrorKind::WouldBlock ||
                         e.kind() == ErrorKind::TimedOut ||
                         e.kind() == ErrorKind::PermissionDenied || // SELinux on Android
                         e.raw_os_error() == Some(11); // EAGAIN
 
                     if is_transient && attempt == 0 {
-                        log::info!("SOCKS health: Transient read error ({}), retrying in 500ms...", e);
+                        log::info!(
+                            "SOCKS health: Transient read error ({}), retrying in 500ms...",
+                            e
+                        );
                         std::thread::sleep(Duration::from_millis(500));
                         continue;
                     }
@@ -2628,8 +2958,8 @@ impl TorManager {
     /// No external connections - same approach used by Briar
     /// Returns true if Tor has established circuits
     pub async fn test_socks_connectivity(&self) -> bool {
-        use tokio::time::{timeout, Duration};
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        use tokio::time::{timeout, Duration};
 
         log::info!("Testing Tor health via ControlSocket...");
 
@@ -2643,10 +2973,8 @@ impl TorManager {
         };
 
         // Connect to ControlSocket (Unix domain socket, local only)
-        let connect_result = timeout(
-            Duration::from_secs(3),
-            ControlStream::connect(&socket_path)
-        ).await;
+        let connect_result =
+            timeout(Duration::from_secs(3), ControlStream::connect(&socket_path)).await;
 
         let mut stream = match connect_result {
             Ok(Ok(s)) => s,
@@ -2687,7 +3015,10 @@ impl TorManager {
         }
 
         // Query circuit status
-        if let Err(e) = stream.write_all(b"GETINFO status/circuit-established\r\n").await {
+        if let Err(e) = stream
+            .write_all(b"GETINFO status/circuit-established\r\n")
+            .await
+        {
             log::error!("Tor ControlSocket: Query write failed - {}", e);
             return false;
         }
@@ -2725,7 +3056,10 @@ impl TorManager {
     }
 
     /// Send Pong response back through pending connection and wait for message
-    pub async fn send_pong_response(connection_id: u64, pong_bytes: &[u8]) -> Result<Vec<u8>, Box<dyn Error>> {
+    pub async fn send_pong_response(
+        connection_id: u64,
+        pong_bytes: &[u8],
+    ) -> Result<Vec<u8>, Box<dyn Error>> {
         // Traffic analysis resistance: random delay before control messages (200–800 ms)
         let delay_ms = padding::random_traffic_delay_ms();
         tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
@@ -2733,7 +3067,8 @@ impl TorManager {
         // Temporarily take the connection out to do async I/O (brief lock, then released)
         let mut conn = {
             let mut pending = PENDING_CONNECTIONS.lock().unwrap();
-            pending.remove(&connection_id)
+            pending
+                .remove(&connection_id)
                 .ok_or("Connection not found")?
         };
 
@@ -2747,31 +3082,44 @@ impl TorManager {
             log::error!("PONG padding failed (invariant): {:?}", e);
             format!("PONG padding failed: {}", e)
         })?;
-        debug_assert_eq!(to_send.len(), FIXED_PACKET_SIZE, "no message leaves without padding");
+        debug_assert_eq!(
+            to_send.len(),
+            FIXED_PACKET_SIZE,
+            "no message leaves without padding"
+        );
         let len = to_send.len() as u32;
         conn.socket.write_all(&len.to_be_bytes()).await?;
         conn.socket.write_all(&to_send).await?;
         conn.socket.flush().await?;
 
-        log::info!("Sent Pong response: {} bytes (connection {})", pong_bytes.len(), connection_id);
+        log::info!(
+            "Sent Pong response: {} bytes (connection {})",
+            pong_bytes.len(),
+            connection_id
+        );
 
         // NOW WAIT FOR THE ACTUAL MESSAGE!
         // The sender will send the message immediately after receiving our Pong
-        log::info!("Waiting for incoming message on connection {}...", connection_id);
+        log::info!(
+            "Waiting for incoming message on connection {}...",
+            connection_id
+        );
 
         // Read message length prefix (with timeout - sender should send immediately)
         let mut len_buf = [0u8; 4];
         let read_result = tokio::time::timeout(
             std::time::Duration::from_secs(30),
-            conn.socket.read_exact(&mut len_buf)
-        ).await;
+            conn.socket.read_exact(&mut len_buf),
+        )
+        .await;
 
         match read_result {
             Ok(Ok(_)) => {
                 let msg_len = u32::from_be_bytes(len_buf) as usize;
                 log::info!("Incoming message length: {} bytes", msg_len);
 
-                if msg_len > 10_000_000 { // 10MB limit (consistent with voice message support)
+                if msg_len > 10_000_000 {
+                    // 10MB limit (consistent with voice message support)
                     return Err("Message too large (>10MB)".into());
                 }
 
@@ -2779,7 +3127,11 @@ impl TorManager {
                 let mut message_data = vec![0u8; msg_len];
                 conn.socket.read_exact(&mut message_data).await?;
 
-                log::info!("Received message: {} bytes (connection {})", msg_len, connection_id);
+                log::info!(
+                    "Received message: {} bytes (connection {})",
+                    msg_len,
+                    connection_id
+                );
 
                 // Connection closes naturally when dropped
                 Ok(message_data)
@@ -2789,20 +3141,28 @@ impl TorManager {
                 Err(e.into())
             }
             Err(_) => {
-                log::error!("Timeout waiting for message on connection {}", connection_id);
+                log::error!(
+                    "Timeout waiting for message on connection {}",
+                    connection_id
+                );
                 Err("Timeout waiting for message after sending Pong".into())
             }
         }
     }
 
     /// Send ACK on an existing connection (fire-and-forget, connection closes after sending)
-    pub async fn send_ack_on_connection(connection_id: u64, ack_type: u8, ack_bytes: &[u8]) -> Result<(), Box<dyn Error>> {
+    pub async fn send_ack_on_connection(
+        connection_id: u64,
+        ack_type: u8,
+        ack_bytes: &[u8],
+    ) -> Result<(), Box<dyn Error>> {
         let delay_ms = padding::random_traffic_delay_ms();
         tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
 
         let mut conn = {
             let mut pending = PENDING_CONNECTIONS.lock().unwrap();
-            pending.remove(&connection_id)
+            pending
+                .remove(&connection_id)
                 .ok_or("Connection not found")?
         };
 
@@ -2815,13 +3175,22 @@ impl TorManager {
             log::error!("ACK padding failed (invariant): {:?}", e);
             format!("ACK padding failed: {}", e)
         })?;
-        debug_assert_eq!(to_send.len(), FIXED_PACKET_SIZE, "no message leaves without padding");
+        debug_assert_eq!(
+            to_send.len(),
+            FIXED_PACKET_SIZE,
+            "no message leaves without padding"
+        );
         let len = to_send.len() as u32;
         conn.socket.write_all(&len.to_be_bytes()).await?;
         conn.socket.write_all(&to_send).await?;
         conn.socket.flush().await?;
 
-        log::info!("Sent ACK (type={:02x}) on connection {}: {} bytes", ack_type, connection_id, ack_bytes.len());
+        log::info!(
+            "Sent ACK (type={:02x}) on connection {}: {} bytes",
+            ack_type,
+            connection_id,
+            ack_bytes.len()
+        );
 
         // Connection will close when dropped (fire-and-forget)
         Ok(())
@@ -2833,7 +3202,11 @@ impl TorManager {
     }
 
     /// Receive data from a Tor connection
-    pub async fn receive(&self, conn: &mut TorConnection, _max_len: usize) -> Result<Vec<u8>, Box<dyn Error>> {
+    pub async fn receive(
+        &self,
+        conn: &mut TorConnection,
+        _max_len: usize,
+    ) -> Result<Vec<u8>, Box<dyn Error>> {
         conn.receive().await
     }
 

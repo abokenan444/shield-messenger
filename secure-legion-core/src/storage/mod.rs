@@ -122,21 +122,12 @@ impl fmt::Display for DuressPinSpec {
 
 /// Stealth mode: optionally hide the app icon / launcher alias after duress.
 /// Implementation is app-layer (e.g. Android ComponentName disable, iOS app clip).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct StealthModeSpec {
     /// If true, the app should hide its launcher icon after duress.
     pub hide_app_icon: bool,
     /// Optional: alias component name for Android launcher icon toggle.
     pub launcher_alias: Option<String>,
-}
-
-impl Default for StealthModeSpec {
-    fn default() -> Self {
-        Self {
-            hide_app_icon: false,
-            launcher_alias: None,
-        }
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -197,8 +188,7 @@ pub fn generate_decoy_data(config: &DecoyConfig) -> Vec<DecoyContact> {
         .as_secs() as i64;
 
     let names = [
-        "Alex", "Sam", "Jordan", "Taylor", "Morgan",
-        "Casey", "Quinn", "Riley", "Avery", "Jamie",
+        "Alex", "Sam", "Jordan", "Taylor", "Morgan", "Casey", "Quinn", "Riley", "Avery", "Jamie",
         "Charlie", "Dakota", "Emery", "Finley", "Harper",
     ];
 
@@ -214,18 +204,24 @@ pub fn generate_decoy_data(config: &DecoyConfig) -> Vec<DecoyContact> {
         for _ in 0..config.messages_per_contact {
             let ts_offset = random_range(0, 7 * 24 * 3600);
             let timestamp = now - ts_offset as i64;
-            let msg_len = random_range(
-                config.min_message_len as u32,
-                config.max_message_len as u32,
-            ) as usize;
+            let msg_len =
+                random_range(config.min_message_len as u32, config.max_message_len as u32) as usize;
             let content = random_text(msg_len);
             let is_outgoing = random_bool();
-            messages.push(DecoyMessage { content, timestamp, is_outgoing });
+            messages.push(DecoyMessage {
+                content,
+                timestamp,
+                is_outgoing,
+            });
         }
 
         messages.sort_by_key(|m| m.timestamp);
 
-        contacts.push(DecoyContact { display_name, onion_address, messages });
+        contacts.push(DecoyContact {
+            display_name,
+            onion_address,
+            messages,
+        });
     }
 
     contacts
@@ -253,7 +249,9 @@ pub fn on_duress_pin_entered() -> Result<()> {
 // ---------------------------------------------------------------------------
 
 fn random_range(min: u32, max: u32) -> u32 {
-    if min >= max { return min; }
+    if min >= max {
+        return min;
+    }
     let mut buf = [0u8; 4];
     let _ = getrandom(&mut buf);
     let v = u32::from_ne_bytes(buf);
@@ -275,8 +273,7 @@ fn random_suffix() -> String {
 fn generate_fake_onion() -> String {
     let mut buf = [0u8; 35];
     let _ = getrandom(&mut buf);
-    let encoded = base32::encode(base32::Alphabet::Rfc4648 { padding: false }, &buf)
-        .to_lowercase();
+    let encoded = base32::encode(base32::Alphabet::Rfc4648 { padding: false }, &buf).to_lowercase();
     format!("{}.onion", encoded)
 }
 
@@ -284,7 +281,9 @@ fn random_text(len: usize) -> String {
     let charset = b"abcdefghijklmnopqrstuvwxyz .!?,";
     let mut buf = vec![0u8; len];
     let _ = getrandom(&mut buf);
-    buf.iter().map(|b| charset[(*b as usize) % charset.len()] as char).collect()
+    buf.iter()
+        .map(|b| charset[(*b as usize) % charset.len()] as char)
+        .collect()
 }
 
 // ---------------------------------------------------------------------------

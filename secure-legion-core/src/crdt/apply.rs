@@ -7,7 +7,6 @@
 /// **Determinism guarantee:** `rebuild_from_ops(same ops in ANY order)` produces
 /// the same `state_hash`, because ops are sorted by `(lamport, op_id)` before
 /// replay and all sub-CRDTs use commutative merge semantics.
-
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use thiserror::Error;
 
@@ -114,13 +113,13 @@ impl GroupState {
         //    GroupCreate is the founding op — no members exist yet.
         //    Its own apply function validates lamport=1 and no prior creation.
         let author_device = DeviceID::from_pubkey(&op.author_pubkey);
-        if op.op_type != OpType::GroupCreate {
-            if !self.membership.can_author_op(&author_device, &op.op_type) {
-                return Err(ApplyError::Unauthorized(format!(
-                    "{:?} cannot author {:?}",
-                    author_device, op.op_type
-                )));
-            }
+        if op.op_type != OpType::GroupCreate
+            && !self.membership.can_author_op(&author_device, &op.op_type)
+        {
+            return Err(ApplyError::Unauthorized(format!(
+                "{:?} cannot author {:?}",
+                author_device, op.op_type
+            )));
         }
 
         // 6. Dispatch to sub-CRDT
@@ -156,7 +155,11 @@ impl GroupState {
     pub fn rebuild_from_ops(group_id: GroupID, ops: &[OpEnvelope]) -> Result<Self, ApplyError> {
         let mut state = GroupState::new(group_id);
         let mut sorted = ops.to_vec();
-        sorted.sort_by(|a, b| a.lamport.cmp(&b.lamport).then_with(|| a.op_id.cmp(&b.op_id)));
+        sorted.sort_by(|a, b| {
+            a.lamport
+                .cmp(&b.lamport)
+                .then_with(|| a.op_id.cmp(&b.op_id))
+        });
         for op in &sorted {
             state.apply_op(op)?;
         }
@@ -342,16 +345,8 @@ mod tests {
             ciphertext: vec![0xAA, 0xBB],
             nonce: [0x11; 24],
         };
-        OpEnvelope::create_signed(
-            gid,
-            OpType::MsgAdd,
-            &payload,
-            lamport,
-            nonce,
-            pub_k,
-            priv_k,
-        )
-        .unwrap()
+        OpEnvelope::create_signed(gid, OpType::MsgAdd, &payload, lamport, nonce, pub_k, priv_k)
+            .unwrap()
     }
 
     fn op_remove(
@@ -429,7 +424,14 @@ mod tests {
     }
 
     /// Standard group: owner + alice (Member). Returns keys and the 3 setup ops.
-    fn setup_group() -> (GroupID, [u8; 32], [u8; 32], [u8; 32], [u8; 32], Vec<OpEnvelope>) {
+    fn setup_group() -> (
+        GroupID,
+        [u8; 32],
+        [u8; 32],
+        [u8; 32],
+        [u8; 32],
+        Vec<OpEnvelope>,
+    ) {
         let (owner_pub, owner_priv) = keypair();
         let (alice_pub, alice_priv) = keypair();
         let gid = test_group_id(&owner_pub);
@@ -438,7 +440,14 @@ mod tests {
         let invite = op_invite(gid, owner_pub, &owner_priv, alice_pub, Role::Member, 2, 200);
         let accept = op_accept(gid, alice_pub, &alice_priv, invite.op_id, 3, 300);
 
-        (gid, owner_pub, owner_priv, alice_pub, alice_priv, vec![create, invite, accept])
+        (
+            gid,
+            owner_pub,
+            owner_priv,
+            alice_pub,
+            alice_priv,
+            vec![create, invite, accept],
+        )
     }
 
     // -------------------------------------------------------------------
@@ -525,23 +534,42 @@ mod tests {
         ops.push(op_msg_add(gid, alice_pub, &alice_priv, [0x01; 32], 4, 400));
         ops.push(op_msg_add(gid, owner_pub, &owner_priv, [0x02; 32], 5, 500));
         ops.push(op_metadata(
-            gid, owner_pub, &owner_priv, MetadataKey::Name, b"Test".to_vec(), 6, 600,
+            gid,
+            owner_pub,
+            &owner_priv,
+            MetadataKey::Name,
+            b"Test".to_vec(),
+            6,
+            600,
         ));
         ops.push(op_reaction(
-            gid, alice_pub, &alice_priv, [0x01; 32], "\u{1F44D}", true, 7, 700,
+            gid,
+            alice_pub,
+            &alice_priv,
+            [0x01; 32],
+            "\u{1F44D}",
+            true,
+            7,
+            700,
         ));
 
-        let hash_fwd = GroupState::rebuild_from_ops(gid, &ops).unwrap().state_hash();
+        let hash_fwd = GroupState::rebuild_from_ops(gid, &ops)
+            .unwrap()
+            .state_hash();
 
         let mut rev = ops.clone();
         rev.reverse();
-        let hash_rev = GroupState::rebuild_from_ops(gid, &rev).unwrap().state_hash();
+        let hash_rev = GroupState::rebuild_from_ops(gid, &rev)
+            .unwrap()
+            .state_hash();
 
         assert_eq!(hash_fwd, hash_rev);
 
         let mut interleaved: Vec<_> = ops.iter().step_by(2).cloned().collect();
         interleaved.extend(ops.iter().skip(1).step_by(2).cloned());
-        let hash_int = GroupState::rebuild_from_ops(gid, &interleaved).unwrap().state_hash();
+        let hash_int = GroupState::rebuild_from_ops(gid, &interleaved)
+            .unwrap()
+            .state_hash();
 
         assert_eq!(hash_fwd, hash_int);
     }
@@ -560,7 +588,15 @@ mod tests {
 
         // Invite + accept 3 members
         for (m_pub, m_priv) in &members {
-            let inv = op_invite(gid, owner_pub, &owner_priv, *m_pub, Role::Member, lamport, nonce);
+            let inv = op_invite(
+                gid,
+                owner_pub,
+                &owner_priv,
+                *m_pub,
+                Role::Member,
+                lamport,
+                nonce,
+            );
             let inv_id = inv.op_id;
             ops.push(inv);
             lamport += 1;
@@ -585,26 +621,54 @@ mod tests {
 
         // Metadata
         ops.push(op_metadata(
-            gid, owner_pub, &owner_priv, MetadataKey::Name, b"Big Group".to_vec(), lamport, nonce,
+            gid,
+            owner_pub,
+            &owner_priv,
+            MetadataKey::Name,
+            b"Big Group".to_vec(),
+            lamport,
+            nonce,
         ));
         lamport += 1;
         nonce += 100;
         ops.push(op_metadata(
-            gid, owner_pub, &owner_priv, MetadataKey::Topic, b"General".to_vec(), lamport, nonce,
+            gid,
+            owner_pub,
+            &owner_priv,
+            MetadataKey::Topic,
+            b"General".to_vec(),
+            lamport,
+            nonce,
         ));
 
         assert_eq!(ops.len(), 24);
 
-        let hash_orig = GroupState::rebuild_from_ops(gid, &ops).unwrap().state_hash();
+        let hash_orig = GroupState::rebuild_from_ops(gid, &ops)
+            .unwrap()
+            .state_hash();
 
         // 5 different permutations
         let perms: Vec<Vec<OpEnvelope>> = vec![
-            { let mut v = ops.clone(); v.reverse(); v },
-            { let mut v = ops.clone(); v.rotate_left(7); v },
-            { let mut v = ops.clone(); v.rotate_left(13); v },
             {
                 let mut v = ops.clone();
-                for i in (0..v.len() - 1).step_by(2) { v.swap(i, i + 1); }
+                v.reverse();
+                v
+            },
+            {
+                let mut v = ops.clone();
+                v.rotate_left(7);
+                v
+            },
+            {
+                let mut v = ops.clone();
+                v.rotate_left(13);
+                v
+            },
+            {
+                let mut v = ops.clone();
+                for i in (0..v.len() - 1).step_by(2) {
+                    v.swap(i, i + 1);
+                }
                 v
             },
             {
@@ -631,13 +695,23 @@ mod tests {
     fn test_renderable_hides_kicked_member() {
         let (gid, owner_pub, owner_priv, alice_pub, alice_priv, ops) = setup_group();
         let mut state = GroupState::new(gid);
-        for op in &ops { state.apply_op(op).unwrap(); }
+        for op in &ops {
+            state.apply_op(op).unwrap();
+        }
 
         let msg = op_msg_add(gid, alice_pub, &alice_priv, [0x01; 32], 4, 400);
         state.apply_op(&msg).unwrap();
         assert_eq!(state.renderable_messages().len(), 1);
 
-        let kick = op_remove(gid, owner_pub, &owner_priv, alice_pub, RemoveReason::Kick, 5, 500);
+        let kick = op_remove(
+            gid,
+            owner_pub,
+            &owner_priv,
+            alice_pub,
+            RemoveReason::Kick,
+            5,
+            500,
+        );
         state.apply_op(&kick).unwrap();
 
         // Message stored but not renderable
@@ -649,12 +723,22 @@ mod tests {
     fn test_renderable_restored_after_reinvite() {
         let (gid, owner_pub, owner_priv, alice_pub, alice_priv, ops) = setup_group();
         let mut state = GroupState::new(gid);
-        for op in &ops { state.apply_op(op).unwrap(); }
+        for op in &ops {
+            state.apply_op(op).unwrap();
+        }
 
         let msg = op_msg_add(gid, alice_pub, &alice_priv, [0x01; 32], 4, 400);
         state.apply_op(&msg).unwrap();
 
-        let kick = op_remove(gid, owner_pub, &owner_priv, alice_pub, RemoveReason::Kick, 5, 500);
+        let kick = op_remove(
+            gid,
+            owner_pub,
+            &owner_priv,
+            alice_pub,
+            RemoveReason::Kick,
+            5,
+            500,
+        );
         state.apply_op(&kick).unwrap();
         assert_eq!(state.renderable_messages().len(), 0);
 
@@ -670,16 +754,29 @@ mod tests {
     fn test_renderable_excludes_deleted() {
         let (gid, _owner_pub, _owner_priv, alice_pub, alice_priv, ops) = setup_group();
         let mut state = GroupState::new(gid);
-        for op in &ops { state.apply_op(op).unwrap(); }
+        for op in &ops {
+            state.apply_op(op).unwrap();
+        }
 
-        state.apply_op(&op_msg_add(gid, alice_pub, &alice_priv, [0x01; 32], 4, 400)).unwrap();
-        state.apply_op(&op_msg_add(gid, alice_pub, &alice_priv, [0x02; 32], 5, 500)).unwrap();
+        state
+            .apply_op(&op_msg_add(gid, alice_pub, &alice_priv, [0x01; 32], 4, 400))
+            .unwrap();
+        state
+            .apply_op(&op_msg_add(gid, alice_pub, &alice_priv, [0x02; 32], 5, 500))
+            .unwrap();
         assert_eq!(state.renderable_messages().len(), 2);
 
         let del_payload = MsgDeletePayload { msg_id: [0x01; 32] };
         let del = OpEnvelope::create_signed(
-            gid, OpType::MsgDelete, &del_payload, 6, 600, alice_pub, &alice_priv,
-        ).unwrap();
+            gid,
+            OpType::MsgDelete,
+            &del_payload,
+            6,
+            600,
+            alice_pub,
+            &alice_priv,
+        )
+        .unwrap();
         state.apply_op(&del).unwrap();
         assert_eq!(state.renderable_messages().len(), 1);
     }
@@ -692,10 +789,14 @@ mod tests {
     fn test_state_hash_changes_on_new_op() {
         let (gid, _owner_pub, _owner_priv, alice_pub, alice_priv, ops) = setup_group();
         let mut state = GroupState::new(gid);
-        for op in &ops { state.apply_op(op).unwrap(); }
+        for op in &ops {
+            state.apply_op(op).unwrap();
+        }
         let h1 = state.state_hash();
 
-        state.apply_op(&op_msg_add(gid, alice_pub, &alice_priv, [0x01; 32], 4, 400)).unwrap();
+        state
+            .apply_op(&op_msg_add(gid, alice_pub, &alice_priv, [0x01; 32], 4, 400))
+            .unwrap();
         assert_ne!(h1, state.state_hash());
     }
 
@@ -703,7 +804,9 @@ mod tests {
     fn test_state_hash_stable_after_idempotent() {
         let (gid, _owner_pub, _owner_priv, alice_pub, alice_priv, ops) = setup_group();
         let mut state = GroupState::new(gid);
-        for op in &ops { state.apply_op(op).unwrap(); }
+        for op in &ops {
+            state.apply_op(op).unwrap();
+        }
 
         let msg = op_msg_add(gid, alice_pub, &alice_priv, [0x01; 32], 4, 400);
         state.apply_op(&msg).unwrap();
@@ -727,10 +830,14 @@ mod tests {
     fn test_heads_accumulate_in_v1() {
         let (gid, _owner_pub, _owner_priv, alice_pub, alice_priv, ops) = setup_group();
         let mut state = GroupState::new(gid);
-        for op in &ops { state.apply_op(op).unwrap(); }
+        for op in &ops {
+            state.apply_op(op).unwrap();
+        }
         assert_eq!(state.heads.len(), 3);
 
-        state.apply_op(&op_msg_add(gid, alice_pub, &alice_priv, [0x01; 32], 4, 400)).unwrap();
+        state
+            .apply_op(&op_msg_add(gid, alice_pub, &alice_priv, [0x01; 32], 4, 400))
+            .unwrap();
         assert_eq!(state.heads.len(), 4);
     }
 
@@ -738,14 +845,25 @@ mod tests {
     fn test_max_lamport_tracked() {
         let (gid, owner_pub, _owner_priv, alice_pub, alice_priv, ops) = setup_group();
         let mut state = GroupState::new(gid);
-        for op in &ops { state.apply_op(op).unwrap(); }
+        for op in &ops {
+            state.apply_op(op).unwrap();
+        }
 
         let owner_dev = DeviceID::from_pubkey(&owner_pub);
         let alice_dev = DeviceID::from_pubkey(&alice_pub);
         assert_eq!(state.max_lamport[&owner_dev], 2);
         assert_eq!(state.max_lamport[&alice_dev], 3);
 
-        state.apply_op(&op_msg_add(gid, alice_pub, &alice_priv, [0x01; 32], 10, 1000)).unwrap();
+        state
+            .apply_op(&op_msg_add(
+                gid,
+                alice_pub,
+                &alice_priv,
+                [0x01; 32],
+                10,
+                1000,
+            ))
+            .unwrap();
         assert_eq!(state.max_lamport[&alice_dev], 10);
     }
 }

@@ -1,7 +1,7 @@
 use lru::LruCache;
-use std::sync::Mutex;
 use once_cell::sync::Lazy;
 use std::num::NonZeroUsize;
+use std::sync::Mutex;
 
 /// Replay cache entry: (sender_pubkey, ping_hash) -> timestamp
 type CacheKey = ([u8; 32], [u8; 32]);
@@ -27,8 +27,10 @@ pub fn check_ping_replay(sender_pubkey: [u8; 32], ping_hash: [u8; 32]) -> bool {
 
     if cache.contains(&key) {
         // Replay detected!
-        log::warn!("REPLAY ATTACK: Duplicate PING detected from sender {}",
-            hex::encode(&sender_pubkey[..8]));
+        log::warn!(
+            "REPLAY ATTACK: Duplicate PING detected from sender {}",
+            hex::encode(&sender_pubkey[..8])
+        );
         return false;
     }
 

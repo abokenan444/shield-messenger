@@ -13,15 +13,14 @@
 /// - X25519 public:               32 bytes
 /// - X25519 secret:               32 bytes
 /// - Combined secret:             64 bytes (BLAKE3-KDF(X25519 ‖ ML-KEM))
-
 use ml_kem::kem::{Decapsulate, Encapsulate};
 use ml_kem::{Encoded, EncodedSizeUser, KemCore, MlKem1024, MlKem1024Params};
 use rand::rngs::OsRng;
+use rand::{RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
-use rand::{SeedableRng, RngCore};
 use thiserror::Error;
+use x25519_dalek::{PublicKey, StaticSecret};
 use zeroize::Zeroize;
-use x25519_dalek::{StaticSecret, PublicKey};
 
 use crate::crypto::key_exchange;
 
@@ -95,7 +94,10 @@ fn combine_shared_secrets(x25519_ss: &[u8; 32], mlkem_ss: &[u8]) -> Vec<u8> {
     let kdf = blake3::derive_key("ShieldMessenger-HybridKEM-X25519-Kyber1024-v1", &input);
     let mut combined = Vec::with_capacity(64);
     combined.extend_from_slice(&kdf);
-    let kdf2 = blake3::derive_key("ShieldMessenger-HybridKEM-X25519-Kyber1024-v1-expand", &input);
+    let kdf2 = blake3::derive_key(
+        "ShieldMessenger-HybridKEM-X25519-Kyber1024-v1-expand",
+        &input,
+    );
     combined.extend_from_slice(&kdf2);
     combined
 }
@@ -160,14 +162,14 @@ pub fn hybrid_encapsulate(
         .map_err(|e| PqcError::X25519Error(e.to_string()))?;
 
     // Reconstruct ML-KEM-1024 EncapsulationKey from raw bytes
-    let ek_encoded = Encoded::<ml_kem::kem::EncapsulationKey<MlKem1024Params>>::try_from(
-        recipient_mlkem_public,
-    )
-    .map_err(|_| PqcError::InvalidKeyLength)?;
+    let ek_encoded =
+        Encoded::<ml_kem::kem::EncapsulationKey<MlKem1024Params>>::try_from(recipient_mlkem_public)
+            .map_err(|_| PqcError::InvalidKeyLength)?;
     let ek = ml_kem::kem::EncapsulationKey::<MlKem1024Params>::from_bytes(&ek_encoded);
 
     // ML-KEM-1024 encapsulation
-    let (ct, mlkem_ss) = ek.encapsulate(&mut OsRng)
+    let (ct, mlkem_ss) = ek
+        .encapsulate(&mut OsRng)
         .map_err(|_| PqcError::EncapsulateFailed)?;
 
     // Combine shared secrets via BLAKE3-KDF
@@ -201,26 +203,26 @@ pub fn hybrid_decapsulate(
     }
 
     // X25519 recover shared secret
-    let x25519_shared = key_exchange::derive_shared_secret(our_x25519_secret, x25519_ephemeral_public)
-        .map_err(|e| PqcError::X25519Error(e.to_string()))?;
+    let x25519_shared =
+        key_exchange::derive_shared_secret(our_x25519_secret, x25519_ephemeral_public)
+            .map_err(|e| PqcError::X25519Error(e.to_string()))?;
 
     // Reconstruct ML-KEM-1024 DecapsulationKey from raw bytes
-    let dk_encoded = Encoded::<ml_kem::kem::DecapsulationKey<MlKem1024Params>>::try_from(
-        our_mlkem_secret,
-    )
-    .map_err(|_| PqcError::InvalidKeyLength)?;
+    let dk_encoded =
+        Encoded::<ml_kem::kem::DecapsulationKey<MlKem1024Params>>::try_from(our_mlkem_secret)
+            .map_err(|_| PqcError::InvalidKeyLength)?;
     let dk = ml_kem::kem::DecapsulationKey::<MlKem1024Params>::from_bytes(&dk_encoded);
 
     // Reconstruct ciphertext from raw bytes
     // ml_kem::Ciphertext<MlKem1024> is Array<u8, CiphertextSize>
     // We use Encoded<EncapsulationKey> trick won't work; instead use Ciphertext type alias
-    let ct: ml_kem::Ciphertext<MlKem1024> = ml_kem::Ciphertext::<MlKem1024>::try_from(
-        mlkem_ciphertext,
-    )
-    .map_err(|_| PqcError::InvalidKeyLength)?;
+    let ct: ml_kem::Ciphertext<MlKem1024> =
+        ml_kem::Ciphertext::<MlKem1024>::try_from(mlkem_ciphertext)
+            .map_err(|_| PqcError::InvalidKeyLength)?;
 
     // ML-KEM-1024 decapsulation
-    let mlkem_ss = dk.decapsulate(&ct)
+    let mlkem_ss = dk
+        .decapsulate(&ct)
         .map_err(|_| PqcError::DecapsulateFailed)?;
 
     // Combine via BLAKE3-KDF
@@ -274,11 +276,7 @@ pub fn generate_safety_number(our_identity: &[u8], their_identity: &[u8]) -> Str
 }
 
 /// Verify a safety number matches expected value (constant-time comparison)
-pub fn verify_safety_number(
-    our_identity: &[u8],
-    their_identity: &[u8],
-    expected: &str,
-) -> bool {
+pub fn verify_safety_number(our_identity: &[u8], their_identity: &[u8], expected: &str) -> bool {
     let computed = generate_safety_number(our_identity, their_identity);
     use subtle::ConstantTimeEq;
     computed.as_bytes().ct_eq(expected.as_bytes()).into()
@@ -304,7 +302,7 @@ pub enum TrustLevel {
     /// Level 1 — encrypted channel established, fingerprint NOT verified
     Encrypted = 1,
     /// Level 2 — identity verified via QR safety-number scan
-    Verified  = 2,
+    Verified = 2,
 }
 
 impl TrustLevel {
@@ -323,7 +321,7 @@ impl TrustLevel {
         match self {
             TrustLevel::Untrusted => "Untrusted",
             TrustLevel::Encrypted => "Encrypted",
-            TrustLevel::Verified  => "Verified",
+            TrustLevel::Verified => "Verified",
         }
     }
 
@@ -493,7 +491,11 @@ pub fn verify_contact_fingerprint(
     let computed = generate_safety_number(our_identity, &payload.identity_key);
 
     use subtle::ConstantTimeEq;
-    if computed.as_bytes().ct_eq(payload.safety_number.as_bytes()).into() {
+    if computed
+        .as_bytes()
+        .ct_eq(payload.safety_number.as_bytes())
+        .into()
+    {
         VerificationStatus::Verified
     } else {
         VerificationStatus::Mismatch
@@ -540,7 +542,8 @@ mod tests {
             &ct.kyber_ciphertext,
             &keypair.x25519_secret,
             &keypair.kyber_secret,
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(ct.shared_secret, recovered);
     }
@@ -566,8 +569,16 @@ mod tests {
         let kp1 = generate_hybrid_keypair_random().unwrap();
         let kp2 = generate_hybrid_keypair_random().unwrap();
         let sn = generate_safety_number(&kp1.x25519_public, &kp2.x25519_public);
-        assert!(verify_safety_number(&kp1.x25519_public, &kp2.x25519_public, &sn));
-        assert!(!verify_safety_number(&kp1.x25519_public, &kp2.x25519_public, "00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000"));
+        assert!(verify_safety_number(
+            &kp1.x25519_public,
+            &kp2.x25519_public,
+            &sn
+        ));
+        assert!(!verify_safety_number(
+            &kp1.x25519_public,
+            &kp2.x25519_public,
+            "00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000 00000"
+        ));
     }
 
     #[test]
@@ -673,11 +684,7 @@ mod tests {
     fn test_identity_key_change_first_seen() {
         let kp1 = generate_hybrid_keypair_random().unwrap();
         let kp2 = generate_hybrid_keypair_random().unwrap();
-        let result = detect_identity_key_change(
-            &kp1.x25519_public,
-            None,
-            &kp2.x25519_public,
-        );
+        let result = detect_identity_key_change(&kp1.x25519_public, None, &kp2.x25519_public);
         assert_eq!(result, IdentityKeyChangeResult::FirstSeen);
     }
 
@@ -704,7 +711,10 @@ mod tests {
             &kp3.x25519_public,
         );
         match result {
-            IdentityKeyChangeResult::Changed { previous_fingerprint, new_fingerprint } => {
+            IdentityKeyChangeResult::Changed {
+                previous_fingerprint,
+                new_fingerprint,
+            } => {
                 assert_ne!(previous_fingerprint, new_fingerprint);
                 // Verify the fingerprints are valid safety numbers
                 assert_eq!(previous_fingerprint.split(' ').count(), 12);

@@ -36,7 +36,8 @@ pub fn fixed_packet_size() -> usize {
 pub fn set_fixed_packet_size(size: usize) {
     assert!(
         matches!(size, 4096 | 8192 | 16384),
-        "FIXED_PACKET_SIZE must be 4096, 8192, or 16384 (got {})", size
+        "FIXED_PACKET_SIZE must be 4096, 8192, or 16384 (got {})",
+        size
     );
     RUNTIME_PACKET_SIZE.store(size, Ordering::Relaxed);
     log::info!("FIXED_PACKET_SIZE set to {} bytes", size);
@@ -78,7 +79,8 @@ pub enum PaddingError {
 /// Pad `payload` to exactly `fixed_packet_size()`. Layout: [len:2 BE][payload][random_padding].
 pub fn pad_to_fixed_size(payload: &[u8]) -> Result<Vec<u8>, PaddingError> {
     let pkt = fixed_packet_size();
-    let max_payload = pkt.checked_sub(PAYLOAD_LEN_FIELD)
+    let max_payload = pkt
+        .checked_sub(PAYLOAD_LEN_FIELD)
         .ok_or(PaddingError::InvalidPaddedPayload)?;
     if payload.len() > max_payload {
         return Err(PaddingError::PayloadTooLarge(max_payload));
@@ -133,8 +135,8 @@ pub fn random_traffic_delay_ms() -> u64 {
         return 400;
     }
     let u = u32::from_ne_bytes(buf) as f64 / u32::MAX as f64; // uniform [0,1)
-    // Inverse CDF of truncated exponential on [min, max]:
-    //   x = min - ln(1 - u*(1 - exp(-lambda*(max-min)))) / lambda
+                                                              // Inverse CDF of truncated exponential on [min, max]:
+                                                              //   x = min - ln(1 - u*(1 - exp(-lambda*(max-min)))) / lambda
     let range = (DELAY_MAX_MS - DELAY_MIN_MS) as f64;
     let exp_term = 1.0 - (-DELAY_LAMBDA * range).exp();
     let sample = DELAY_MIN_MS as f64 - (1.0 - u * exp_term).ln() / DELAY_LAMBDA;
@@ -183,7 +185,8 @@ pub fn random_cover_interval_secs() -> u64 {
     if getrandom(&mut buf).is_err() {
         return 60;
     }
-    COVER_INTERVAL_MIN_SECS + (buf[0] as u64 % (COVER_INTERVAL_MAX_SECS - COVER_INTERVAL_MIN_SECS + 1))
+    COVER_INTERVAL_MIN_SECS
+        + (buf[0] as u64 % (COVER_INTERVAL_MAX_SECS - COVER_INTERVAL_MIN_SECS + 1))
 }
 
 // ---------------------------------------------------------------------------
@@ -242,7 +245,9 @@ impl Default for BurstPaddingConfig {
 /// Returns (pre_burst_packets, post_burst_packets) — each is a Vec of padded cover packets.
 /// The caller should send pre_burst packets, then the real message, then post_burst packets,
 /// with random delays between each.
-pub fn generate_burst_padding(config: &BurstPaddingConfig) -> Result<(Vec<Vec<u8>>, Vec<Vec<u8>>), PaddingError> {
+pub fn generate_burst_padding(
+    config: &BurstPaddingConfig,
+) -> Result<(Vec<Vec<u8>>, Vec<Vec<u8>>), PaddingError> {
     if !config.enabled {
         return Ok((Vec::new(), Vec::new()));
     }
@@ -308,9 +313,11 @@ impl TrafficProfile {
             TrafficProfile::LowLatency => (90, 120),
             TrafficProfile::Balanced => (COVER_INTERVAL_MIN_SECS, COVER_INTERVAL_MAX_SECS),
             TrafficProfile::MaxPrivacy => (10, 30),
-            TrafficProfile::Custom { cover_interval_min_secs, cover_interval_max_secs, .. } => {
-                (*cover_interval_min_secs, *cover_interval_max_secs)
-            }
+            TrafficProfile::Custom {
+                cover_interval_min_secs,
+                cover_interval_max_secs,
+                ..
+            } => (*cover_interval_min_secs, *cover_interval_max_secs),
         }
     }
 
@@ -320,9 +327,11 @@ impl TrafficProfile {
             TrafficProfile::LowLatency => (100, 300),
             TrafficProfile::Balanced => (DELAY_MIN_MS, DELAY_MAX_MS),
             TrafficProfile::MaxPrivacy => (400, 1200),
-            TrafficProfile::Custom { delay_min_ms, delay_max_ms, .. } => {
-                (*delay_min_ms, *delay_max_ms)
-            }
+            TrafficProfile::Custom {
+                delay_min_ms,
+                delay_max_ms,
+                ..
+            } => (*delay_min_ms, *delay_max_ms),
         }
     }
 
@@ -390,7 +399,7 @@ impl TrafficProfile {
 /// Total overhead per fragment: 6 bytes (len + seq + total).
 pub fn fragment_and_pad(payload: &[u8]) -> Result<Vec<Vec<u8>>, PaddingError> {
     let pkt = fixed_packet_size();
-    let header_overhead = 6; // 2 (len) + 2 (seq) + 2 (total) — but len is already in pad_to_fixed_size
+    let _header_overhead = 6; // 2 (len) + 2 (seq) + 2 (total) — but len is already in pad_to_fixed_size
     let fragment_overhead = 4; // seq:2 + total:2 (inside the payload passed to pad_to_fixed_size)
     let max_fragment_data = pkt - PAYLOAD_LEN_FIELD - fragment_overhead;
 
@@ -399,9 +408,11 @@ pub fn fragment_and_pad(payload: &[u8]) -> Result<Vec<Vec<u8>>, PaddingError> {
         return Ok(vec![pad_to_fixed_size(payload)?]);
     }
 
-    let fragment_count = (payload.len() + max_fragment_data - 1) / max_fragment_data;
+    let fragment_count = payload.len().div_ceil(max_fragment_data);
     if fragment_count > u16::MAX as usize {
-        return Err(PaddingError::PayloadTooLarge(max_fragment_data * u16::MAX as usize));
+        return Err(PaddingError::PayloadTooLarge(
+            max_fragment_data * u16::MAX as usize,
+        ));
     }
 
     let total = fragment_count as u16;
@@ -432,7 +443,9 @@ pub fn reassemble_fragments(fragments: &[Vec<u8>]) -> Result<Vec<u8>, PaddingErr
     let first_stripped = strip_padding(&fragments[0])?;
     if fragments.len() == 1 && first_stripped.len() >= 4 {
         let total = u16::from_be_bytes(
-            first_stripped[2..4].try_into().map_err(|_| PaddingError::InvalidPaddedPayload)?
+            first_stripped[2..4]
+                .try_into()
+                .map_err(|_| PaddingError::InvalidPaddedPayload)?,
         );
         if total <= 1 {
             // Could be a fragment with total=1, extract data after header
@@ -569,7 +582,11 @@ mod tests {
 
         for _ in 0..50 {
             let d = profile.random_delay_ms();
-            assert!((100..=300).contains(&d), "low latency delay {} out of range", d);
+            assert!(
+                (100..=300).contains(&d),
+                "low latency delay {} out of range",
+                d
+            );
         }
     }
 

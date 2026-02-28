@@ -5,7 +5,6 @@
 /// permanent tombstones — once deleted, edits are silently ignored.
 ///
 /// Reactions are a per-(device, emoji) map with boolean present/absent state.
-
 use std::collections::BTreeMap;
 use thiserror::Error;
 
@@ -71,6 +70,12 @@ pub struct MessageEntry {
 #[derive(Clone, Debug)]
 pub struct MessageState {
     pub(crate) messages: BTreeMap<[u8; 32], MessageEntry>,
+}
+
+impl Default for MessageState {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MessageState {
@@ -243,7 +248,8 @@ impl MessageState {
         }
 
         let author = DeviceID::from_pubkey(&op.author_pubkey);
-        msg.reactions.insert((author, payload.emoji), payload.present);
+        msg.reactions
+            .insert((author, payload.emoji), payload.present);
 
         Ok(())
     }
@@ -335,7 +341,9 @@ mod tests {
         .unwrap();
         membership.apply_member_accept(&accept_op).unwrap();
 
-        (membership, gid, owner_pub, owner_priv, alice_pub, alice_priv)
+        (
+            membership, gid, owner_pub, owner_priv, alice_pub, alice_priv,
+        )
     }
 
     fn make_msg_add(
@@ -515,27 +523,11 @@ mod tests {
         messages.apply_msg_add(&add_op).unwrap();
 
         // Edit at lamport=6
-        let edit1 = make_msg_edit(
-            gid,
-            alice_pub,
-            &alice_priv,
-            msg_id,
-            vec![0x11],
-            6,
-            600,
-        );
+        let edit1 = make_msg_edit(gid, alice_pub, &alice_priv, msg_id, vec![0x11], 6, 600);
         messages.apply_msg_edit(&edit1).unwrap();
 
         // Stale edit at lamport=5 — should be ignored
-        let edit2 = make_msg_edit(
-            gid,
-            alice_pub,
-            &alice_priv,
-            msg_id,
-            vec![0x22],
-            5,
-            500,
-        );
+        let edit2 = make_msg_edit(gid, alice_pub, &alice_priv, msg_id, vec![0x22], 5, 500);
         messages.apply_msg_edit(&edit2).unwrap();
 
         let msg = messages.get_message(&msg_id).unwrap();
@@ -551,24 +543,8 @@ mod tests {
         let add_op = make_msg_add(gid, alice_pub, &alice_priv, msg_id, 4, 400);
 
         // Two edits at same lamport, different nonces
-        let edit_a = make_msg_edit(
-            gid,
-            alice_pub,
-            &alice_priv,
-            msg_id,
-            vec![0xAA],
-            5,
-            100,
-        );
-        let edit_b = make_msg_edit(
-            gid,
-            alice_pub,
-            &alice_priv,
-            msg_id,
-            vec![0xBB],
-            5,
-            999,
-        );
+        let edit_a = make_msg_edit(gid, alice_pub, &alice_priv, msg_id, vec![0xAA], 5, 100);
+        let edit_b = make_msg_edit(gid, alice_pub, &alice_priv, msg_id, vec![0xBB], 5, 999);
 
         // Order A then B
         let mut state_ab = MessageState::new();
@@ -602,15 +578,7 @@ mod tests {
         messages.apply_msg_add(&add_op).unwrap();
 
         // Owner tries to edit Alice's message — should fail
-        let edit_op = make_msg_edit(
-            gid,
-            owner_pub,
-            &owner_priv,
-            msg_id,
-            vec![0xFF],
-            5,
-            500,
-        );
+        let edit_op = make_msg_edit(gid, owner_pub, &owner_priv, msg_id, vec![0xFF], 5, 500);
         let err = messages.apply_msg_edit(&edit_op).unwrap_err();
         assert!(matches!(err, MessageError::NotMessageAuthor));
     }
@@ -689,15 +657,7 @@ mod tests {
         messages.apply_msg_delete(&del_op, &membership).unwrap();
 
         // Edit at lamport=6 (arrives after delete) — should be silently ignored
-        let edit_op = make_msg_edit(
-            gid,
-            alice_pub,
-            &alice_priv,
-            msg_id,
-            vec![0xFF],
-            6,
-            600,
-        );
+        let edit_op = make_msg_edit(gid, alice_pub, &alice_priv, msg_id, vec![0xFF], 6, 600);
         messages.apply_msg_edit(&edit_op).unwrap(); // no error
 
         let msg = messages.get_message(&msg_id).unwrap();
@@ -737,7 +697,16 @@ mod tests {
         messages.apply_msg_add(&add_op).unwrap();
 
         // Owner adds a reaction
-        let react_add = make_reaction(gid, owner_pub, &owner_priv, msg_id, "\u{1F44D}", true, 5, 500);
+        let react_add = make_reaction(
+            gid,
+            owner_pub,
+            &owner_priv,
+            msg_id,
+            "\u{1F44D}",
+            true,
+            5,
+            500,
+        );
         messages.apply_reaction_set(&react_add).unwrap();
 
         let owner_device = DeviceID::from_pubkey(&owner_pub);
@@ -748,8 +717,16 @@ mod tests {
         );
 
         // Owner removes the reaction
-        let react_remove =
-            make_reaction(gid, owner_pub, &owner_priv, msg_id, "\u{1F44D}", false, 6, 600);
+        let react_remove = make_reaction(
+            gid,
+            owner_pub,
+            &owner_priv,
+            msg_id,
+            "\u{1F44D}",
+            false,
+            6,
+            600,
+        );
         messages.apply_reaction_set(&react_remove).unwrap();
 
         let msg = messages.get_message(&msg_id).unwrap();
@@ -773,7 +750,16 @@ mod tests {
         messages.apply_msg_delete(&del_op, &membership).unwrap();
 
         // Reaction on deleted message — silently ignored
-        let react = make_reaction(gid, owner_pub, &owner_priv, msg_id, "\u{1F602}", true, 6, 600);
+        let react = make_reaction(
+            gid,
+            owner_pub,
+            &owner_priv,
+            msg_id,
+            "\u{1F602}",
+            true,
+            6,
+            600,
+        );
         messages.apply_reaction_set(&react).unwrap();
 
         let msg = messages.get_message(&msg_id).unwrap();
@@ -788,7 +774,16 @@ mod tests {
         let mut messages = MessageState::new();
         let unknown_id = [0xFF; 32];
 
-        let react = make_reaction(gid, owner_pub, &owner_priv, unknown_id, "\u{1F44D}", true, 4, 400);
+        let react = make_reaction(
+            gid,
+            owner_pub,
+            &owner_priv,
+            unknown_id,
+            "\u{1F44D}",
+            true,
+            4,
+            400,
+        );
         messages.apply_reaction_set(&react).unwrap(); // no error
     }
 
@@ -803,10 +798,26 @@ mod tests {
         messages.apply_msg_add(&add_op).unwrap();
 
         // Both react with same emoji
-        let react_owner =
-            make_reaction(gid, owner_pub, &owner_priv, msg_id, "\u{1F44D}", true, 5, 500);
-        let react_alice =
-            make_reaction(gid, alice_pub, &alice_priv, msg_id, "\u{1F44D}", true, 6, 600);
+        let react_owner = make_reaction(
+            gid,
+            owner_pub,
+            &owner_priv,
+            msg_id,
+            "\u{1F44D}",
+            true,
+            5,
+            500,
+        );
+        let react_alice = make_reaction(
+            gid,
+            alice_pub,
+            &alice_priv,
+            msg_id,
+            "\u{1F44D}",
+            true,
+            6,
+            600,
+        );
 
         messages.apply_reaction_set(&react_owner).unwrap();
         messages.apply_reaction_set(&react_alice).unwrap();

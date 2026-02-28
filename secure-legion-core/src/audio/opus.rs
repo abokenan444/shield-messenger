@@ -1,10 +1,10 @@
-use jni::JNIEnv;
 use jni::objects::{JByteArray, JClass};
 use jni::sys::{jbyteArray, jint, jlong, jstring};
-use opus::{Decoder as OpusDecoder, Channels};
-use std::sync::Mutex;
+use jni::JNIEnv;
+use opus::{Channels, Decoder as OpusDecoder};
 use std::ffi::CStr;
-use std::os::raw::{c_void, c_int};
+use std::os::raw::{c_int, c_void};
+use std::sync::Mutex;
 
 // Sample rate: 48kHz (Opus native rate)
 const SAMPLE_RATE: i32 = 48000;
@@ -35,7 +35,6 @@ extern "C" {
         max_data_bytes: c_int,
     ) -> c_int;
 }
-
 
 /// Create Opus encoder with FEC, DTX, and optimized settings for Tor voice calls
 /// Uses raw libopus FFI for full control - no unsafe transmute needed
@@ -114,7 +113,7 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_opusEncoderCreate(
                 // Enable constraint for predictable bandwidth
                 crate::audio::opus_ctl::opus_set_vbr_constraint(encoder_ptr, true).ok();
                 true
-            },
+            }
             Err(e) => {
                 log::warn!("Failed to enable VBR: error={} (non-fatal)", e);
                 false
@@ -124,7 +123,7 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_opusEncoderCreate(
         // Cap max bandwidth to WIDEBAND (8 kHz) for voice - saves bits
         let bandwidth_applied = match crate::audio::opus_ctl::opus_set_max_bandwidth(
             encoder_ptr,
-            1103 // OPUS_BANDWIDTH_WIDEBAND
+            1103, // OPUS_BANDWIDTH_WIDEBAND
         ) {
             Ok(_) => true,
             Err(e) => {
@@ -146,8 +145,8 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_opusEncoderCreate(
         if let Err(e) = crate::audio::opus_ctl::validate_encoder_config(
             encoder_ptr,
             SAMPLE_RATE,
-            8000, // min bitrate
-            128000 // max bitrate
+            8000,   // min bitrate
+            128000, // max bitrate
         ) {
             log::error!("Encoder validation failed: {}", e);
             opus_encoder_destroy(encoder_ptr);

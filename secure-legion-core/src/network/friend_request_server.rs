@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 /// Contact Exchange Endpoint (v2.0 + v5 Contact List Backup + Push Recovery)
 ///
 /// P2P endpoint that listens on localhost and serves contact data:
@@ -9,12 +10,10 @@
 /// This endpoint is accessible via the friend request .onion address.
 /// The friend request .onion serves HTTP (contact cards, contact lists, recovery).
 /// Actual friend request wire protocol messages (0x07/0x08) go over the messaging .onion.
-
 use std::sync::Arc;
-use std::collections::HashMap;
-use tokio::sync::Mutex;
-use tokio::net::TcpListener;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpListener;
+use tokio::sync::Mutex;
 
 /// Recovery state for push-based contact list recovery on new devices.
 /// When a user restores from seed on a new phone, their .onion comes back online.
@@ -44,6 +43,12 @@ pub struct ContactExchangeEndpoint {
     shutdown: Arc<Mutex<bool>>,
     /// Recovery state for new-device push recovery
     recovery: Arc<Mutex<RecoveryState>>,
+}
+
+impl Default for ContactExchangeEndpoint {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ContactExchangeEndpoint {
@@ -86,14 +91,23 @@ impl ContactExchangeEndpoint {
     }
 
     /// Enable recovery mode. Kotlin passes the expected CID and app data dir.
-    pub async fn set_recovery_mode(&self, enabled: bool, expected_cid: Option<String>, data_dir: Option<String>) {
+    pub async fn set_recovery_mode(
+        &self,
+        enabled: bool,
+        expected_cid: Option<String>,
+        data_dir: Option<String>,
+    ) {
         let mut state = self.recovery.lock().await;
         state.mode = enabled;
         state.expected_cid = expected_cid;
         state.data_dir = data_dir;
         state.file_written = false;
-        log::info!("Recovery mode: {} (has cid: {}, has dir: {})",
-            enabled, state.expected_cid.is_some(), state.data_dir.is_some());
+        log::info!(
+            "Recovery mode: {} (has cid: {}, has dir: {})",
+            enabled,
+            state.expected_cid.is_some(),
+            state.data_dir.is_some()
+        );
     }
 
     /// Check if a recovery blob has been written to disk (Kotlin polls this)
@@ -156,9 +170,10 @@ impl ContactExchangeEndpoint {
 
                 // Spawn a task to handle this connection
                 tokio::spawn(async move {
-                    if let Err(e) = handle_connection(
-                        &mut socket, contact_card, cid, contact_lists, recovery
-                    ).await {
+                    if let Err(e) =
+                        handle_connection(&mut socket, contact_card, cid, contact_lists, recovery)
+                            .await
+                    {
                         log::error!("Error handling connection: {}", e);
                     }
                 });
@@ -233,9 +248,7 @@ async fn handle_connection(
     }
 
     // Find header/body boundary in raw bytes
-    let header_end_pos = buffer[..n]
-        .windows(4)
-        .position(|w| w == b"\r\n\r\n");
+    let header_end_pos = buffer[..n].windows(4).position(|w| w == b"\r\n\r\n");
 
     let (headers_str, body_start) = match header_end_pos {
         Some(pos) => {
@@ -286,7 +299,9 @@ async fn handle_connection(
             let remaining = content_length - body_bytes.len();
             let mut tmp = vec![0u8; remaining.min(8192)];
             let read = socket.read(&mut tmp).await?;
-            if read == 0 { break; }
+            if read == 0 {
+                break;
+            }
             body_bytes.extend_from_slice(&tmp[..read]);
         }
 
@@ -340,7 +355,11 @@ async fn handle_connection(
                 socket.write_all(response.as_bytes()).await?;
                 socket.write_all(list_data).await?;
 
-                log::info!("Served contact list for CID: {} ({} bytes)", requested_cid, list_data.len());
+                log::info!(
+                    "Served contact list for CID: {} ({} bytes)",
+                    requested_cid,
+                    list_data.len()
+                );
             } else {
                 let response = "HTTP/1.1 404 Not Found\r\n\r\nContact list not found";
                 socket.write_all(response.as_bytes()).await?;
@@ -373,7 +392,7 @@ async fn handle_connection(
             let pushed_cid = &p[16..]; // Skip "/recovery/push/"
 
             // Gate 1: Must be in recovery mode
-            let mut state = recovery.lock().await;
+            let state = recovery.lock().await;
             if !state.mode {
                 let response = "HTTP/1.1 403 Forbidden\r\n\r\n";
                 socket.write_all(response.as_bytes()).await?;
@@ -396,8 +415,11 @@ async fn handle_connection(
             if pushed_cid != expected_cid {
                 let response = "HTTP/1.1 403 Forbidden\r\n\r\n";
                 socket.write_all(response.as_bytes()).await?;
-                log::warn!("Recovery push rejected: CID mismatch (got: {}, expected: {})",
-                    pushed_cid, expected_cid);
+                log::warn!(
+                    "Recovery push rejected: CID mismatch (got: {}, expected: {})",
+                    pushed_cid,
+                    expected_cid
+                );
                 return Ok(());
             }
 
@@ -456,7 +478,11 @@ async fn handle_connection(
             let mut state = recovery.lock().await;
             state.file_written = true;
 
-            log::info!("Recovery push: wrote {} bytes to {}", body_bytes.len(), file_path);
+            log::info!(
+                "Recovery push: wrote {} bytes to {}",
+                body_bytes.len(),
+                file_path
+            );
 
             let response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
             socket.write_all(response.as_bytes()).await?;

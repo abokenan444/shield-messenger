@@ -15,11 +15,11 @@ describe('I18nProvider + useTranslation', () => {
     localStorage.clear();
   });
 
-  it('should default to Arabic locale', () => {
+  it('should default to English locale', () => {
     const { result } = renderHook(() => useTranslation(), { wrapper });
-    expect(result.current.locale).toBe('ar');
-    expect(result.current.dir).toBe('rtl');
-    expect(result.current.t.langName).toBe('العربية');
+    expect(result.current.locale).toBe('en');
+    expect(result.current.dir).toBe('ltr');
+    expect(result.current.t.langName).toBe('English');
   });
 
   it('should switch to English', () => {
@@ -52,8 +52,8 @@ describe('I18nProvider + useTranslation', () => {
     act(() => {
       result.current.setLocale('invalid-code!!' as any);
     });
-    // Should still be Arabic (the default)
-    expect(result.current.locale).toBe('ar');
+    // Should still be English (the default)
+    expect(result.current.locale).toBe('en');
   });
 
   it('should provide all translation keys', () => {

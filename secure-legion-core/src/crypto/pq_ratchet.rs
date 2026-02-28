@@ -13,8 +13,13 @@ use crate::crypto::encryption::{
     derive_incoming_chain_key, derive_message_key, derive_outgoing_chain_key, derive_root_key,
     evolve_chain_key, EncryptionError,
 };
-use crate::crypto::pqc::{hybrid_decapsulate, hybrid_encapsulate, HybridCiphertext, HybridKEMKeypair};
-use chacha20poly1305::{aead::{Aead, KeyInit, OsRng}, XChaCha20Poly1305, XNonce};
+use crate::crypto::pqc::{
+    hybrid_decapsulate, hybrid_encapsulate, HybridCiphertext, HybridKEMKeypair,
+};
+use chacha20poly1305::{
+    aead::{Aead, KeyInit, OsRng},
+    XChaCha20Poly1305, XNonce,
+};
 use rand::RngCore;
 use std::collections::HashMap;
 use std::fmt;
@@ -130,7 +135,8 @@ impl PQRatchetState {
         let mut nonce_bytes = [0u8; 24];
         OsRng.fill_bytes(&mut nonce_bytes);
         let nonce = XNonce::from_slice(&nonce_bytes);
-        let ciphertext = cipher.encrypt(nonce, plaintext)
+        let ciphertext = cipher
+            .encrypt(nonce, plaintext)
             .map_err(|_| EncryptionError::EncryptionFailed)?;
         message_key.zeroize();
 
@@ -145,14 +151,19 @@ impl PQRatchetState {
     /// Decrypt a message, handling out-of-order delivery via skipped-key cache.
     pub fn decrypt(&mut self, encrypted_data: &[u8]) -> Result<Vec<u8>, PQRatchetError> {
         if encrypted_data.len() < 1 + 8 + 24 + 16 {
-            return Err(PQRatchetError::Encryption(EncryptionError::DecryptionFailed));
+            return Err(PQRatchetError::Encryption(
+                EncryptionError::DecryptionFailed,
+            ));
         }
         if encrypted_data[0] != 0x01 {
-            return Err(PQRatchetError::Encryption(EncryptionError::DecryptionFailed));
+            return Err(PQRatchetError::Encryption(
+                EncryptionError::DecryptionFailed,
+            ));
         }
         let sequence = u64::from_be_bytes(
-            encrypted_data[1..9].try_into()
-                .map_err(|_| EncryptionError::DecryptionFailed)?
+            encrypted_data[1..9]
+                .try_into()
+                .map_err(|_| EncryptionError::DecryptionFailed)?,
         );
         let nonce_bytes = &encrypted_data[9..33];
         let ciphertext = &encrypted_data[33..];
@@ -195,12 +206,16 @@ impl PQRatchetState {
     }
 
     fn decrypt_with_key(
-        &self, key: &[u8; 32], nonce_bytes: &[u8], ciphertext: &[u8],
+        &self,
+        key: &[u8; 32],
+        nonce_bytes: &[u8],
+        ciphertext: &[u8],
     ) -> Result<Vec<u8>, PQRatchetError> {
         let cipher = XChaCha20Poly1305::new_from_slice(key)
             .map_err(|_| EncryptionError::InvalidKeyLength)?;
         let nonce = XNonce::from_slice(nonce_bytes);
-        let plaintext = cipher.decrypt(nonce, ciphertext)
+        let plaintext = cipher
+            .decrypt(nonce, ciphertext)
             .map_err(|_| EncryptionError::DecryptionFailed)?;
         Ok(plaintext)
     }
@@ -231,7 +246,8 @@ impl PQRatchetState {
             &ciphertext.kyber_ciphertext,
             &our_keypair.x25519_secret,
             &our_keypair.kyber_secret,
-        ).map_err(|_| PQRatchetError::Kem)?;
+        )
+        .map_err(|_| PQRatchetError::Kem)?;
 
         self.apply_new_root(&new_shared_secret)?;
         self.kem_ratchet_count += 1;
@@ -292,7 +308,9 @@ impl PQRatchetState {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::crypto::pqc::{generate_hybrid_keypair_from_seed, hybrid_encapsulate, hybrid_decapsulate};
+    use crate::crypto::pqc::{
+        generate_hybrid_keypair_from_seed, hybrid_decapsulate, hybrid_encapsulate,
+    };
 
     fn make_pair() -> (PQRatchetState, PQRatchetState) {
         let mut seed = [0u8; 32];
@@ -302,10 +320,19 @@ mod tests {
         OsRng.fill_bytes(&mut seed2);
         let bob_kp = generate_hybrid_keypair_from_seed(&seed2).unwrap();
         let ct = hybrid_encapsulate(&bob_kp.x25519_public, &bob_kp.kyber_public).unwrap();
-        let bob_shared = hybrid_decapsulate(&ct.x25519_ephemeral_public, &ct.kyber_ciphertext, &bob_kp.x25519_secret, &bob_kp.kyber_secret).unwrap();
+        let bob_shared = hybrid_decapsulate(
+            &ct.x25519_ephemeral_public,
+            &ct.kyber_ciphertext,
+            &bob_kp.x25519_secret,
+            &bob_kp.kyber_secret,
+        )
+        .unwrap();
         assert_eq!(ct.shared_secret, bob_shared);
-        let alice = PQRatchetState::from_hybrid_secret(&ct.shared_secret, "alice.onion", "bob.onion").unwrap();
-        let bob = PQRatchetState::from_hybrid_secret(&bob_shared, "bob.onion", "alice.onion").unwrap();
+        let alice =
+            PQRatchetState::from_hybrid_secret(&ct.shared_secret, "alice.onion", "bob.onion")
+                .unwrap();
+        let bob =
+            PQRatchetState::from_hybrid_secret(&bob_shared, "bob.onion", "alice.onion").unwrap();
         (alice, bob)
     }
 
@@ -389,7 +416,9 @@ mod tests {
         OsRng.fill_bytes(&mut seed);
         let bob_new_kp = generate_hybrid_keypair_from_seed(&seed).unwrap();
         let kyber_pub: &[u8; 1568] = bob_new_kp.kyber_public.as_slice().try_into().unwrap();
-        let kem_ct = alice.kem_ratchet_send(&bob_new_kp.x25519_public, kyber_pub).unwrap();
+        let kem_ct = alice
+            .kem_ratchet_send(&bob_new_kp.x25519_public, kyber_pub)
+            .unwrap();
         bob.kem_ratchet_receive(&bob_new_kp, &kem_ct).unwrap();
 
         // Compromised keys must differ from new state (post-compromise security)

@@ -3,7 +3,6 @@
 /// - `DeviceID`: 16-byte stable device identity derived from Ed25519 pubkey
 /// - `GroupID`: 32-byte unique group identifier
 /// - `OpID`: globally unique, sortable operation identifier
-
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -172,7 +171,11 @@ pub struct OpID {
 impl OpID {
     /// Create a new OpID.
     pub fn new(author: DeviceID, lamport: u64, nonce: u64) -> Self {
-        OpID { author, lamport, nonce }
+        OpID {
+            author,
+            lamport,
+            nonce,
+        }
     }
 
     /// Hex-encode the full OpID for storage keys.
@@ -192,13 +195,16 @@ impl OpID {
         if parts.len() != 3 {
             return Err("OpID hex must have 3 colon-separated parts".into());
         }
-        let author = DeviceID::from_hex(parts[0])
-            .map_err(|e| format!("Bad author hex: {}", e))?;
-        let lamport = u64::from_str_radix(parts[1], 16)
-            .map_err(|e| format!("Bad lamport hex: {}", e))?;
-        let nonce = u64::from_str_radix(parts[2], 16)
-            .map_err(|e| format!("Bad nonce hex: {}", e))?;
-        Ok(OpID { author, lamport, nonce })
+        let author = DeviceID::from_hex(parts[0]).map_err(|e| format!("Bad author hex: {}", e))?;
+        let lamport =
+            u64::from_str_radix(parts[1], 16).map_err(|e| format!("Bad lamport hex: {}", e))?;
+        let nonce =
+            u64::from_str_radix(parts[2], 16).map_err(|e| format!("Bad nonce hex: {}", e))?;
+        Ok(OpID {
+            author,
+            lamport,
+            nonce,
+        })
     }
 }
 

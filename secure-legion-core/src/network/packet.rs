@@ -12,12 +12,11 @@
 ///
 /// The HMAC covers version + type + payload_len + payload + padding to prevent
 /// truncation and bit-flipping attacks on the padding.
-
 use hmac::{Hmac, Mac};
 use rand::RngCore;
+use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use thiserror::Error;
-use serde::{Serialize, Deserialize};
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -93,9 +92,14 @@ impl Packet {
     /// Create a new packet with the given type and payload
     pub fn new(packet_type: PacketType, payload: Vec<u8>) -> Result<Self> {
         if payload.len() > MAX_PAYLOAD {
-            return Err(PacketError::PayloadTooLarge { size: payload.len() });
+            return Err(PacketError::PayloadTooLarge {
+                size: payload.len(),
+            });
         }
-        Ok(Self { packet_type, payload })
+        Ok(Self {
+            packet_type,
+            payload,
+        })
     }
 
     /// Create a cover traffic (dummy) packet
@@ -119,7 +123,9 @@ impl Packet {
     /// Exactly PACKET_SIZE bytes
     pub fn serialize(&self, hmac_key: &[u8; 32]) -> Result<[u8; PACKET_SIZE]> {
         if self.payload.len() > MAX_PAYLOAD {
-            return Err(PacketError::PayloadTooLarge { size: self.payload.len() });
+            return Err(PacketError::PayloadTooLarge {
+                size: self.payload.len(),
+            });
         }
 
         let mut buf = [0u8; PACKET_SIZE];
@@ -141,8 +147,7 @@ impl Packet {
         }
 
         // HMAC over everything except the HMAC field itself
-        let mut mac = <HmacSha256 as Mac>::new_from_slice(hmac_key)
-            .expect("HMAC key length valid");
+        let mut mac = <HmacSha256 as Mac>::new_from_slice(hmac_key).expect("HMAC key length valid");
         mac.update(&buf[..padding_end]);
         let tag = mac.finalize().into_bytes();
         buf[padding_end..].copy_from_slice(&tag);
@@ -162,8 +167,7 @@ impl Packet {
 
         // Verify HMAC first (constant-time)
         let hmac_start = PACKET_SIZE - HMAC_SIZE;
-        let mut mac = <HmacSha256 as Mac>::new_from_slice(hmac_key)
-            .expect("HMAC key length valid");
+        let mut mac = <HmacSha256 as Mac>::new_from_slice(hmac_key).expect("HMAC key length valid");
         mac.update(&data[..hmac_start]);
         mac.verify_slice(&data[hmac_start..])
             .map_err(|_| PacketError::HmacFailed)?;
@@ -174,11 +178,13 @@ impl Packet {
             return Err(PacketError::InvalidVersion(version));
         }
 
-        let packet_type = PacketType::from_u8(data[1])
-            .ok_or(PacketError::InvalidVersion(data[1]))?;
+        let packet_type =
+            PacketType::from_u8(data[1]).ok_or(PacketError::InvalidVersion(data[1]))?;
 
         let payload_len = u32::from_be_bytes(
-            data[2..6].try_into().map_err(|_| PacketError::InvalidPayloadLength)?
+            data[2..6]
+                .try_into()
+                .map_err(|_| PacketError::InvalidPayloadLength)?,
         ) as usize;
 
         if payload_len > MAX_PAYLOAD {
@@ -187,7 +193,10 @@ impl Packet {
 
         let payload = data[HEADER_SIZE..HEADER_SIZE + payload_len].to_vec();
 
-        Ok(Self { packet_type, payload })
+        Ok(Self {
+            packet_type,
+            payload,
+        })
     }
 }
 

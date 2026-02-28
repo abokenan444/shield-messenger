@@ -18,11 +18,10 @@
 /// between the real PIN and the duress PIN. Both produce valid Argon2id
 /// hashes stored in the same format. The duress PIN triggers silent wipe
 /// of all sensitive data and loads a decoy profile.
-
-use serde::{Serialize, Deserialize};
-use zeroize::Zeroize;
-use thiserror::Error;
+use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
+use thiserror::Error;
+use zeroize::Zeroize;
 
 #[derive(Error, Debug)]
 pub enum DuressError {
@@ -155,7 +154,9 @@ impl DuressManager {
 
     /// Create from existing configuration
     pub fn from_config(config: DuressConfig) -> Self {
-        Self { config: Some(config) }
+        Self {
+            config: Some(config),
+        }
     }
 
     /// Check if duress PIN is configured
@@ -176,25 +177,24 @@ impl DuressManager {
         // Validate PIN
         if pin.len() < 4 {
             return Err(DuressError::InvalidPin(
-                "Duress PIN must be at least 4 characters".to_string()
+                "Duress PIN must be at least 4 characters".to_string(),
             ));
         }
         if pin.len() > 32 {
             return Err(DuressError::InvalidPin(
-                "Duress PIN must not exceed 32 characters".to_string()
+                "Duress PIN must not exceed 32 characters".to_string(),
             ));
         }
 
         // Generate random salt
         let mut salt = [0u8; 32];
-        getrandom::getrandom(&mut salt)
-            .map_err(|e| DuressError::HashingFailed(e.to_string()))?;
+        getrandom::getrandom(&mut salt).map_err(|e| DuressError::HashingFailed(e.to_string()))?;
 
         // Hash PIN with Argon2id
         let pin_hash = hash_pin_argon2id(pin.as_bytes(), &salt)?;
 
         use base64::Engine;
-        let salt_b64 = base64::engine::general_purpose::STANDARD.encode(&salt);
+        let salt_b64 = base64::engine::general_purpose::STANDARD.encode(salt);
         let hash_b64 = base64::engine::general_purpose::STANDARD.encode(&pin_hash);
 
         let now = SystemTime::now()
@@ -217,8 +217,7 @@ impl DuressManager {
 
     /// Enable silent distress alert to a trusted contact
     pub fn enable_silent_alert(&mut self, contact_id: &str) -> Result<()> {
-        let config = self.config.as_mut()
-            .ok_or(DuressError::NotConfigured)?;
+        let config = self.config.as_mut().ok_or(DuressError::NotConfigured)?;
         config.silent_alert_enabled = true;
         config.alert_contact_id = Some(contact_id.to_string());
         Ok(())
@@ -287,38 +286,41 @@ impl DuressManager {
 
     /// Get the wipe actions to execute (called after duress PIN verification)
     pub fn wipe_actions(&self) -> Result<&WipeActions> {
-        self.config.as_ref()
+        self.config
+            .as_ref()
             .map(|c| &c.wipe_actions)
             .ok_or(DuressError::NotConfigured)
     }
 
     /// Get the decoy profile to load (called after wipe)
     pub fn decoy_profile(&self) -> Result<&DecoyProfile> {
-        self.config.as_ref()
+        self.config
+            .as_ref()
             .map(|c| &c.decoy_profile)
             .ok_or(DuressError::NotConfigured)
     }
 
     /// Get the alert contact ID (if silent alert is enabled)
     pub fn alert_contact(&self) -> Option<&str> {
-        self.config.as_ref()
+        self.config
+            .as_ref()
             .filter(|c| c.silent_alert_enabled)
             .and_then(|c| c.alert_contact_id.as_deref())
     }
 
     /// Export configuration for storage
     pub fn export_config(&self) -> Result<Vec<u8>> {
-        let config = self.config.as_ref()
-            .ok_or(DuressError::NotConfigured)?;
-        serde_json::to_vec(config)
-            .map_err(|e| DuressError::SerializationError(e.to_string()))
+        let config = self.config.as_ref().ok_or(DuressError::NotConfigured)?;
+        serde_json::to_vec(config).map_err(|e| DuressError::SerializationError(e.to_string()))
     }
 
     /// Import configuration from storage
     pub fn import_config(data: &[u8]) -> Result<Self> {
         let config: DuressConfig = serde_json::from_slice(data)
             .map_err(|e| DuressError::SerializationError(e.to_string()))?;
-        Ok(Self { config: Some(config) })
+        Ok(Self {
+            config: Some(config),
+        })
     }
 
     /// Destroy the duress configuration (called during self-destruct)
@@ -347,11 +349,12 @@ impl Default for DuressManager {
 ///
 /// # Returns
 /// List of operations performed
-pub fn execute_emergency_wipe(actions: &WipeActions, data_dir: &str) -> Vec<String> {
+pub fn execute_emergency_wipe(actions: &WipeActions, _data_dir: &str) -> Vec<String> {
     let mut operations = Vec::new();
 
     if actions.destroy_keys {
-        operations.push("Destroyed all cryptographic keys (identity, session, ratchet)".to_string());
+        operations
+            .push("Destroyed all cryptographic keys (identity, session, ratchet)".to_string());
         // In production: iterate key storage, zeroize each key, delete files
     }
 
@@ -396,20 +399,22 @@ pub fn execute_emergency_wipe(actions: &WipeActions, data_dir: &str) -> Vec<Stri
 
 /// Hash a PIN using Argon2id (memory-hard, GPU-resistant)
 fn hash_pin_argon2id(pin: &[u8], salt: &[u8]) -> Result<Vec<u8>> {
-    use argon2::{Argon2, Algorithm, Version, Params};
+    use argon2::{Algorithm, Argon2, Params, Version};
 
     // Argon2id parameters (OWASP recommended for password hashing)
     let params = Params::new(
-        65536,  // 64 MB memory
-        3,      // 3 iterations
-        1,      // 1 degree of parallelism
+        65536,    // 64 MB memory
+        3,        // 3 iterations
+        1,        // 1 degree of parallelism
         Some(32), // 32-byte output
-    ).map_err(|e| DuressError::HashingFailed(e.to_string()))?;
+    )
+    .map_err(|e| DuressError::HashingFailed(e.to_string()))?;
 
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
 
     let mut output = vec![0u8; 32];
-    argon2.hash_password_into(pin, salt, &mut output)
+    argon2
+        .hash_password_into(pin, salt, &mut output)
         .map_err(|e| DuressError::HashingFailed(e.to_string()))?;
 
     Ok(output)
@@ -438,11 +443,9 @@ mod tests {
         let mut manager = DuressManager::new();
         assert!(!manager.is_configured());
 
-        manager.configure(
-            "1234",
-            WipeActions::default(),
-            DecoyProfile::default(),
-        ).unwrap();
+        manager
+            .configure("1234", WipeActions::default(), DecoyProfile::default())
+            .unwrap();
 
         assert!(manager.is_configured());
     }
@@ -450,11 +453,7 @@ mod tests {
     #[test]
     fn test_pin_too_short() {
         let mut manager = DuressManager::new();
-        let result = manager.configure(
-            "12",
-            WipeActions::default(),
-            DecoyProfile::default(),
-        );
+        let result = manager.configure("12", WipeActions::default(), DecoyProfile::default());
         assert!(result.is_err());
     }
 
@@ -462,22 +461,20 @@ mod tests {
     fn test_pin_too_long() {
         let mut manager = DuressManager::new();
         let long_pin = "a".repeat(33);
-        let result = manager.configure(
-            &long_pin,
-            WipeActions::default(),
-            DecoyProfile::default(),
-        );
+        let result = manager.configure(&long_pin, WipeActions::default(), DecoyProfile::default());
         assert!(result.is_err());
     }
 
     #[test]
     fn test_verify_real_pin() {
         let mut manager = DuressManager::new();
-        manager.configure(
-            "duress9999",
-            WipeActions::default(),
-            DecoyProfile::default(),
-        ).unwrap();
+        manager
+            .configure(
+                "duress9999",
+                WipeActions::default(),
+                DecoyProfile::default(),
+            )
+            .unwrap();
 
         // Create a "real" PIN hash
         let real_pin = "realpin1234";
@@ -490,7 +487,9 @@ mod tests {
         let real_salt_b64 = base64::engine::general_purpose::STANDARD.encode(&real_salt);
 
         // Verify real PIN
-        let result = manager.verify_pin(real_pin, &real_hash_b64, &real_salt_b64).unwrap();
+        let result = manager
+            .verify_pin(real_pin, &real_hash_b64, &real_salt_b64)
+            .unwrap();
         assert_eq!(result, PinVerifyResult::RealPin);
     }
 
@@ -498,11 +497,9 @@ mod tests {
     fn test_verify_duress_pin() {
         let mut manager = DuressManager::new();
         let duress_pin = "panic5678";
-        manager.configure(
-            duress_pin,
-            WipeActions::default(),
-            DecoyProfile::default(),
-        ).unwrap();
+        manager
+            .configure(duress_pin, WipeActions::default(), DecoyProfile::default())
+            .unwrap();
 
         // Create a different "real" PIN
         let real_pin = "realpin1234";
@@ -515,18 +512,22 @@ mod tests {
         let real_salt_b64 = base64::engine::general_purpose::STANDARD.encode(&real_salt);
 
         // Verify duress PIN
-        let result = manager.verify_pin(duress_pin, &real_hash_b64, &real_salt_b64).unwrap();
+        let result = manager
+            .verify_pin(duress_pin, &real_hash_b64, &real_salt_b64)
+            .unwrap();
         assert_eq!(result, PinVerifyResult::DuressPin);
     }
 
     #[test]
     fn test_verify_invalid_pin() {
         let mut manager = DuressManager::new();
-        manager.configure(
-            "duress9999",
-            WipeActions::default(),
-            DecoyProfile::default(),
-        ).unwrap();
+        manager
+            .configure(
+                "duress9999",
+                WipeActions::default(),
+                DecoyProfile::default(),
+            )
+            .unwrap();
 
         let real_pin = "realpin1234";
         let mut real_salt = [0u8; 32];
@@ -538,18 +539,18 @@ mod tests {
         let real_salt_b64 = base64::engine::general_purpose::STANDARD.encode(&real_salt);
 
         // Verify wrong PIN
-        let result = manager.verify_pin("wrongpin", &real_hash_b64, &real_salt_b64).unwrap();
+        let result = manager
+            .verify_pin("wrongpin", &real_hash_b64, &real_salt_b64)
+            .unwrap();
         assert_eq!(result, PinVerifyResult::InvalidPin);
     }
 
     #[test]
     fn test_silent_alert() {
         let mut manager = DuressManager::new();
-        manager.configure(
-            "1234",
-            WipeActions::default(),
-            DecoyProfile::default(),
-        ).unwrap();
+        manager
+            .configure("1234", WipeActions::default(), DecoyProfile::default())
+            .unwrap();
 
         manager.enable_silent_alert("trusted_contact_123").unwrap();
         assert_eq!(manager.alert_contact(), Some("trusted_contact_123"));
@@ -558,14 +559,16 @@ mod tests {
     #[test]
     fn test_export_import() {
         let mut manager = DuressManager::new();
-        manager.configure(
-            "1234",
-            WipeActions::default(),
-            DecoyProfile {
-                display_name: "Test User".to_string(),
-                ..Default::default()
-            },
-        ).unwrap();
+        manager
+            .configure(
+                "1234",
+                WipeActions::default(),
+                DecoyProfile {
+                    display_name: "Test User".to_string(),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
 
         let exported = manager.export_config().unwrap();
         let restored = DuressManager::import_config(&exported).unwrap();
@@ -586,11 +589,9 @@ mod tests {
     #[test]
     fn test_destroy() {
         let mut manager = DuressManager::new();
-        manager.configure(
-            "1234",
-            WipeActions::default(),
-            DecoyProfile::default(),
-        ).unwrap();
+        manager
+            .configure("1234", WipeActions::default(), DecoyProfile::default())
+            .unwrap();
 
         assert!(manager.is_configured());
         manager.destroy();

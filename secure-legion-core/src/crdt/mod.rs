@@ -1,3 +1,4 @@
+pub mod apply;
 /// CRDT group system — operation-based conflict-free replicated data types.
 ///
 /// Groups are represented as append-only operation logs. Every action (create,
@@ -13,28 +14,23 @@
 /// - `messages` — Message add/edit/delete/react with LWW edits and permanent tombstones
 /// - `metadata` — LWW registers for group name, avatar, topic
 /// - `apply` — Unified apply engine (GroupState, rebuild, state_hash)
-
 pub mod ids;
-pub mod ops;
 pub mod limits;
 pub mod membership;
 pub mod messages;
 pub mod metadata;
-pub mod apply;
+pub mod ops;
 
 // Re-export core types for convenience
+pub use apply::{ApplyError, GroupState};
 pub use ids::{DeviceID, GroupID, OpID};
+pub use limits::{check_op_limits, OpLimitStatus};
+pub use membership::{MemberEntry, MembershipError, MembershipState};
+pub use messages::{MessageEntry, MessageError, MessageState};
+pub use metadata::{LWWRegister, MetadataError, MetadataState};
 pub use ops::{
-    OpEnvelope, OpType, OpError,
-    Role, RemoveReason, MetadataKey,
-    GroupCreatePayload, MemberInvitePayload, MemberAcceptPayload,
-    MemberRemovePayload, RoleSetPayload,
-    MsgAddPayload, MsgEditPayload, MsgDeletePayload,
-    ReactionSetPayload, MetadataSetPayload,
-    cbor_encode, cbor_decode, generate_msg_id,
+    cbor_decode, cbor_encode, generate_msg_id, GroupCreatePayload, MemberAcceptPayload,
+    MemberInvitePayload, MemberRemovePayload, MetadataKey, MetadataSetPayload, MsgAddPayload,
+    MsgDeletePayload, MsgEditPayload, OpEnvelope, OpError, OpType, ReactionSetPayload,
+    RemoveReason, Role, RoleSetPayload,
 };
-pub use limits::{OpLimitStatus, check_op_limits};
-pub use membership::{MembershipState, MemberEntry, MembershipError};
-pub use messages::{MessageState, MessageEntry, MessageError};
-pub use metadata::{MetadataState, LWWRegister, MetadataError};
-pub use apply::{GroupState, ApplyError};

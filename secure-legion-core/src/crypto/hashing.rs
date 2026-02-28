@@ -68,8 +68,7 @@ pub fn hash_password_with_salt(password: &str, salt: &[u8]) -> Result<[u8; 32]> 
 /// # Returns
 /// True if password matches
 pub fn verify_password(password: &str, hash: &str) -> Result<bool> {
-    let parsed_hash = PasswordHash::new(hash)
-        .map_err(|_| HashingError::VerificationFailed)?;
+    let parsed_hash = PasswordHash::new(hash).map_err(|_| HashingError::VerificationFailed)?;
 
     let argon2 = Argon2::default();
 

@@ -14,16 +14,15 @@
 /// ```
 ///
 /// Social recovery uses a simple (K, N) threshold scheme over GF(256).
-
 use crate::crypto::encryption;
-use argon2::{Argon2, Algorithm, Version, Params};
+use argon2::{Algorithm, Argon2, Params, Version};
 use rand::RngCore;
 use thiserror::Error;
 use zeroize::Zeroize;
 
 const BACKUP_VERSION: u8 = 0x01;
 const SALT_SIZE: usize = 16;
-const ARGON2_MEM_COST: u32 = 65536;  // 64 MiB
+const ARGON2_MEM_COST: u32 = 65536; // 64 MiB
 const ARGON2_TIME_COST: u32 = 4;
 const ARGON2_PARALLELISM: u32 = 2;
 
@@ -66,12 +65,18 @@ pub struct SecretShare {
 
 /// Derive an encryption key from a password using Argon2id
 fn derive_key_from_password(password: &str, salt: &[u8]) -> Result<[u8; 32]> {
-    let params = Params::new(ARGON2_MEM_COST, ARGON2_TIME_COST, ARGON2_PARALLELISM, Some(32))
-        .map_err(|_| BackupError::KeyDerivationFailed)?;
+    let params = Params::new(
+        ARGON2_MEM_COST,
+        ARGON2_TIME_COST,
+        ARGON2_PARALLELISM,
+        Some(32),
+    )
+    .map_err(|_| BackupError::KeyDerivationFailed)?;
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
 
     let mut key = [0u8; 32];
-    argon2.hash_password_into(password.as_bytes(), salt, &mut key)
+    argon2
+        .hash_password_into(password.as_bytes(), salt, &mut key)
         .map_err(|_| BackupError::KeyDerivationFailed)?;
 
     Ok(key)

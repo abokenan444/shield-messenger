@@ -56,20 +56,33 @@ pub unsafe fn validate_encoder_pointer(encoder_ptr: *mut c_void) -> bool {
 
     // Try to read the application type (should be VOIP = 2048)
     let mut application: c_int = 0;
-    let rc = opus_encoder_ctl(encoder_ptr, OPUS_GET_APPLICATION_REQUEST, &mut application as *mut c_int);
+    let rc = opus_encoder_ctl(
+        encoder_ptr,
+        OPUS_GET_APPLICATION_REQUEST,
+        &mut application as *mut c_int,
+    );
 
     if rc != 0 {
-        log::error!("Encoder pointer validation FAILED: GET_APPLICATION returned error {}", rc);
+        log::error!(
+            "Encoder pointer validation FAILED: GET_APPLICATION returned error {}",
+            rc
+        );
         return false;
     }
 
     // Application should be VOIP (2048), Audio (2049), or Restricted Low Delay (2051)
     if application < 2048 || application > 2051 {
-        log::error!("Encoder pointer validation FAILED: invalid application type {}", application);
+        log::error!(
+            "Encoder pointer validation FAILED: invalid application type {}",
+            application
+        );
         return false;
     }
 
-    log::debug!("Encoder pointer validation PASSED: application={}", application);
+    log::debug!(
+        "Encoder pointer validation PASSED: application={}",
+        application
+    );
     true
 }
 
@@ -80,7 +93,11 @@ pub unsafe fn validate_encoder_pointer(encoder_ptr: *mut c_void) -> bool {
 pub unsafe fn opus_set_bitrate(encoder_ptr: *mut c_void, bitrate: i32) -> Result<(), i32> {
     let v: c_int = bitrate as c_int;
     let rc = opus_encoder_ctl(encoder_ptr, OPUS_SET_BITRATE_REQUEST, v);
-    if rc == 0 { Ok(()) } else { Err(rc) }
+    if rc == 0 {
+        Ok(())
+    } else {
+        Err(rc)
+    }
 }
 
 /// Enable/disable in-band Forward Error Correction (FEC)
@@ -91,7 +108,11 @@ pub unsafe fn opus_set_bitrate(encoder_ptr: *mut c_void, bitrate: i32) -> Result
 pub unsafe fn opus_set_inband_fec(encoder_ptr: *mut c_void, enabled: bool) -> Result<(), i32> {
     let v: c_int = if enabled { 1 } else { 0 };
     let rc = opus_encoder_ctl(encoder_ptr, OPUS_SET_INBAND_FEC_REQUEST, v);
-    if rc == 0 { Ok(()) } else { Err(rc) }
+    if rc == 0 {
+        Ok(())
+    } else {
+        Err(rc)
+    }
 }
 
 /// Set expected packet loss percentage (0-100)
@@ -99,10 +120,17 @@ pub unsafe fn opus_set_inband_fec(encoder_ptr: *mut c_void, enabled: bool) -> Re
 ///
 /// # Safety
 /// encoder_ptr must be a valid OpusEncoder* obtained from opus_encoder_create
-pub unsafe fn opus_set_packet_loss_perc(encoder_ptr: *mut c_void, loss_perc: i32) -> Result<(), i32> {
+pub unsafe fn opus_set_packet_loss_perc(
+    encoder_ptr: *mut c_void,
+    loss_perc: i32,
+) -> Result<(), i32> {
     let v: c_int = loss_perc.clamp(0, 100) as c_int;
     let rc = opus_encoder_ctl(encoder_ptr, OPUS_SET_PACKET_LOSS_PERC_REQUEST, v);
-    if rc == 0 { Ok(()) } else { Err(rc) }
+    if rc == 0 {
+        Ok(())
+    } else {
+        Err(rc)
+    }
 }
 
 /// Set DTX (Discontinuous Transmission) on/off
@@ -113,7 +141,11 @@ pub unsafe fn opus_set_packet_loss_perc(encoder_ptr: *mut c_void, loss_perc: i32
 pub unsafe fn opus_set_dtx(encoder_ptr: *mut c_void, enabled: bool) -> Result<(), i32> {
     let v: c_int = if enabled { 1 } else { 0 };
     let rc = opus_encoder_ctl(encoder_ptr, OPUS_SET_DTX_REQUEST, v);
-    if rc == 0 { Ok(()) } else { Err(rc) }
+    if rc == 0 {
+        Ok(())
+    } else {
+        Err(rc)
+    }
 }
 
 /// Set encoder complexity (0-10 scale)
@@ -125,7 +157,11 @@ pub unsafe fn opus_set_dtx(encoder_ptr: *mut c_void, enabled: bool) -> Result<()
 pub unsafe fn opus_set_complexity(encoder_ptr: *mut c_void, complexity: i32) -> Result<(), i32> {
     let v: c_int = complexity.clamp(0, 10) as c_int;
     let rc = opus_encoder_ctl(encoder_ptr, OPUS_SET_COMPLEXITY_REQUEST, v);
-    if rc == 0 { Ok(()) } else { Err(rc) }
+    if rc == 0 {
+        Ok(())
+    } else {
+        Err(rc)
+    }
 }
 
 /// Set signal type hint (VOICE or MUSIC)
@@ -134,9 +170,17 @@ pub unsafe fn opus_set_complexity(encoder_ptr: *mut c_void, complexity: i32) -> 
 /// # Safety
 /// encoder_ptr must be a valid OpusEncoder* obtained from opus_encoder_create
 pub unsafe fn opus_set_signal(encoder_ptr: *mut c_void, is_voice: bool) -> Result<(), i32> {
-    let v: c_int = if is_voice { OPUS_SIGNAL_VOICE } else { OPUS_SIGNAL_MUSIC };
+    let v: c_int = if is_voice {
+        OPUS_SIGNAL_VOICE
+    } else {
+        OPUS_SIGNAL_MUSIC
+    };
     let rc = opus_encoder_ctl(encoder_ptr, OPUS_SET_SIGNAL_REQUEST, v);
-    if rc == 0 { Ok(()) } else { Err(rc) }
+    if rc == 0 {
+        Ok(())
+    } else {
+        Err(rc)
+    }
 }
 
 /// Enable/disable Variable Bitrate (VBR)
@@ -146,7 +190,11 @@ pub unsafe fn opus_set_signal(encoder_ptr: *mut c_void, is_voice: bool) -> Resul
 pub unsafe fn opus_set_vbr(encoder_ptr: *mut c_void, enabled: bool) -> Result<(), i32> {
     let v: c_int = if enabled { 1 } else { 0 };
     let rc = opus_encoder_ctl(encoder_ptr, OPUS_SET_VBR_REQUEST, v);
-    if rc == 0 { Ok(()) } else { Err(rc) }
+    if rc == 0 {
+        Ok(())
+    } else {
+        Err(rc)
+    }
 }
 
 /// Enable/disable Constrained VBR
@@ -157,7 +205,11 @@ pub unsafe fn opus_set_vbr(encoder_ptr: *mut c_void, enabled: bool) -> Result<()
 pub unsafe fn opus_set_vbr_constraint(encoder_ptr: *mut c_void, enabled: bool) -> Result<(), i32> {
     let v: c_int = if enabled { 1 } else { 0 };
     let rc = opus_encoder_ctl(encoder_ptr, OPUS_SET_VBR_CONSTRAINT_REQUEST, v);
-    if rc == 0 { Ok(()) } else { Err(rc) }
+    if rc == 0 {
+        Ok(())
+    } else {
+        Err(rc)
+    }
 }
 
 /// Set maximum bandwidth
@@ -168,7 +220,11 @@ pub unsafe fn opus_set_vbr_constraint(encoder_ptr: *mut c_void, enabled: bool) -
 pub unsafe fn opus_set_max_bandwidth(encoder_ptr: *mut c_void, bandwidth: i32) -> Result<(), i32> {
     let v: c_int = bandwidth as c_int;
     let rc = opus_encoder_ctl(encoder_ptr, OPUS_SET_MAX_BANDWIDTH_REQUEST, v);
-    if rc == 0 { Ok(()) } else { Err(rc) }
+    if rc == 0 {
+        Ok(())
+    } else {
+        Err(rc)
+    }
 }
 
 // ============================================================================
@@ -181,8 +237,16 @@ pub unsafe fn opus_set_max_bandwidth(encoder_ptr: *mut c_void, bandwidth: i32) -
 /// encoder_ptr must be a valid OpusEncoder* obtained from opus_encoder_create
 pub unsafe fn opus_get_bitrate(encoder_ptr: *mut c_void) -> Result<i32, i32> {
     let mut value: c_int = 0;
-    let rc = opus_encoder_ctl(encoder_ptr, OPUS_GET_BITRATE_REQUEST, &mut value as *mut c_int);
-    if rc == 0 { Ok(value as i32) } else { Err(rc) }
+    let rc = opus_encoder_ctl(
+        encoder_ptr,
+        OPUS_GET_BITRATE_REQUEST,
+        &mut value as *mut c_int,
+    );
+    if rc == 0 {
+        Ok(value as i32)
+    } else {
+        Err(rc)
+    }
 }
 
 /// Get encoder sample rate
@@ -191,8 +255,16 @@ pub unsafe fn opus_get_bitrate(encoder_ptr: *mut c_void) -> Result<i32, i32> {
 /// encoder_ptr must be a valid OpusEncoder* obtained from opus_encoder_create
 pub unsafe fn opus_get_sample_rate(encoder_ptr: *mut c_void) -> Result<i32, i32> {
     let mut value: c_int = 0;
-    let rc = opus_encoder_ctl(encoder_ptr, OPUS_GET_SAMPLE_RATE_REQUEST, &mut value as *mut c_int);
-    if rc == 0 { Ok(value as i32) } else { Err(rc) }
+    let rc = opus_encoder_ctl(
+        encoder_ptr,
+        OPUS_GET_SAMPLE_RATE_REQUEST,
+        &mut value as *mut c_int,
+    );
+    if rc == 0 {
+        Ok(value as i32)
+    } else {
+        Err(rc)
+    }
 }
 
 /// Get FEC enabled status
@@ -201,8 +273,16 @@ pub unsafe fn opus_get_sample_rate(encoder_ptr: *mut c_void) -> Result<i32, i32>
 /// encoder_ptr must be a valid OpusEncoder* obtained from opus_encoder_create
 pub unsafe fn opus_get_inband_fec(encoder_ptr: *mut c_void) -> Result<bool, i32> {
     let mut value: c_int = 0;
-    let rc = opus_encoder_ctl(encoder_ptr, OPUS_GET_INBAND_FEC_REQUEST, &mut value as *mut c_int);
-    if rc == 0 { Ok(value != 0) } else { Err(rc) }
+    let rc = opus_encoder_ctl(
+        encoder_ptr,
+        OPUS_GET_INBAND_FEC_REQUEST,
+        &mut value as *mut c_int,
+    );
+    if rc == 0 {
+        Ok(value != 0)
+    } else {
+        Err(rc)
+    }
 }
 
 /// Get packet loss percentage
@@ -211,8 +291,16 @@ pub unsafe fn opus_get_inband_fec(encoder_ptr: *mut c_void) -> Result<bool, i32>
 /// encoder_ptr must be a valid OpusEncoder* obtained from opus_encoder_create
 pub unsafe fn opus_get_packet_loss_perc(encoder_ptr: *mut c_void) -> Result<i32, i32> {
     let mut value: c_int = 0;
-    let rc = opus_encoder_ctl(encoder_ptr, OPUS_GET_PACKET_LOSS_PERC_REQUEST, &mut value as *mut c_int);
-    if rc == 0 { Ok(value as i32) } else { Err(rc) }
+    let rc = opus_encoder_ctl(
+        encoder_ptr,
+        OPUS_GET_PACKET_LOSS_PERC_REQUEST,
+        &mut value as *mut c_int,
+    );
+    if rc == 0 {
+        Ok(value as i32)
+    } else {
+        Err(rc)
+    }
 }
 
 /// Get DTX enabled status
@@ -222,7 +310,11 @@ pub unsafe fn opus_get_packet_loss_perc(encoder_ptr: *mut c_void) -> Result<i32,
 pub unsafe fn opus_get_dtx(encoder_ptr: *mut c_void) -> Result<bool, i32> {
     let mut value: c_int = 0;
     let rc = opus_encoder_ctl(encoder_ptr, OPUS_GET_DTX_REQUEST, &mut value as *mut c_int);
-    if rc == 0 { Ok(value != 0) } else { Err(rc) }
+    if rc == 0 {
+        Ok(value != 0)
+    } else {
+        Err(rc)
+    }
 }
 
 // ============================================================================
@@ -244,7 +336,7 @@ pub unsafe fn validate_encoder_config(
     encoder_ptr: *mut c_void,
     expected_sample_rate: i32,
     min_bitrate: i32,
-    max_bitrate: i32
+    max_bitrate: i32,
 ) -> Result<(), String> {
     if encoder_ptr.is_null() {
         return Err("Encoder pointer is null".to_string());

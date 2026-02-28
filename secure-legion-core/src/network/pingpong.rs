@@ -1,11 +1,11 @@
-use serde::{Deserialize, Serialize};
-use ed25519_dalek::{SigningKey, VerifyingKey, Signature, Signer, Verifier};
-use std::time::{SystemTime, UNIX_EPOCH};
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use std::sync::OnceLock;
-use serde_big_array::BigArray;
 use super::tor::TorManager;
+use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
+use serde::{Deserialize, Serialize};
+use serde_big_array::BigArray;
+use std::collections::HashMap;
+use std::sync::OnceLock;
+use std::sync::{Arc, Mutex};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Ping Token - sent from sender to recipient to initiate handshake
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -115,7 +115,8 @@ struct PongWaiter {
 
 /// Global storage for received Ping tokens
 /// Used by FFI methods to store and retrieve Pings when creating Pongs
-static GLOBAL_PING_SESSIONS: OnceLock<Arc<Mutex<HashMap<String, StoredPingSession>>>> = OnceLock::new();
+static GLOBAL_PING_SESSIONS: OnceLock<Arc<Mutex<HashMap<String, StoredPingSession>>>> =
+    OnceLock::new();
 
 /// Stored Ping session for FFI access
 #[derive(Clone)]
@@ -183,7 +184,8 @@ pub fn cleanup_expired_pings() {
 
 /// Global storage for received Pong tokens
 /// Used by FFI methods to store and retrieve Pongs when waiting for responses
-static GLOBAL_PONG_SESSIONS: OnceLock<Arc<Mutex<HashMap<String, StoredPongSession>>>> = OnceLock::new();
+static GLOBAL_PONG_SESSIONS: OnceLock<Arc<Mutex<HashMap<String, StoredPongSession>>>> =
+    OnceLock::new();
 
 /// Stored Pong session for FFI access
 #[derive(Clone)]
@@ -219,7 +221,10 @@ pub fn store_pong_session(ping_id: &str, pong_token: PongToken) {
     };
 
     sessions_lock.insert(ping_id.to_string(), session);
-    log::info!("Pong stored successfully. Total Pongs in storage: {}", sessions_lock.len());
+    log::info!(
+        "Pong stored successfully. Total Pongs in storage: {}",
+        sessions_lock.len()
+    );
 }
 
 /// Retrieve a stored Pong token by ping_id
@@ -231,7 +236,11 @@ pub fn get_pong_session(ping_id: &str) -> Option<StoredPongSession> {
     if result.is_some() {
         log::info!("Found Pong for Ping ID: {}", ping_id);
     } else {
-        log::debug!("No Pong found for Ping ID: {} (have {} Pongs in storage)", ping_id, sessions_lock.len());
+        log::debug!(
+            "No Pong found for Ping ID: {} (have {} Pongs in storage)",
+            ping_id,
+            sessions_lock.len()
+        );
     }
 
     result
@@ -266,7 +275,8 @@ pub fn cleanup_expired_pongs() {
 
 /// Global storage for received ACK tokens
 /// Used by FFI methods to store and retrieve ACKs when confirming delivery
-static GLOBAL_ACK_SESSIONS: OnceLock<Arc<Mutex<HashMap<String, StoredAckSession>>>> = OnceLock::new();
+static GLOBAL_ACK_SESSIONS: OnceLock<Arc<Mutex<HashMap<String, StoredAckSession>>>> =
+    OnceLock::new();
 
 /// Stored ACK session for FFI access
 #[derive(Clone)]
@@ -302,7 +312,10 @@ pub fn store_ack_session(item_id: &str, ack_token: DeliveryAck) {
     };
 
     sessions_lock.insert(item_id.to_string(), session);
-    log::info!("ACK stored successfully. Total ACKs in storage: {}", sessions_lock.len());
+    log::info!(
+        "ACK stored successfully. Total ACKs in storage: {}",
+        sessions_lock.len()
+    );
 }
 
 /// Retrieve a stored ACK token by item_id
@@ -314,7 +327,11 @@ pub fn get_ack_session(item_id: &str) -> Option<StoredAckSession> {
     if result.is_some() {
         log::info!("Found ACK for Item ID: {}", item_id);
     } else {
-        log::debug!("No ACK found for Item ID: {} (have {} ACKs in storage)", item_id, sessions_lock.len());
+        log::debug!(
+            "No ACK found for Item ID: {} (have {} ACKs in storage)",
+            item_id,
+            sessions_lock.len()
+        );
     }
 
     result
@@ -353,15 +370,12 @@ impl PingToken {
         sender_x25519_pubkey: &[u8; 32],
         recipient_x25519_pubkey: &[u8; 32],
     ) -> Result<Self, Box<dyn std::error::Error>> {
-
         // Generate random nonce
         let mut nonce = [0u8; 24];
         getrandom::getrandom(&mut nonce)?;
 
         // Get current timestamp
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)?
-            .as_secs() as i64;
+        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() as i64;
 
         // Create the Ping token (without signature first)
         let mut ping = PingToken {
@@ -393,7 +407,6 @@ impl PingToken {
         nonce: [u8; 24],
         timestamp: i64, // Use provided timestamp instead of generating
     ) -> Result<Self, Box<dyn std::error::Error>> {
-
         // Create the Ping token (without signature first)
         let mut ping = PingToken {
             protocol_version: crate::network::tor::P2P_PROTOCOL_VERSION,
@@ -459,15 +472,12 @@ impl PongToken {
         recipient_keypair: &SigningKey,
         authenticated: bool,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-
         // Generate new Pong nonce
         let mut pong_nonce = [0u8; 24];
         getrandom::getrandom(&mut pong_nonce)?;
 
         // Get current timestamp
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)?
-            .as_secs() as i64;
+        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() as i64;
 
         // Create Pong token (without signature), echo back Ping's protocol version
         let mut pong = PongToken {
@@ -538,11 +548,8 @@ impl DeliveryAck {
         ack_type: &str,
         keypair: &SigningKey,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-
         // Get current timestamp
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)?
-            .as_secs() as i64;
+        let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() as i64;
 
         // Create ACK token (without signature)
         let mut ack = DeliveryAck {
@@ -617,10 +624,14 @@ impl PingPongManager {
         recipient_x25519_pubkey: &[u8; 32],
         recipient_onion: &str,
     ) -> Result<String, Box<dyn std::error::Error>> {
-
         // Create Ping token
-        let ping = PingToken::new(&self.keypair, recipient_pubkey, sender_x25519_pubkey, recipient_x25519_pubkey)?;
-        let ping_id = hex::encode(&ping.nonce);
+        let ping = PingToken::new(
+            &self.keypair,
+            recipient_pubkey,
+            sender_x25519_pubkey,
+            recipient_x25519_pubkey,
+        )?;
+        let ping_id = hex::encode(ping.nonce);
 
         // Store Ping session
         let session = PingSession {
@@ -629,7 +640,10 @@ impl PingPongManager {
             created_at: ping.timestamp,
         };
 
-        self.ping_sessions.lock().unwrap().insert(ping.nonce, session);
+        self.ping_sessions
+            .lock()
+            .unwrap()
+            .insert(ping.nonce, session);
 
         // Serialize Ping token
         let ping_bytes = ping.to_bytes()?;
@@ -656,7 +670,6 @@ impl PingPongManager {
         ping_id: &str,
         timeout_seconds: u64,
     ) -> Result<bool, Box<dyn std::error::Error>> {
-
         // Decode ping_id (hex nonce)
         let nonce_bytes = hex::decode(ping_id)?;
         let mut nonce = [0u8; 24];
@@ -666,7 +679,10 @@ impl PingPongManager {
         let (tx, rx) = tokio::sync::oneshot::channel();
 
         // Register Pong waiter
-        self.pong_waiters.lock().unwrap().insert(nonce, PongWaiter { sender: tx });
+        self.pong_waiters
+            .lock()
+            .unwrap()
+            .insert(nonce, PongWaiter { sender: tx });
 
         // Wait for Pong with timeout
         let timeout_duration = std::time::Duration::from_secs(timeout_seconds);
@@ -695,7 +711,6 @@ impl PingPongManager {
         ping_bytes: &[u8],
         user_authenticated: bool,
     ) -> Result<Option<PongToken>, Box<dyn std::error::Error>> {
-
         // Deserialize Ping
         let ping = PingToken::from_bytes(ping_bytes)?;
 
@@ -705,14 +720,18 @@ impl PingPongManager {
         }
 
         // Check if Ping is for us (constant-time to avoid timing leakage)
-        if !crate::crypto::eq_32(&ping.recipient_pubkey, &self.keypair.verifying_key().to_bytes()) {
+        if !crate::crypto::eq_32(
+            &ping.recipient_pubkey,
+            &self.keypair.verifying_key().to_bytes(),
+        ) {
             return Err("Ping not for this device".into());
         }
 
         // Check Ping age (reject old Pings)
         let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() as i64;
         let age = now - ping.timestamp;
-        if age > 300 { // 5 minutes max age
+        if age > 300 {
+            // 5 minutes max age
             return Err("Ping too old".into());
         }
 
@@ -732,7 +751,6 @@ impl PingPongManager {
         &self,
         pong_bytes: &[u8],
     ) -> Result<(), Box<dyn std::error::Error>> {
-
         // Deserialize Pong
         let pong = PongToken::from_bytes(pong_bytes)?;
 
@@ -740,11 +758,7 @@ impl PingPongManager {
         let ping_nonce = pong.ping_nonce;
 
         // Find corresponding Ping session
-        let session = self.ping_sessions
-            .lock()
-            .unwrap()
-            .get(&ping_nonce)
-            .cloned();
+        let session = self.ping_sessions.lock().unwrap().get(&ping_nonce).cloned();
 
         if let Some(session) = session {
             // Verify Pong signature
@@ -801,7 +815,10 @@ mod tests {
         let ping = PingToken::new(&sender, &recipient.verifying_key(), &sx, &rx).unwrap();
 
         // Verify protocol version
-        assert_eq!(ping.protocol_version, crate::network::tor::P2P_PROTOCOL_VERSION);
+        assert_eq!(
+            ping.protocol_version,
+            crate::network::tor::P2P_PROTOCOL_VERSION
+        );
 
         // Verify signature
         assert!(ping.verify().unwrap());
@@ -816,7 +833,10 @@ mod tests {
 
         // Verify protocol version echoed from Ping
         assert_eq!(pong.protocol_version, ping.protocol_version);
-        assert_eq!(pong.protocol_version, crate::network::tor::P2P_PROTOCOL_VERSION);
+        assert_eq!(
+            pong.protocol_version,
+            crate::network::tor::P2P_PROTOCOL_VERSION
+        );
 
         // Verify signature
         assert!(pong.verify(&recipient.verifying_key()).unwrap());

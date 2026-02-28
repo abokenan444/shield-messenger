@@ -74,8 +74,8 @@ pub fn verify_signature(data: &[u8], signature: &[u8], public_key: &[u8]) -> Res
     // Parse public key
     let mut pub_bytes = [0u8; 32];
     pub_bytes.copy_from_slice(public_key);
-    let verifying_key = VerifyingKey::from_bytes(&pub_bytes)
-        .map_err(|_| SigningError::InvalidKeyLength)?;
+    let verifying_key =
+        VerifyingKey::from_bytes(&pub_bytes).map_err(|_| SigningError::InvalidKeyLength)?;
 
     // Parse signature
     let mut sig_bytes = [0u8; 64];

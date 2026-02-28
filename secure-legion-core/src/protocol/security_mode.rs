@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum SecurityMode {
     Direct,
     Relay,
+    #[default]
     Auto,
 }
 
@@ -26,15 +27,10 @@ impl SecurityMode {
     }
 }
 
-impl Default for SecurityMode {
-    fn default() -> Self {
-        SecurityMode::Auto
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum SecurityTier {
     HighRisk,
+    #[default]
     Normal,
     Bulk,
 }
@@ -55,11 +51,5 @@ impl SecurityTier {
             SecurityTier::Normal => "NORMAL".to_string(),
             SecurityTier::Bulk => "BULK".to_string(),
         }
-    }
-}
-
-impl Default for SecurityTier {
-    fn default() -> Self {
-        SecurityTier::Normal
     }
 }

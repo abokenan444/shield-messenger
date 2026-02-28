@@ -1,6 +1,6 @@
 use bulletproofs::{BulletproofGens, PedersenGens, RangeProof};
-use curve25519_dalek::scalar::Scalar;
 use curve25519_dalek::ristretto::CompressedRistretto;
+use curve25519_dalek::scalar::Scalar;
 use merlin::Transcript;
 use rand::thread_rng;
 
@@ -68,8 +68,8 @@ pub fn verify_range_proof(
     let pc_gens = PedersenGens::default();
     let bp_gens = BulletproofGens::new(bit_length, 1);
 
-    let proof = RangeProof::from_bytes(proof_bytes)
-        .map_err(|e| format!("Invalid proof bytes: {:?}", e))?;
+    let proof =
+        RangeProof::from_bytes(proof_bytes).map_err(|e| format!("Invalid proof bytes: {:?}", e))?;
 
     let commitment = CompressedRistretto::from_slice(commitment_bytes)
         .map_err(|e| format!("Invalid commitment bytes: {:?}", e))?;
@@ -101,8 +101,7 @@ mod tests {
         assert_ne!(blinding, [0u8; 32], "blinding should not be zero");
 
         // Verify
-        let valid =
-            verify_range_proof(&proof_bytes, &commitment, 64).expect("verification failed");
+        let valid = verify_range_proof(&proof_bytes, &commitment, 64).expect("verification failed");
         assert!(valid, "proof should be valid");
     }
 

@@ -67,7 +67,8 @@ impl LossAdaptiveFec {
     pub fn update(&mut self, window_loss: f32) {
         // EMA smoothing: stable, avoids flapping
         // New EMA = (1 - α) * old_EMA + α * new_sample
-        self.ema_loss = (1.0 - self.alpha) * self.ema_loss + self.alpha * window_loss.clamp(0.0, 1.0);
+        self.ema_loss =
+            (1.0 - self.alpha) * self.ema_loss + self.alpha * window_loss.clamp(0.0, 1.0);
         self.tick = self.tick.wrapping_add(1);
     }
 
@@ -115,10 +116,7 @@ impl LossAdaptiveFec {
     /// 2. The change is meaningful (≥3% difference)
     ///
     /// Returns true if encoder was updated
-    pub unsafe fn maybe_update_encoder(
-        &mut self,
-        encoder_ptr: *mut c_void
-    ) -> Result<bool, i32> {
+    pub unsafe fn maybe_update_encoder(&mut self, encoder_ptr: *mut c_void) -> Result<bool, i32> {
         if !self.should_apply() {
             return Ok(false);
         }

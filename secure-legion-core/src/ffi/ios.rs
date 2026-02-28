@@ -8,13 +8,12 @@
 ///   cargo build --target aarch64-apple-ios --features ios --release
 ///
 /// Link libsecurelegion.a in Xcode and add a bridging header.
-
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::ptr;
 use std::slice;
 
-use crate::crypto::{encryption, signing, key_exchange, hashing, pqc};
+use crate::crypto::{encryption, hashing, key_exchange, pqc, signing};
 use base64::Engine;
 
 // ─────────────────────── Helper: Byte buffer for returning data to Swift ───────────────────────
@@ -39,7 +38,11 @@ impl SLBuffer {
     }
 
     fn null() -> Self {
-        SLBuffer { data: ptr::null_mut(), len: 0, cap: 0 }
+        SLBuffer {
+            data: ptr::null_mut(),
+            len: 0,
+            cap: 0,
+        }
     }
 }
 
@@ -72,7 +75,11 @@ pub extern "C" fn sl_version() -> *mut c_char {
 #[no_mangle]
 pub extern "C" fn sl_generate_identity_keypair() -> SLKeypair {
     let (public_key, private_key) = signing::generate_keypair();
-    SLKeypair { public_key, private_key, success: 1 }
+    SLKeypair {
+        public_key,
+        private_key,
+        success: 1,
+    }
 }
 
 /// Derive Ed25519 public key from private key
@@ -104,7 +111,11 @@ pub unsafe extern "C" fn sl_derive_ed25519_public_key(
 #[no_mangle]
 pub extern "C" fn sl_generate_x25519_keypair() -> SLKeypair {
     let (public_key, private_key) = key_exchange::generate_static_keypair();
-    SLKeypair { public_key, private_key, success: 1 }
+    SLKeypair {
+        public_key,
+        private_key,
+        success: 1,
+    }
 }
 
 /// Perform X25519 Diffie-Hellman key exchange
@@ -231,10 +242,7 @@ pub unsafe extern "C" fn sl_derive_root_key(
 /// # Safety
 /// `chain_key` = 32 bytes (modified in place), `out_new_key` = 32 bytes
 #[no_mangle]
-pub unsafe extern "C" fn sl_evolve_chain_key(
-    chain_key: *mut u8,
-    out_new_key: *mut u8,
-) -> i32 {
+pub unsafe extern "C" fn sl_evolve_chain_key(chain_key: *mut u8, out_new_key: *mut u8) -> i32 {
     if chain_key.is_null() || out_new_key.is_null() {
         return -1;
     }
@@ -326,12 +334,10 @@ pub unsafe extern "C" fn sl_hash_password(password: *const c_char) -> *mut c_cha
     };
 
     match hashing::hash_password(password_str) {
-        Ok(hash) => {
-            match CString::new(hash) {
-                Ok(c) => c.into_raw(),
-                Err(_) => ptr::null_mut(),
-            }
-        }
+        Ok(hash) => match CString::new(hash) {
+            Ok(c) => c.into_raw(),
+            Err(_) => ptr::null_mut(),
+        },
         Err(_) => ptr::null_mut(),
     }
 }
@@ -341,10 +347,7 @@ pub unsafe extern "C" fn sl_hash_password(password: *const c_char) -> *mut c_cha
 /// # Safety
 /// Both parameters must be valid C strings
 #[no_mangle]
-pub unsafe extern "C" fn sl_verify_password(
-    password: *const c_char,
-    hash: *const c_char,
-) -> i32 {
+pub unsafe extern "C" fn sl_verify_password(password: *const c_char, hash: *const c_char) -> i32 {
     if password.is_null() || hash.is_null() {
         return -1;
     }
@@ -476,7 +479,6 @@ pub unsafe extern "C" fn sl_generate_keypair(
     0
 }
 
-
 // ==================== SAFETY NUMBERS & CONTACT VERIFICATION ====================
 
 /// Generate a 60-digit safety number from two identity public keys.
@@ -525,7 +527,11 @@ pub unsafe extern "C" fn sl_verify_safety_number(
         Ok(s) => s,
         Err(_) => return -1,
     };
-    if pqc::verify_safety_number(our_id, their_id, sn) { 1 } else { 0 }
+    if pqc::verify_safety_number(our_id, their_id, sn) {
+        1
+    } else {
+        0
+    }
 }
 
 /// Encode identity key + safety number into a QR-scannable payload string.
@@ -614,17 +620,19 @@ pub unsafe extern "C" fn sl_detect_identity_key_change(
     let stored = if stored_their_identity.is_null() || stored_their_identity_len == 0 {
         None
     } else {
-        Some(slice::from_raw_parts(stored_their_identity, stored_their_identity_len))
+        Some(slice::from_raw_parts(
+            stored_their_identity,
+            stored_their_identity_len,
+        ))
     };
     let result = pqc::detect_identity_key_change(our_id, stored, current_id);
     let json = match result {
-        pqc::IdentityKeyChangeResult::FirstSeen => {
-            "{\"result\": \"FirstSeen\"}".to_string()
-        }
-        pqc::IdentityKeyChangeResult::Unchanged => {
-            "{\"result\": \"Unchanged\"}".to_string()
-        }
-        pqc::IdentityKeyChangeResult::Changed { previous_fingerprint, new_fingerprint } => {
+        pqc::IdentityKeyChangeResult::FirstSeen => "{\"result\": \"FirstSeen\"}".to_string(),
+        pqc::IdentityKeyChangeResult::Unchanged => "{\"result\": \"Unchanged\"}".to_string(),
+        pqc::IdentityKeyChangeResult::Changed {
+            previous_fingerprint,
+            new_fingerprint,
+        } => {
             format!(
                 "{{\"result\": \"Changed\", \"previousFingerprint\": \"{}\", \"newFingerprint\": \"{}\"}}",
                 previous_fingerprint, new_fingerprint

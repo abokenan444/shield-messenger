@@ -14,9 +14,8 @@
 ///    the local database unrecoverable
 ///
 /// The switch state is stored encrypted and checked on app startup.
-
-use chrono::{DateTime, Utc, Duration};
-use serde::{Serialize, Deserialize};
+use chrono::{DateTime, Duration, Utc};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use zeroize::Zeroize;
 
@@ -144,8 +143,10 @@ impl DeadManSwitch {
         self.last_checkin = Utc::now();
         self.missed_periods = 0;
 
-        log::info!("Dead man's switch: check-in successful. Next deadline: {} hours",
-            self.interval_hours);
+        log::info!(
+            "Dead man's switch: check-in successful. Next deadline: {} hours",
+            self.interval_hours
+        );
 
         Ok(())
     }
@@ -178,8 +179,10 @@ impl DeadManSwitch {
 
             if self.missed_periods > self.grace_periods {
                 self.triggered = true;
-                log::warn!("Dead man's switch TRIGGERED after {} missed periods",
-                    self.missed_periods);
+                log::warn!(
+                    "Dead man's switch TRIGGERED after {} missed periods",
+                    self.missed_periods
+                );
 
                 return CheckInResult::Triggered {
                     wipe_action: WipeAction {
@@ -190,10 +193,14 @@ impl DeadManSwitch {
             }
 
             // Grace period — warn but don't trigger yet
-            let next_deadline_hours = (self.grace_periods - self.missed_periods) as i64
-                * self.interval_hours as i64;
-            log::warn!("Dead man's switch: missed period {} of {}. {} hours until trigger.",
-                self.missed_periods, self.grace_periods + 1, next_deadline_hours);
+            let next_deadline_hours =
+                (self.grace_periods - self.missed_periods) as i64 * self.interval_hours as i64;
+            log::warn!(
+                "Dead man's switch: missed period {} of {}. {} hours until trigger.",
+                self.missed_periods,
+                self.grace_periods + 1,
+                next_deadline_hours
+            );
 
             CheckInResult::Warning {
                 hours_remaining: next_deadline_hours,
@@ -240,22 +247,23 @@ impl DeadManSwitch {
         self.last_checkin = Utc::now();
         self.missed_periods = 0;
 
-        log::info!("Dead man's switch reconfigured: {} hours, {} grace periods",
-            interval_hours, grace_periods);
+        log::info!(
+            "Dead man's switch reconfigured: {} hours, {} grace periods",
+            interval_hours,
+            grace_periods
+        );
 
         Ok(())
     }
 
     /// Serialize the switch state for encrypted storage
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
-        bincode::serialize(self)
-            .map_err(|e| DeadManError::SerializationError(e.to_string()))
+        bincode::serialize(self).map_err(|e| DeadManError::SerializationError(e.to_string()))
     }
 
     /// Deserialize the switch state from encrypted storage
     pub fn from_bytes(data: &[u8]) -> Result<Self> {
-        bincode::deserialize(data)
-            .map_err(|e| DeadManError::SerializationError(e.to_string()))
+        bincode::deserialize(data).map_err(|e| DeadManError::SerializationError(e.to_string()))
     }
 
     /// Get time remaining until next deadline
@@ -279,10 +287,7 @@ impl DeadManSwitch {
 ///
 /// # Returns
 /// List of file paths that should be overwritten/deleted
-pub fn execute_wipe(
-    action: &WipeAction,
-    keys: &mut [&mut [u8]],
-) -> Vec<String> {
+pub fn execute_wipe(action: &WipeAction, keys: &mut [&mut [u8]]) -> Vec<String> {
     let mut paths_to_delete = Vec::new();
 
     if action.zeroize_keys {
@@ -330,7 +335,7 @@ mod tests {
         assert!(!switch.is_triggered());
 
         match switch.evaluate() {
-            CheckInResult::Ok { .. } => {},
+            CheckInResult::Ok { .. } => {}
             other => panic!("Expected Ok, got {:?}", std::mem::discriminant(&other)),
         }
     }
@@ -341,7 +346,7 @@ mod tests {
         assert!(!switch.is_enabled());
 
         match switch.evaluate() {
-            CheckInResult::Disabled => {},
+            CheckInResult::Disabled => {}
             _ => panic!("Expected Disabled"),
         }
     }

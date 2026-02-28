@@ -1,6 +1,6 @@
+use once_cell::sync::Lazy;
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
-use once_cell::sync::Lazy;
 
 /// ACK state for a single contact
 #[derive(Debug, Clone, Default)]
@@ -13,9 +13,8 @@ pub struct AckState {
 }
 
 /// Global ACK state manager
-static ACK_STATES: Lazy<Mutex<HashMap<String, AckState>>> = Lazy::new(|| {
-    Mutex::new(HashMap::new())
-});
+static ACK_STATES: Lazy<Mutex<HashMap<String, AckState>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
 
 /// ACK type constants
 pub const ACK_TYPE_PING: u8 = 0;
