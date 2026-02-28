@@ -1,0 +1,82 @@
+[package]
+name = "shield-protocol"
+version = "0.1.0"
+edition = "2021"
+authors = ["Shield Protocol Contributors"]
+description = "Shield Protocol — a post-quantum, metadata-zero secure messaging protocol SDK"
+license = "PolyForm-Noncommercial-1.0.0"
+repository = "https://github.com/niclaslindstedt/shield-messenger"
+readme = "README.md"
+keywords = ["cryptography", "post-quantum", "messaging", "privacy", "e2ee"]
+categories = ["cryptography", "authentication"]
+
+[lib]
+name = "shield_protocol"
+crate-type = ["lib"]
+
+[dependencies]
+# ── Cryptography ──────────────────────────────────────────
+chacha20poly1305 = "0.10"
+ed25519-dalek    = { version = "2.1", features = ["rand_core"] }
+x25519-dalek     = { version = "2.0", features = ["static_secrets"] }
+argon2           = "0.5"
+zeroize          = { version = "1.7", features = ["derive"] }
+rand             = "0.8"
+rand_core        = { version = "0.6", features = ["getrandom"] }
+getrandom        = { version = "0.2" }
+sha3             = "0.10"
+hkdf             = "0.12"
+hmac             = "0.12"
+sha2             = "0.10"
+blake3           = "1.5"
+subtle           = "2.5"
+
+# Post-Quantum Cryptography (NIST FIPS 203)
+ml-kem     = { version = "0.2.3", default-features = false }
+rand_chacha = "0.3"
+
+# Zero-knowledge proofs
+bulletproofs     = "5.0.0"
+curve25519-dalek = { version = "4", features = ["rand_core"] }
+merlin           = "3"
+
+# ── Serialization & Encoding ─────────────────────────────
+serde           = { version = "1.0", features = ["derive"] }
+serde_json      = "1.0"
+bincode         = "1.3"
+serde-big-array = "0.5"
+bs58            = "0.5"
+base64          = "0.21"
+hex             = "0.4"
+base32          = "0.5"
+
+# CBOR encoding for CRDT op payloads (optional — groups feature)
+ciborium = { version = "0.2", optional = true }
+
+# ── Error handling & logging ─────────────────────────────
+thiserror = "1.0"
+anyhow    = "1.0"
+log       = "0.4"
+
+# ── Time & IDs ───────────────────────────────────────────
+chrono = { version = "0.4", features = ["serde"] }
+uuid   = { version = "1.6", features = ["v4"] }
+
+# ── Concurrency ──────────────────────────────────────────
+once_cell = "1.19"
+lru       = "0.12"
+
+[dev-dependencies]
+hex-literal = "0.4"
+
+[features]
+default = ["std", "groups"]
+std     = []
+groups  = ["ciborium"]
+wasm    = ["getrandom/js"]
+
+[profile.release]
+opt-level     = 3
+lto           = true
+codegen-units = 1
+strip         = true

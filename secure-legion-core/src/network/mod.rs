@@ -1,13 +1,12 @@
 pub mod arti;
 pub mod friend_request_server;
-pub mod packet;
-pub mod padding;
 pub mod pingpong;
 pub mod socks5_client;
 pub mod tor;
 pub mod tor_dos_protection;
 
-pub use padding::{
+// Re-export transport-layer types from shield-protocol for backward compatibility
+pub use shield_protocol::transport::padding::{
     apply_traffic_delay, constant_time_eq, fixed_packet_size, fragment_and_pad,
     generate_burst_padding, generate_cover_packet, is_cover_packet, max_padded_payload,
     pad_to_fixed_size, random_burst_delay_ms, random_cover_interval_secs, random_traffic_delay_ms,
@@ -16,9 +15,10 @@ pub use padding::{
     FIXED_PACKET_SIZE, MAX_PADDED_PAYLOAD, MSG_TYPE_COVER,
 };
 
+pub use shield_protocol::transport::packet::{Packet, PacketType, MAX_PAYLOAD, PACKET_SIZE};
+
 pub use arti::{ArtiConfig, ArtiTorManager, EphemeralOnionService, IsolationToken};
 pub use friend_request_server::{get_endpoint, ContactExchangeEndpoint};
-pub use packet::{Packet, PacketType, MAX_PAYLOAD, PACKET_SIZE};
 pub use pingpong::{
     cleanup_expired_acks, cleanup_expired_pings, cleanup_expired_pongs, get_ping_session,
     remove_ack_session, remove_ping_session, remove_pong_session, store_ping_session,

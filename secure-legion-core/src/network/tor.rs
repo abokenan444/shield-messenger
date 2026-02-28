@@ -3,7 +3,7 @@
 ///
 /// The Android OnionProxyManager handles Tor lifecycle, we just use SOCKS5.
 /// Traffic analysis resistance: fixed-size padding and optional random delays (see crate::network::padding).
-use super::padding::{self, FIXED_PACKET_SIZE};
+use shield_protocol::transport::padding::{self, FIXED_PACKET_SIZE};
 use std::error::Error;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicU8, Ordering};
 use std::sync::Arc;

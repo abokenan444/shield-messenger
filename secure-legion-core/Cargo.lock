@@ -1486,6 +1486,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "sha3",
+ "shield-protocol",
  "subtle",
  "thiserror",
  "tokio",
@@ -1585,6 +1586,47 @@ checksum = "75872d278a8f37ef87fa0ddbda7802605cb18344497949862c0d4dcb291eba60"
 dependencies = [
  "digest",
  "keccak",
+]
+
+[[package]]
+name = "shield-protocol"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "argon2",
+ "base32",
+ "base64",
+ "bincode",
+ "blake3",
+ "bs58",
+ "bulletproofs",
+ "chacha20poly1305",
+ "chrono",
+ "ciborium",
+ "curve25519-dalek",
+ "ed25519-dalek",
+ "getrandom 0.2.17",
+ "hex",
+ "hkdf",
+ "hmac",
+ "log",
+ "lru",
+ "merlin",
+ "ml-kem",
+ "once_cell",
+ "rand",
+ "rand_chacha",
+ "rand_core",
+ "serde",
+ "serde-big-array",
+ "serde_json",
+ "sha2",
+ "sha3",
+ "subtle",
+ "thiserror",
+ "uuid",
+ "x25519-dalek",
+ "zeroize",
 ]
 
 [[package]]

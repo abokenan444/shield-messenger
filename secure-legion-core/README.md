@@ -2,23 +2,25 @@
 
 **Privacy-focused cryptography and messaging core for Shield Messenger**
 
-This is the Rust core library that powers Shield Messenger's cryptographic operations, networking, and blockchain integration. It provides native bindings for Android (JNI), iOS (C FFI), and Web (WASM).
+This is the Rust core library that powers Shield Messenger's app-layer
+integration: platform FFI bindings, Tor networking, voice calling, and payment
+protocol. The core cryptographic protocol lives in the standalone
+[shield-protocol](../shield-protocol/) SDK.
 
 ## Architecture
 
 ### Modules
 
-1. **crypto/** - Cryptographic operations
-   - `encryption.rs` - XChaCha20-Poly1305 encryption with ratchet key evolution
-   - `signing.rs` - Ed25519 signatures
-   - `key_exchange.rs` - X25519 Diffie-Hellman
-   - `hashing.rs` - Argon2id password hashing
-   - `pqc.rs` - Post-quantum cryptography (ML-KEM-1024 / Kyber)
-   - `pq_ratchet.rs` - Post-quantum double ratchet (hybrid KEM + HMAC chains)
-   - `constant_time.rs` - Constant-time comparisons (`ct_eq!` macro)
-   - `replay_cache.rs` - LRU replay attack cache
-   - `ack_state.rs` - Two-phase commit for ratchet advancement
-   - `zkproofs.rs` - Bulletproof range proofs for ZK transfers
+> **Note:** The `crypto/`, `protocol/`, `storage/`, `crdt/`, and `transport/`
+> modules have been extracted into the standalone **shield-protocol** SDK crate.
+> This crate re-exports them for backward compatibility.
+
+1. **shield-protocol** (re-exported) - Standalone protocol SDK
+   - `crypto/` - All cryptographic operations (encryption, signing, PQ KEM, ratchet, ZK proofs)
+   - `protocol/` - Message format, contact cards, security modes
+   - `transport/` - Fixed-size packets, padding, cover traffic
+   - `storage/` - Deniable storage traits, duress PIN, decoy generation
+   - `crdt/` - CRDT-based group messaging
 
 2. **network/** - Networking and protocol
    - `tor.rs` - Tor hidden service management and P2P messaging

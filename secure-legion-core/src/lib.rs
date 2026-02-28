@@ -13,19 +13,27 @@
     unused_assignments
 )]
 
+// ── Re-export Shield Protocol SDK modules ───────────────────────────────────
+// These modules now live in the standalone `shield-protocol` crate.
+// We re-export them here so that all existing `crate::crypto::…`,
+// `crate::protocol::…`, etc. references continue to compile unchanged.
+pub use shield_protocol::crypto;
+pub use shield_protocol::protocol;
+pub use shield_protocol::storage;
+pub use shield_protocol::transport;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub use shield_protocol::crdt;
+
+// ── Local modules (app-layer, not part of the standalone protocol) ──────────
 #[cfg(feature = "audio-codec")]
 pub mod audio;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod crdt;
-pub mod crypto;
 pub mod ffi;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod network;
 pub mod nlx402;
-pub mod protocol;
-pub mod storage;
 
-// Re-export main types
+// ── Re-export main types (backward-compatible) ─────────────────────────────
 pub use crypto::{
     decrypt_message, derive_shared_secret, encrypt_message, generate_keypair, hash_handle,
     hash_password, sign_data, verify_signature,

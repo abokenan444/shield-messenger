@@ -264,7 +264,7 @@ pub fn derive_incoming_chain_key(root_key: &[u8; 32]) -> Result<[u8; 32]> {
 /// 32-byte chain key at sender's sequence (for decrypting their message)
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// // They encrypted with sequence 10, we're at sequence 15
 /// // We need to derive the key they used at sequence 10
 /// let key = derive_receive_key_at_sequence(&root_key, 10, our_onion, their_onion)?;
