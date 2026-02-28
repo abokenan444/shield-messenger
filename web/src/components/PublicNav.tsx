@@ -71,8 +71,8 @@ export function PublicNav() {
               onChange={(e) => setLocale(e.target.value as any)}
               className="bg-dark-800 border border-dark-700 text-dark-200 text-xs rounded-lg px-2 py-1.5 focus:ring-primary-500 focus:border-primary-500"
             >
-              <option value="ar">العربية</option>
               <option value="en">English</option>
+              <option value="ar">العربية</option>
               <option value="fr">Français</option>
               <option value="es">Español</option>
               <option value="de">Deutsch</option>
@@ -134,6 +134,29 @@ export function PublicNav() {
               </Link>
             ))}
             <div className="pt-3 border-t border-dark-800 flex flex-col gap-2">
+              <select
+                value={locale}
+                onChange={(e) => setLocale(e.target.value as any)}
+                className="bg-dark-800 border border-dark-700 text-dark-200 text-sm rounded-lg px-3 py-2 focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="en">English</option>
+                <option value="ar">العربية</option>
+                <option value="fr">Français</option>
+                <option value="es">Español</option>
+                <option value="de">Deutsch</option>
+                <option value="tr">Türkçe</option>
+                <option value="fa">فارسی</option>
+                <option value="ur">اردو</option>
+                <option value="zh">中文</option>
+                <option value="ru">Русский</option>
+                <option value="pt">Português</option>
+                <option value="ja">日本語</option>
+                <option value="ko">한국어</option>
+                <option value="hi">हिन्दी</option>
+                <option value="id">Indonesia</option>
+                <option value="it">Italiano</option>
+                <option value="nl">Nederlands</option>
+              </select>
               <Link to="/login" onClick={() => setMenuOpen(false)} className="btn-secondary text-center text-sm">
                 {lt.nav_login}
               </Link>

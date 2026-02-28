@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { type Translations, type LocaleCode, locales, ar } from './locales';
+import { type Translations, type LocaleCode, locales, en } from './locales';
 
 export type { Translations, LocaleCode };
 export { locales };
@@ -12,9 +12,9 @@ interface I18nContextValue {
 }
 
 const I18nContext = createContext<I18nContextValue>({
-  t: ar,
-  locale: 'ar',
-  dir: 'rtl',
+  t: en,
+  locale: 'en',
+  dir: 'ltr',
   setLocale: () => {},
 });
 
@@ -26,10 +26,10 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved && locales[saved]) return saved;
     } catch { /* ignore */ }
-    return 'ar';
+    return 'en';
   });
 
-  const t = locales[locale] || ar;
+  const t = locales[locale] || en;
 
   const setLocale = (code: LocaleCode) => {
     if (!locales[code]) return;
