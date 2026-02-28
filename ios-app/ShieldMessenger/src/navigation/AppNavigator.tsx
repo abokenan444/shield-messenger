@@ -14,24 +14,94 @@ import SettingsScreen from '../screens/SettingsScreen';
 import VoiceCallScreen from '../screens/VoiceCallScreen';
 import AddFriendScreen from '../screens/AddFriendScreen';
 import WalletScreen from '../screens/WalletScreen';
+// Group screens
+import CreateGroupScreen from '../screens/CreateGroupScreen';
+import GroupChatScreen from '../screens/GroupChatScreen';
+import GroupProfileScreen from '../screens/GroupProfileScreen';
+// Call screens
+import CallHistoryScreen from '../screens/CallHistoryScreen';
+import IncomingCallScreen from '../screens/IncomingCallScreen';
+import NewCallScreen from '../screens/NewCallScreen';
+// Contact screens
+import ContactInfoScreen from '../screens/ContactInfoScreen';
+import FriendRequestsScreen from '../screens/FriendRequestsScreen';
+import QRScannerScreen from '../screens/QRScannerScreen';
+import QRCodeScreen from '../screens/QRCodeScreen';
+// Auth screens
+import WelcomeScreen from '../screens/WelcomeScreen';
+import CreateAccountScreen from '../screens/CreateAccountScreen';
+import RestoreAccountScreen from '../screens/RestoreAccountScreen';
+import AccountCreatedScreen from '../screens/AccountCreatedScreen';
+// Security screens
+import DuressPinScreen from '../screens/DuressPinScreen';
+import ChangePasswordScreen from '../screens/ChangePasswordScreen';
+import AutoLockScreen from '../screens/AutoLockScreen';
+import WipeAccountScreen from '../screens/WipeAccountScreen';
+import SecurityModeScreen from '../screens/SecurityModeScreen';
+// Network screens
+import TorStatusScreen from '../screens/TorStatusScreen';
+import BridgeConfigScreen from '../screens/BridgeConfigScreen';
+import CommunicationModeScreen from '../screens/CommunicationModeScreen';
+// Settings screens
+import NotificationsScreen from '../screens/NotificationsScreen';
+import BackupSeedScreen from '../screens/BackupSeedScreen';
+import DeveloperScreen from '../screens/DeveloperScreen';
+import SystemLogScreen from '../screens/SystemLogScreen';
+import AboutScreen from '../screens/AboutScreen';
+import PrivacyScreen from '../screens/PrivacyScreen';
+import LicenseScreen from '../screens/LicenseScreen';
+// Wallet screens
+import SendMoneyScreen from '../screens/SendMoneyScreen';
+import ReceiveScreen from '../screens/ReceiveScreen';
+import TransactionsScreen from '../screens/TransactionsScreen';
+import TransactionDetailScreen from '../screens/TransactionDetailScreen';
+import CreateWalletScreen from '../screens/CreateWalletScreen';
+import ImportWalletScreen from '../screens/ImportWalletScreen';
+import WalletSettingsScreen from '../screens/WalletSettingsScreen';
 
 // ─── Type Definitions ───
 
 export type RootStackParamList = {
   Lock: undefined;
+  Welcome: undefined;
+  CreateAccount: undefined;
+  RestoreAccount: undefined;
+  AccountCreated: undefined;
   Main: undefined;
   Chat: {contactId: string; contactName: string};
   ContactInfo: {contactId: string};
   AddFriend: undefined;
   FriendRequests: undefined;
   VoiceCall: {contactId: string; contactName: string};
+  IncomingCall: {contactName: string; contactId: string; isVideo?: boolean};
+  CallHistory: undefined;
+  NewCall: undefined;
+  CreateGroup: undefined;
+  GroupChat: {groupId: string; groupName: string; memberCount?: number};
+  GroupProfile: {groupId: string; groupName: string};
   QRCode: undefined;
   QRScanner: undefined;
   DuressPin: undefined;
   ChangePassword: undefined;
+  AutoLock: undefined;
+  WipeAccount: undefined;
+  SecurityMode: undefined;
   TorStatus: undefined;
+  BridgeConfig: undefined;
+  CommunicationMode: undefined;
   BackupSeed: undefined;
+  Notifications: undefined;
+  Developer: undefined;
+  SystemLog: undefined;
+  About: undefined;
   Wallet: undefined;
+  SendMoney: {address?: string};
+  Receive: undefined;
+  Transactions: undefined;
+  TransactionDetail: {tx: any};
+  CreateWallet: undefined;
+  ImportWallet: undefined;
+  WalletSettings: undefined;
   Privacy: undefined;
   License: undefined;
 };
@@ -80,15 +150,6 @@ const MainTabs = () => (
   </Tab.Navigator>
 );
 
-// ─── Placeholder for screens not yet built ───
-
-const PlaceholderScreen: React.FC<{title: string}> = ({title}) => (
-  <View style={styles.placeholder}>
-    <Text style={styles.placeholderText}>{title}</Text>
-    <Text style={styles.placeholderSubtext}>Coming soon</Text>
-  </View>
-);
-
 // ─── Root Navigator ───
 
 const AppNavigator = () => {
@@ -126,40 +187,54 @@ const AppNavigator = () => {
         ) : (
           <>
             <Stack.Screen name="Main" component={MainTabs} />
+            {/* Chat & Groups */}
             <Stack.Screen name="Chat" component={ChatScreen} />
+            <Stack.Screen name="CreateGroup" component={CreateGroupScreen} />
+            <Stack.Screen name="GroupChat" component={GroupChatScreen} />
+            <Stack.Screen name="GroupProfile" component={GroupProfileScreen} />
+            {/* Contacts */}
             <Stack.Screen name="AddFriend" component={AddFriendScreen} />
+            <Stack.Screen name="FriendRequests" component={FriendRequestsScreen} />
+            <Stack.Screen name="ContactInfo" component={ContactInfoScreen} />
+            <Stack.Screen name="QRCode" component={QRCodeScreen} />
+            <Stack.Screen name="QRScanner" component={QRScannerScreen} />
+            {/* Calls */}
             <Stack.Screen name="VoiceCall" component={VoiceCallScreen} />
+            <Stack.Screen name="IncomingCall" component={IncomingCallScreen} />
+            <Stack.Screen name="CallHistory" component={CallHistoryScreen} />
+            <Stack.Screen name="NewCall" component={NewCallScreen} />
+            {/* Auth */}
+            <Stack.Screen name="Welcome" component={WelcomeScreen} />
+            <Stack.Screen name="CreateAccount" component={CreateAccountScreen} />
+            <Stack.Screen name="RestoreAccount" component={RestoreAccountScreen} />
+            <Stack.Screen name="AccountCreated" component={AccountCreatedScreen} />
+            {/* Security */}
+            <Stack.Screen name="DuressPin" component={DuressPinScreen} />
+            <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+            <Stack.Screen name="AutoLock" component={AutoLockScreen} />
+            <Stack.Screen name="WipeAccount" component={WipeAccountScreen} />
+            <Stack.Screen name="SecurityMode" component={SecurityModeScreen} />
+            {/* Network */}
+            <Stack.Screen name="TorStatus" component={TorStatusScreen} />
+            <Stack.Screen name="BridgeConfig" component={BridgeConfigScreen} />
+            <Stack.Screen name="CommunicationMode" component={CommunicationModeScreen} />
+            {/* Settings & Info */}
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="BackupSeed" component={BackupSeedScreen} />
+            <Stack.Screen name="Developer" component={DeveloperScreen} />
+            <Stack.Screen name="SystemLog" component={SystemLogScreen} />
+            <Stack.Screen name="About" component={AboutScreen} />
+            <Stack.Screen name="Privacy" component={PrivacyScreen} />
+            <Stack.Screen name="License" component={LicenseScreen} />
+            {/* Wallet */}
             <Stack.Screen name="Wallet" component={WalletScreen} />
-            <Stack.Screen name="FriendRequests">
-              {() => <PlaceholderScreen title="Friend Requests" />}
-            </Stack.Screen>
-            <Stack.Screen name="QRCode">
-              {() => <PlaceholderScreen title="QR Code" />}
-            </Stack.Screen>
-            <Stack.Screen name="QRScanner">
-              {() => <PlaceholderScreen title="QR Scanner" />}
-            </Stack.Screen>
-            <Stack.Screen name="ContactInfo">
-              {() => <PlaceholderScreen title="Contact Info" />}
-            </Stack.Screen>
-            <Stack.Screen name="DuressPin">
-              {() => <PlaceholderScreen title="Duress PIN Setup" />}
-            </Stack.Screen>
-            <Stack.Screen name="ChangePassword">
-              {() => <PlaceholderScreen title="Change Password" />}
-            </Stack.Screen>
-            <Stack.Screen name="TorStatus">
-              {() => <PlaceholderScreen title="Tor Network Status" />}
-            </Stack.Screen>
-            <Stack.Screen name="BackupSeed">
-              {() => <PlaceholderScreen title="Backup Seed Phrase" />}
-            </Stack.Screen>
-            <Stack.Screen name="Privacy">
-              {() => <PlaceholderScreen title="Privacy Policy" />}
-            </Stack.Screen>
-            <Stack.Screen name="License">
-              {() => <PlaceholderScreen title="License" />}
-            </Stack.Screen>
+            <Stack.Screen name="SendMoney" component={SendMoneyScreen} />
+            <Stack.Screen name="Receive" component={ReceiveScreen} />
+            <Stack.Screen name="Transactions" component={TransactionsScreen} />
+            <Stack.Screen name="TransactionDetail" component={TransactionDetailScreen} />
+            <Stack.Screen name="CreateWallet" component={CreateWalletScreen} />
+            <Stack.Screen name="ImportWallet" component={ImportWalletScreen} />
+            <Stack.Screen name="WalletSettings" component={WalletSettingsScreen} />
           </>
         )}
       </Stack.Navigator>
@@ -180,12 +255,6 @@ const styles = StyleSheet.create({
   tabIconContainer: {alignItems: 'center', justifyContent: 'center'},
   tabIcon: {fontSize: 22, opacity: 0.5},
   tabIconFocused: {opacity: 1},
-  placeholder: {
-    flex: 1, backgroundColor: Colors.background,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  placeholderText: {fontSize: FontSize.xxl, fontWeight: '600', color: Colors.textPrimary, marginBottom: 8},
-  placeholderSubtext: {fontSize: FontSize.md, color: Colors.textTertiary},
 });
 
 export default AppNavigator;

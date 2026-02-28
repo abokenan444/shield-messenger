@@ -1,0 +1,106 @@
+import React, {useState} from 'react';
+import {View, Text, TextInput, TouchableOpacity, StyleSheet, Alert} from 'react-native';
+import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+
+const WipeAccountScreen: React.FC<{navigation: any}> = ({navigation}) => {
+  const [confirmation, setConfirmation] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleWipe = () => {
+    Alert.alert(
+      'FINAL WARNING',
+      'This will permanently destroy ALL data. Your keys, messages, wallet, and contacts will be unrecoverable. This action cannot be undone.',
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'WIPE EVERYTHING',
+          style: 'destructive',
+          onPress: () => {
+            // TODO: Call Rust core secure_wipe_all()
+            // This will: zero all memory, drop SQLCipher tables, overwrite key files, clear keychain
+          },
+        },
+      ],
+    );
+  };
+
+  const canWipe = confirmation === 'WIPE' && password.length >= 12;
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.backText}>‹ Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>Wipe Account</Text>
+        <View style={{width: 60}} />
+      </View>
+
+      <View style={styles.content}>
+        <Text style={styles.warningIcon}>⚠️</Text>
+        <Text style={styles.warningTitle}>Permanent Data Destruction</Text>
+        <Text style={styles.warningText}>
+          This will securely wipe all data from this device using cryptographic erasure. There is no recovery.
+        </Text>
+
+        <View style={styles.infoCard}>
+          <Text style={styles.cardTitle}>What will be destroyed:</Text>
+          <Text style={styles.cardItem}>🔑 All cryptographic keys (Ed25519, X25519, ML-KEM)</Text>
+          <Text style={styles.cardItem}>💬 All messages and media</Text>
+          <Text style={styles.cardItem}>👥 All contacts and groups</Text>
+          <Text style={styles.cardItem}>💰 Wallet keys and transaction history</Text>
+          <Text style={styles.cardItem}>🗄️ Entire SQLCipher database</Text>
+          <Text style={styles.cardItem}>🧅 Tor hidden service keys</Text>
+        </View>
+
+        <Text style={styles.inputLabel}>Type WIPE to confirm</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Type WIPE"
+          placeholderTextColor={Colors.textTertiary}
+          value={confirmation}
+          onChangeText={setConfirmation}
+          autoCapitalize="characters"
+        />
+
+        <Text style={styles.inputLabel}>Enter your password</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Your current password"
+          placeholderTextColor={Colors.textTertiary}
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
+
+        <TouchableOpacity
+          style={[styles.wipeBtn, !canWipe && styles.btnDisabled]}
+          disabled={!canWipe}
+          onPress={handleWipe}>
+          <Text style={styles.wipeBtnText}>Wipe All Data</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {flex: 1, backgroundColor: Colors.background},
+  header: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.lg, paddingTop: 60, paddingBottom: Spacing.md},
+  backText: {color: Colors.primary, fontSize: FontSize.lg},
+  title: {color: Colors.error, fontSize: FontSize.xl, fontWeight: '700'},
+  content: {flex: 1, alignItems: 'center', paddingHorizontal: Spacing.xl, paddingTop: Spacing.lg},
+  warningIcon: {fontSize: 48},
+  warningTitle: {color: Colors.error, fontSize: FontSize.xxl, fontWeight: '700', marginTop: Spacing.md},
+  warningText: {color: Colors.textSecondary, fontSize: FontSize.md, textAlign: 'center', lineHeight: 24, marginTop: Spacing.sm},
+  infoCard: {backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg, width: '100%', marginTop: Spacing.xl, borderLeftWidth: 3, borderLeftColor: Colors.error},
+  cardTitle: {color: Colors.textPrimary, fontSize: FontSize.md, fontWeight: '600', marginBottom: Spacing.sm},
+  cardItem: {color: Colors.textSecondary, fontSize: FontSize.sm, lineHeight: 24},
+  inputLabel: {color: Colors.textSecondary, fontSize: FontSize.sm, alignSelf: 'flex-start', marginTop: Spacing.lg, marginBottom: Spacing.xs},
+  input: {backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, color: Colors.textPrimary, fontSize: FontSize.md, width: '100%', borderWidth: 1, borderColor: Colors.border},
+  wipeBtn: {backgroundColor: Colors.error, paddingVertical: Spacing.md, paddingHorizontal: Spacing.xxl, borderRadius: BorderRadius.lg, marginTop: Spacing.xl},
+  wipeBtnText: {color: Colors.textOnPrimary, fontSize: FontSize.lg, fontWeight: '700'},
+  btnDisabled: {opacity: 0.4},
+});
+
+export default WipeAccountScreen;

@@ -40,6 +40,9 @@ jobs:
           - fuzz_key_exchange
           - fuzz_packet
           - fuzz_backup
+          - fuzz_ratchet
+          - fuzz_padding
+          - fuzz_dos_protection
     steps:
       - uses: actions/checkout@v4
 

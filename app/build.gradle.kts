@@ -129,8 +129,10 @@ android {
             buildConfigField("boolean", "HAS_DEMO_LOGIN", "true")
             buildConfigField("int", "MAX_GROUP_SIZE", "100")
             buildConfigField("String", "FLAVOR_NAME", "\"Google Play Demo\"")
-            buildConfigField("String", "DEMO_USERNAME", "\"google_reviewer\"")
-            buildConfigField("String", "DEMO_PASSWORD", "\"demo123!\"")
+            buildConfigField("String", "DEMO_USERNAME",
+                "\"${keystoreProperties.getProperty("demoUsername", "")}\"")
+            buildConfigField("String", "DEMO_PASSWORD",
+                "\"${keystoreProperties.getProperty("demoPassword", "")}\"")
             buildConfigField("boolean", "ENABLE_SHADOW_WIRE", "false")
         }
 
