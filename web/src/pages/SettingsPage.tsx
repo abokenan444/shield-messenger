@@ -1,10 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../lib/store/authStore';
 import { ShieldIcon } from '../components/icons/ShieldIcon';
+import { useTranslation } from '../lib/i18n';
+import { locales, type LocaleCode } from '../lib/i18n/locales';
 
 export function SettingsPage() {
   const navigate = useNavigate();
   const { userId, displayName, publicKey, logout } = useAuthStore();
+  const { locale, setLocale } = useTranslation();
 
   const handleLogout = () => {
     logout();
@@ -76,7 +79,18 @@ export function SettingsPage() {
           <h2 className="text-lg font-semibold mb-4">المظهر</h2>
           <div className="space-y-4">
             <SettingRow label="السمة" value="داكن" active />
-            <SettingRow label="اللغة" value="العربية" />
+            <div className="flex items-center justify-between py-2 border-b border-dark-800">
+              <span className="text-dark-200">اللغة</span>
+              <select
+                value={locale}
+                onChange={(e) => setLocale(e.target.value as LocaleCode)}
+                className="bg-dark-800 text-dark-200 text-sm rounded-lg px-3 py-1.5 border border-dark-700 focus:border-primary-500 focus:outline-none"
+              >
+                {Object.entries(locales).map(([code, t]) => (
+                  <option key={code} value={code}>{t.langName}</option>
+                ))}
+              </select>
+            </div>
             <SettingRow label="حجم الخط" value="متوسط" />
           </div>
         </div>

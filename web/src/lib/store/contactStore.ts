@@ -63,55 +63,8 @@ interface ContactState {
 }
 
 export const useContactStore = create<ContactState>()((set) => ({
-  contacts: [
-    {
-      id: 'sl_ahmed',
-      displayName: 'أحمد محمد',
-      onionAddress: 'ahmed7k3x...onion',
-      publicKey: 'ed25519:abc123...',
-      avatar: null,
-      status: 'online',
-      verified: true,
-      blocked: false,
-      addedAt: Date.now() - 86400000 * 7,
-      trustLevel: 2,
-    },
-    {
-      id: 'sl_sarah',
-      displayName: 'سارة أحمد',
-      onionAddress: 'sarah9m2p...onion',
-      publicKey: 'ed25519:def456...',
-      avatar: null,
-      status: 'offline',
-      verified: true,
-      blocked: false,
-      addedAt: Date.now() - 86400000 * 3,
-      trustLevel: 2,
-    },
-    {
-      id: 'sl_dev1',
-      displayName: 'خالد حسن',
-      onionAddress: 'khaled4r...onion',
-      publicKey: 'ed25519:ghi789...',
-      avatar: null,
-      status: 'online',
-      verified: false,
-      blocked: false,
-      addedAt: Date.now() - 86400000,
-      trustLevel: 1,
-    },
-  ],
-  friendRequests: [
-    {
-      id: 'fr-001',
-      fromId: 'sl_unknown1',
-      fromName: 'محمد علي',
-      fromOnion: 'moha5t2x...onion',
-      direction: 'incoming',
-      timestamp: Date.now() - 3600000,
-      status: 'pending',
-    },
-  ],
+  contacts: [],
+  friendRequests: [],
 
   addContact: (contact) =>
     set((state) => ({ contacts: [...state.contacts, contact] })),

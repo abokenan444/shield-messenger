@@ -1,5 +1,6 @@
 package com.shieldmessenger
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
@@ -10,6 +11,7 @@ import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.app.AppCompatActivity
 import com.shieldmessenger.utils.BadgeUtils
+import com.shieldmessenger.utils.LocaleHelper
 
 /**
  * Base activity for all activities that include bottom navigation
@@ -17,6 +19,10 @@ import com.shieldmessenger.utils.BadgeUtils
  * Implements auto-lock timer functionality
  */
 abstract class BaseActivity : AppCompatActivity() {
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleHelper.applyLocale(newBase))
+    }
 
     companion object {
         private const val PREF_LAST_PAUSE_TIME = "last_pause_timestamp"

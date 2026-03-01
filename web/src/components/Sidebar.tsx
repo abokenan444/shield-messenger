@@ -29,6 +29,9 @@ export function Sidebar({ isOpen }: SidebarProps) {
       {/* Contacts */}
       <SidebarButton icon="👥" tooltip="جهات الاتصال" onClick={() => navigate('/contacts')} />
 
+      {/* Wallet */}
+      <SidebarButton icon="💰" tooltip="المحفظة" onClick={() => navigate('/wallet')} />
+
       <div className="flex-1" />
 
       {/* Settings */}

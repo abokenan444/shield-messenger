@@ -41,11 +41,16 @@ export function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
+      {/* Background effects */}
+      <div className="absolute inset-0 bg-gradient-to-b from-primary-900/20 via-dark-950 to-dark-950" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-primary-600/10 rounded-full blur-3xl" />
+      <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-primary-600/5 rounded-full blur-3xl" />
+
+      <div className="relative w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-primary-600/20 rounded-2xl mb-4">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-primary-600/20 rounded-2xl mb-4 shadow-2xl shadow-primary-600/20">
             <ShieldIcon className="w-10 h-10 text-primary-400" />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">إنشاء حساب</h1>

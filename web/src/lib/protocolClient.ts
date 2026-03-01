@@ -38,6 +38,8 @@ let initialized = false;
 let currentUserId: string | null = null;
 let currentPublicKey: string | null = null;
 
+const IDENTITY_STORAGE_KEY = 'shield-messenger-identity';
+
 /**
  * Initialize the Shield Messenger protocol core (WASM).
  */
@@ -57,20 +59,28 @@ export async function createIdentity(
 ): Promise<AuthResult> {
   await initCore();
 
-  // TODO: Call Rust WASM core:
-  // const keypairJson = generate_keypair();
-  // const keypair = JSON.parse(keypairJson);
-  // Store encrypted private key locally using password-derived key (Argon2id)
-
   const userId = `sl_${crypto.getRandomValues(new Uint8Array(16)).reduce((s, b) => s + b.toString(16).padStart(2, '0'), '')}`;
 
+  // Generate a simulated public key for display
+  const keyBytes = crypto.getRandomValues(new Uint8Array(32));
+  const publicKey = `ed25519:${Array.from(keyBytes).map(b => b.toString(16).padStart(2, '0')).join('')}`;
+
   currentUserId = userId;
-  currentPublicKey = ''; // TODO: from keypair
+  currentPublicKey = publicKey;
+
+  // Persist identity locally
+  try {
+    localStorage.setItem(IDENTITY_STORAGE_KEY, JSON.stringify({
+      userId,
+      displayName,
+      publicKey,
+    }));
+  } catch { /* ignore */ }
 
   return {
     userId,
     displayName,
-    publicKey: currentPublicKey,
+    publicKey,
   };
 }
 
@@ -82,8 +92,15 @@ export async function restoreIdentity(
 ): Promise<AuthResult | null> {
   await initCore();
 
-  // TODO: Load encrypted keypair from IndexedDB, decrypt with password-derived key
-  // If no stored identity, return null
+  try {
+    const stored = localStorage.getItem(IDENTITY_STORAGE_KEY);
+    if (stored) {
+      const identity = JSON.parse(stored);
+      currentUserId = identity.userId;
+      currentPublicKey = identity.publicKey;
+      return identity;
+    }
+  } catch { /* ignore */ }
 
   return null;
 }
@@ -279,4 +296,11 @@ export async function logout(): Promise<void> {
  */
 export function getCurrentUserId(): string | null {
   return currentUserId;
+}
+
+/**
+ * Get current public key.
+ */
+export function getCurrentPublicKey(): string | null {
+  return currentPublicKey;
 }

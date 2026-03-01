@@ -14,6 +14,7 @@ import androidx.appcompat.widget.SwitchCompat
 import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.services.TorVpnService
 import com.shieldmessenger.utils.BiometricAuthHelper
+import com.shieldmessenger.utils.LocaleHelper
 import com.shieldmessenger.utils.ThemedToast
 
 class SettingsActivity : BaseActivity() {
@@ -47,6 +48,30 @@ class SettingsActivity : BaseActivity() {
         setupBiometricToggle()
         setupTorModeToggle()
         setupPrivacyToggles()
+        updateLanguageDisplay()
+    }
+
+    private fun updateLanguageDisplay() {
+        val currentLang = LocaleHelper.getSavedLanguage(this)
+        findViewById<TextView>(R.id.currentLanguageText)?.text = LocaleHelper.getLanguageName(currentLang)
+    }
+
+    private fun showLanguageDialog() {
+        val languages = LocaleHelper.supportedLanguages
+        val names = languages.map { it.name }.toTypedArray()
+        val currentCode = LocaleHelper.getSavedLanguage(this)
+        val currentIndex = languages.indexOfFirst { it.code == currentCode }.coerceAtLeast(0)
+
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Language")
+            .setSingleChoiceItems(names, currentIndex) { dialog, which ->
+                val selected = languages[which]
+                LocaleHelper.saveLanguage(this, selected.code)
+                dialog.dismiss()
+                recreate()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun setupClickListeners() {
@@ -109,6 +134,11 @@ class SettingsActivity : BaseActivity() {
         // Communication Mode
         findViewById<View>(R.id.communicationModeItem).setOnClickListener {
             startActivity(Intent(this, CommunicationModeActivity::class.java))
+        }
+
+        // Language
+        findViewById<View>(R.id.languageItem).setOnClickListener {
+            showLanguageDialog()
         }
 
         // Developer (master flavor only)

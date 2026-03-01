@@ -37,10 +37,6 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'shield-messenger-auth',
-      partialize: () => ({
-        // Never persist keys in localStorage in production
-        // This is placeholder — real impl uses encrypted IndexedDB
-      }),
     },
   ),
 );

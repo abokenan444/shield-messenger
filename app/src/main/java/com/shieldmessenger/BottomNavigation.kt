@@ -61,5 +61,12 @@ object BottomNavigationHelper {
             val intent = Intent(activity, WalletIdentityActivity::class.java)
             activity.startActivity(intent)
         }
+
+        activity.findViewById<View>(R.id.navWallet)?.setOnClickListener {
+            if (activity !is WalletActivity) {
+                val intent = Intent(activity, WalletActivity::class.java)
+                activity.startActivity(intent)
+            }
+        }
     }
 }
