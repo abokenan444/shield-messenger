@@ -4,7 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.services.TorService
 import com.shieldmessenger.workers.MessageRetryWorker
 

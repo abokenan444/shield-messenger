@@ -39,7 +39,7 @@ import com.shieldmessenger.database.entities.ReceivedId
 import com.shieldmessenger.database.entities.SkippedMessageKey
 import com.shieldmessenger.database.entities.UsedSignature
 import com.shieldmessenger.database.entities.Wallet
-import com.shieldmessenger.database.PendingPingStore
+import com.securelegion.database.PendingPingStore
 import net.zetetic.database.sqlcipher.SQLiteDatabase
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 

@@ -5,9 +5,9 @@ import android.content.Intent
 import android.util.Base64
 import android.util.Log
 import com.shieldmessenger.crypto.KeyChainManager
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.crypto.NLx402Manager
-import com.shieldmessenger.crypto.RustBridge
+import com.securelegion.crypto.RustBridge
 import com.shieldmessenger.database.ShieldMessengerDatabase
 import com.shieldmessenger.database.entities.Message
 import com.shieldmessenger.models.AckState
@@ -2989,7 +2989,7 @@ class MessageService(private val context: Context) {
             // Check if we have a PONG already (phase 2: need to send message blob)
             val hasPong = try {
                 message.pingId?.let { pingId ->
-                    com.shieldmessenger.crypto.RustBridge.pollForPong(pingId)
+                    com.securelegion.crypto.RustBridge.pollForPong(pingId)
                 } ?: false
             } catch (e: Exception) {
                 Log.w(TAG, "Error checking for pong: ${e.message}")
@@ -3085,7 +3085,7 @@ class MessageService(private val context: Context) {
     ): Boolean {
         repeat(maxRetries) { attempt ->
             try {
-                val success = com.shieldmessenger.crypto.RustBridge.sendDeliveryAck(
+                val success = com.securelegion.crypto.RustBridge.sendDeliveryAck(
                     itemId = itemId,
                     ackType = "PONG_ACK",
                     recipientEd25519Pubkey = android.util.Base64.decode(contact.publicKeyBase64, android.util.Base64.NO_WRAP),
@@ -3161,7 +3161,7 @@ class MessageService(private val context: Context) {
 
             // Send message blob
             val success = try {
-                com.shieldmessenger.crypto.RustBridge.sendMessageBlob(
+                com.securelegion.crypto.RustBridge.sendMessageBlob(
                     contact.messagingOnion ?: "",
                     encryptedBytes,
                     messageTypeByte
@@ -3173,7 +3173,7 @@ class MessageService(private val context: Context) {
                 // CRITICAL: ALWAYS clean up Pong session (success OR failure)
                 // This prevents session leaks that cause all future messages to fail
                 try {
-                    com.shieldmessenger.crypto.RustBridge.removePongSession(pingId)
+                    com.securelegion.crypto.RustBridge.removePongSession(pingId)
                     Log.d(TAG, "Cleaned up Rust Pong session for pingId=${pingId.take(8)}...")
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to clean up Pong session (non-critical)", e)

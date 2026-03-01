@@ -19,7 +19,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.database.ShieldMessengerDatabase
 import com.shieldmessenger.database.entities.Contact as DbContact
 import kotlinx.coroutines.Dispatchers

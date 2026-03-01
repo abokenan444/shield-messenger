@@ -16,7 +16,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 
 class SplashActivity : AppCompatActivity() {
 

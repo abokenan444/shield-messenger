@@ -18,7 +18,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.utils.ThemedToast
 
 /**

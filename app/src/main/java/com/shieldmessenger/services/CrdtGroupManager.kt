@@ -6,8 +6,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Base64
 import android.util.Log
-import com.shieldmessenger.crypto.KeyManager
-import com.shieldmessenger.crypto.RustBridge
+import com.securelegion.crypto.KeyManager
+import com.securelegion.crypto.RustBridge
 import com.shieldmessenger.database.ShieldMessengerDatabase
 import com.shieldmessenger.database.entities.CrdtOpLog
 import com.shieldmessenger.database.entities.Group

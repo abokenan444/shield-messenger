@@ -2,7 +2,7 @@ package com.shieldmessenger.services
 
 import android.content.Context
 import android.util.Log
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.database.ShieldMessengerDatabase
 import com.shieldmessenger.database.entities.Contact
 import org.json.JSONArray

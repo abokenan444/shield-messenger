@@ -2,7 +2,7 @@ package com.shieldmessenger.voice
 
 import android.content.Context
 import android.util.Log
-import com.shieldmessenger.crypto.RustBridge
+import com.securelegion.crypto.RustBridge
 import com.shieldmessenger.voice.crypto.VoiceCallCrypto
 import kotlinx.coroutines.*
 import java.util.UUID
@@ -414,7 +414,7 @@ class VoiceCallSession(
             CoroutineScope(Dispatchers.IO).launch {
                 try {
                     // Get our X25519 public key for HTTP wire format
-                    val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(context)
+                    val keyManager = com.securelegion.crypto.KeyManager.getInstance(context)
                     val ourX25519PublicKey = keyManager.getEncryptionPublicKey()
 
                     val sent = CallSignaling.sendCallEnd(

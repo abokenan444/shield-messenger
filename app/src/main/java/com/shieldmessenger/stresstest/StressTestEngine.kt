@@ -2,7 +2,7 @@ package com.shieldmessenger.stresstest
 
 import android.content.Context
 import android.util.Log
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.database.ShieldMessengerDatabase
 import com.shieldmessenger.database.entities.Message
 import com.shieldmessenger.services.MessageService

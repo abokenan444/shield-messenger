@@ -1,4 +1,6 @@
 package com.shieldmessenger.crypto
+import com.securelegion.crypto.RustBridge
+import com.securelegion.crypto.KeyManager
 
 import android.content.Context
 import android.content.Intent

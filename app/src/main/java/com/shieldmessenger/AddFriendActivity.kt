@@ -17,7 +17,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.utils.ThemedToast
 import com.shieldmessenger.utils.BadgeUtils
 import com.shieldmessenger.database.ShieldMessengerDatabase
@@ -25,7 +25,7 @@ import com.shieldmessenger.database.entities.Contact
 import com.shieldmessenger.models.ContactCard
 import com.shieldmessenger.models.FriendRequest
 import com.shieldmessenger.services.ContactCardManager
-import com.shieldmessenger.crypto.RustBridge
+import com.securelegion.crypto.RustBridge
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -1018,7 +1018,7 @@ class AddFriendActivity : BaseActivity() {
 
                     // Initialize key chain for progressive ephemeral key evolution
                     try {
-                        val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@AddFriendActivity)
+                        val keyManager = com.securelegion.crypto.KeyManager.getInstance(this@AddFriendActivity)
                         val ourMessagingOnion = keyManager.getMessagingOnion()
                         val theirMessagingOnion = contact.messagingOnion ?: contactCard.messagingOnion
 
@@ -1190,7 +1190,7 @@ class AddFriendActivity : BaseActivity() {
                         put("phase", 1)
                     }.toString()
 
-                    val signatureValid = com.shieldmessenger.crypto.RustBridge.verifySignature(
+                    val signatureValid = com.securelegion.crypto.RustBridge.verifySignature(
                         unsignedJson.toByteArray(Charsets.UTF_8),
                         signature,
                         senderEd25519PublicKey
@@ -1396,7 +1396,7 @@ class AddFriendActivity : BaseActivity() {
                 // Sign Phase 1 with our Ed25519 key (defense-in-depth against .onion MitM)
                 val ownSigningKey = keyManager.getSigningKeyBytes()
                 val ownSigningPublicKey = keyManager.getSigningPublicKey()
-                val phase1Signature = com.shieldmessenger.crypto.RustBridge.signData(
+                val phase1Signature = com.securelegion.crypto.RustBridge.signData(
                     phase1UnsignedJson.toByteArray(Charsets.UTF_8),
                     ownSigningKey
                 )
@@ -1479,12 +1479,12 @@ class AddFriendActivity : BaseActivity() {
 
                 // Additional check: verify SOCKS proxy is actually running
                 val socksRunning = withContext(Dispatchers.IO) {
-                    com.shieldmessenger.crypto.RustBridge.isSocksProxyRunning()
+                    com.securelegion.crypto.RustBridge.isSocksProxyRunning()
                 }
                 if (!socksRunning) {
                     Log.w(TAG, "SOCKS proxy not running - attempting to start")
                     val started = withContext(Dispatchers.IO) {
-                        com.shieldmessenger.crypto.RustBridge.startSocksProxy()
+                        com.securelegion.crypto.RustBridge.startSocksProxy()
                     }
                     if (!started) {
                         Log.e(TAG, "Failed to start SOCKS proxy")

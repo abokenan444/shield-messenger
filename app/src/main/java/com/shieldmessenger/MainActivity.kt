@@ -36,7 +36,7 @@ import androidx.work.WorkManager
 import com.shieldmessenger.adapters.ChatAdapter
 import com.shieldmessenger.adapters.ContactAdapter
 import com.shieldmessenger.adapters.WalletAdapter
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.database.ShieldMessengerDatabase
 import com.shieldmessenger.database.entities.Wallet
 import com.shieldmessenger.models.Chat
@@ -1115,7 +1115,7 @@ class MainActivity : BaseActivity() {
         lifecycleScope.launch {
             try {
                 val groupsWithCounts = withContext(Dispatchers.IO) {
-                    val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@MainActivity)
+                    val keyManager = com.securelegion.crypto.KeyManager.getInstance(this@MainActivity)
                     val dbPassphrase = keyManager.getDatabasePassphrase()
                     val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@MainActivity, dbPassphrase)
 

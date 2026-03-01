@@ -182,7 +182,7 @@ class VoiceRecorder(private val context: Context) {
         val voiceFile = File(voiceDir, fileName)
 
         // Encrypt audio before saving to disk
-        val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(context)
+        val keyManager = com.securelegion.crypto.KeyManager.getInstance(context)
         val encryptedBytes = keyManager.encryptVoiceFile(audioBytes)
         voiceFile.writeBytes(encryptedBytes)
 

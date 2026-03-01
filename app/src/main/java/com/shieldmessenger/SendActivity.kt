@@ -17,7 +17,7 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.services.SolanaService
 import com.shieldmessenger.services.ZcashService
 import com.shieldmessenger.utils.ThemedToast

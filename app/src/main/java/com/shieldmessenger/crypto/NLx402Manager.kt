@@ -1,4 +1,5 @@
 package com.shieldmessenger.crypto
+import com.securelegion.crypto.RustBridge
 
 import android.util.Log
 import org.json.JSONObject

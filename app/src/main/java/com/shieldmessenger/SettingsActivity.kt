@@ -11,7 +11,7 @@ import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.services.TorVpnService
 import com.shieldmessenger.utils.BiometricAuthHelper
 import com.shieldmessenger.utils.ThemedToast

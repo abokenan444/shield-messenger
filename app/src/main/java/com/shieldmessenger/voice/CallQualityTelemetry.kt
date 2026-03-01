@@ -2,7 +2,7 @@ package com.shieldmessenger.voice
 
 import android.content.Context
 import android.util.Log
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.database.ShieldMessengerDatabase
 import com.shieldmessenger.database.entities.CallQualityLog
 import kotlinx.coroutines.*

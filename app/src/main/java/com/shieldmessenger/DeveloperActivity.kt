@@ -5,7 +5,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
-import com.shieldmessenger.crypto.RustBridge
+import com.securelegion.crypto.RustBridge
 
 /**
  * DeveloperActivity - Developer tools and debugging features

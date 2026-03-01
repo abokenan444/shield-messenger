@@ -16,7 +16,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.services.ZcashService
 import com.shieldmessenger.utils.ThemedToast
 import androidx.lifecycle.lifecycleScope

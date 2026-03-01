@@ -1,4 +1,5 @@
 package com.shieldmessenger.crypto
+import com.securelegion.crypto.RustBridge
 
 import android.content.Context
 import android.util.Base64

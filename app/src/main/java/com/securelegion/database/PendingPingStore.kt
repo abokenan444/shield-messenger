@@ -1,4 +1,4 @@
-package com.shieldmessenger.database
+package com.securelegion.database
 
 import android.os.SystemClock
 import android.util.Log

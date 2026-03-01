@@ -14,7 +14,7 @@ import androidx.core.app.NotificationCompat
 import com.shieldmessenger.ChatActivity
 import com.shieldmessenger.LockActivity
 import com.shieldmessenger.R
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.crypto.TorManager
 import com.shieldmessenger.database.ShieldMessengerDatabase
 import kotlinx.coroutines.*
@@ -304,7 +304,7 @@ class DownloadMessageService : Service() {
             return null
         }
 
-        val normalized = com.shieldmessenger.crypto.RustBridge.normalizeWireBytes(0x01, raw)
+        val normalized = com.securelegion.crypto.RustBridge.normalizeWireBytes(0x01, raw)
 
         if (normalized.size != raw.size) {
             Log.i(TAG, "Normalized ping wire bytes: ${raw.size} → ${normalized.size} bytes (pingId=${pingId.take(8)})")
@@ -343,7 +343,7 @@ class DownloadMessageService : Service() {
 
         val bootstrapStatus = withContext(Dispatchers.IO) {
             try {
-                com.shieldmessenger.crypto.RustBridge.getBootstrapStatus()
+                com.securelegion.crypto.RustBridge.getBootstrapStatus()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to check bootstrap status", e)
                 -1
@@ -364,7 +364,7 @@ class DownloadMessageService : Service() {
 
         val socksRunning = withContext(Dispatchers.IO) {
             try {
-                com.shieldmessenger.crypto.RustBridge.isSocksProxyRunning()
+                com.securelegion.crypto.RustBridge.isSocksProxyRunning()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to check SOCKS status", e)
                 false
@@ -379,7 +379,7 @@ class DownloadMessageService : Service() {
         Log.i(TAG, "SOCKS proxy: running")
 
         // Check circuit status from the already-authenticated event listener (no raw control-port probe)
-        val circuitsEstablished = com.shieldmessenger.crypto.RustBridge.getCircuitEstablished() >= 1
+        val circuitsEstablished = com.securelegion.crypto.RustBridge.getCircuitEstablished() >= 1
 
         if (!circuitsEstablished) {
             Log.w(TAG, "Circuits not established yet (non-critical)")
@@ -404,7 +404,7 @@ class DownloadMessageService : Service() {
             val encryptedPingWire = android.util.Base64.decode(ctx.pingWireBytesNormalized, android.util.Base64.NO_WRAP)
 
             withContext(Dispatchers.IO) {
-                com.shieldmessenger.crypto.RustBridge.decryptIncomingPing(encryptedPingWire)
+                com.securelegion.crypto.RustBridge.decryptIncomingPing(encryptedPingWire)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to restore Ping - Ping session is unrecoverable", e)
@@ -530,7 +530,7 @@ class DownloadMessageService : Service() {
             if (ctx.connectionId != -1L) {
                 val isAlive = withContext(Dispatchers.IO) {
                     try {
-                        com.shieldmessenger.crypto.RustBridge.isConnectionAlive(ctx.connectionId)
+                        com.securelegion.crypto.RustBridge.isConnectionAlive(ctx.connectionId)
                     } catch (e: Exception) {
                         Log.w(TAG, "Failed to check connection status (assuming dead): ${e.message}")
                         false
@@ -542,7 +542,7 @@ class DownloadMessageService : Service() {
                     updateNotification(ctx.contactName, "[3/4] Downloading... (fast path)")
                     pongSent = withContext(Dispatchers.IO) {
                         try {
-                            val messageBytes = com.shieldmessenger.crypto.RustBridge.sendPongBytes(ctx.connectionId, pongBytes)
+                            val messageBytes = com.securelegion.crypto.RustBridge.sendPongBytes(ctx.connectionId, pongBytes)
                             if (messageBytes != null) {
                                 Log.i(TAG, "Pong sent on original connection! Received message blob: ${messageBytes.size} bytes")
                                 handleInstantMessageBlob(messageBytes, ctx.contactId, ctx.contactName, ctx.pingId, ctx.connectionId)
@@ -577,7 +577,7 @@ class DownloadMessageService : Service() {
                     updateNotification(ctx.contactName, "[3/4] Sending response... ($pongAttempt/$maxPongRetries)")
                     pongSent = withContext(Dispatchers.IO) {
                         try {
-                            com.shieldmessenger.crypto.RustBridge.sendPongToListener(ctx.senderOnion, pongBytes)
+                            com.securelegion.crypto.RustBridge.sendPongToListener(ctx.senderOnion, pongBytes)
                         } catch (e: Exception) {
                             Log.e(TAG, "Failed to send Pong to listener (attempt $pongAttempt/$maxPongRetries)", e)
                             false
@@ -771,8 +771,8 @@ class DownloadMessageService : Service() {
 
     private fun checkTorStatus(): String {
         return try {
-            val bootstrap = com.shieldmessenger.crypto.RustBridge.getBootstrapStatus()
-            val socks = com.shieldmessenger.crypto.RustBridge.isSocksProxyRunning()
+            val bootstrap = com.securelegion.crypto.RustBridge.getBootstrapStatus()
+            val socks = com.securelegion.crypto.RustBridge.isSocksProxyRunning()
             "Bootstrap=$bootstrap%, SOCKS=$socks"
         } catch (e: Exception) {
             "Error: ${e.message}"
@@ -1180,7 +1180,7 @@ class DownloadMessageService : Service() {
                                 // Clean up Rust Ping session AFTER MESSAGE_ACK sent successfully
                                 // This prevents orphaned messages if there's a delay between Pong and MESSAGE
                                 try {
-                                    com.shieldmessenger.crypto.RustBridge.removePingSession(pingId)
+                                    com.securelegion.crypto.RustBridge.removePingSession(pingId)
                                     Log.d(TAG, "Cleaned up Rust Ping session for pingId: $pingId")
                                 } catch (cleanupError: Exception) {
                                     Log.w(TAG, "Failed to clean up Ping session (non-critical)", cleanupError)
@@ -1673,7 +1673,7 @@ class DownloadMessageService : Service() {
                     // Connection reuse code preserved but disabled:
                     if (false && connectionId >= 0) {
                         ackSuccess = withContext(Dispatchers.IO) {
-                            com.shieldmessenger.crypto.RustBridge.sendAckOnConnection(
+                            com.securelegion.crypto.RustBridge.sendAckOnConnection(
                                 connectionId,
                                 pingId,
                                 "MESSAGE_ACK",
@@ -1694,7 +1694,7 @@ class DownloadMessageService : Service() {
 
                     // PATH 2 (always used): Open new connection to peer's messaging .onion
                     ackSuccess = withContext(Dispatchers.IO) {
-                        com.shieldmessenger.crypto.RustBridge.sendDeliveryAck(
+                        com.securelegion.crypto.RustBridge.sendDeliveryAck(
                             pingId,
                             "MESSAGE_ACK",
                             senderEd25519Pubkey,

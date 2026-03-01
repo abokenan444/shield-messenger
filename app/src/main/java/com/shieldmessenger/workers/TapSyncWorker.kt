@@ -4,7 +4,7 @@ import android.content.Context
 import android.util.Base64
 import android.util.Log
 import androidx.work.*
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.database.ShieldMessengerDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -215,7 +215,7 @@ class TapSyncWorker(
 
         repeat(maxAttempts) { attempt ->
             try {
-                val ok = com.shieldmessenger.crypto.RustBridge.sendTap(
+                val ok = com.securelegion.crypto.RustBridge.sendTap(
                     ed25519,
                     x25519,
                     recipientOnion

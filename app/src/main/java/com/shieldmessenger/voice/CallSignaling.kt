@@ -2,8 +2,8 @@ package com.shieldmessenger.voice
 
 import android.util.Base64
 import android.util.Log
-import com.shieldmessenger.crypto.KeyManager
-import com.shieldmessenger.crypto.RustBridge
+import com.securelegion.crypto.KeyManager
+import com.securelegion.crypto.RustBridge
 import org.json.JSONObject
 
 /**

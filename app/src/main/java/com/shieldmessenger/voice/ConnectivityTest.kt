@@ -1,7 +1,7 @@
 package com.shieldmessenger.voice
 
 import android.util.Log
-import com.shieldmessenger.crypto.RustBridge
+import com.securelegion.crypto.RustBridge
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout

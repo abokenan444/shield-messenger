@@ -4,7 +4,7 @@ import android.content.Context
 import android.util.Base64
 import android.util.Log
 import androidx.work.*
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.database.ShieldMessengerDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -201,7 +201,7 @@ class AckWorker(
     ): Boolean {
         repeat(maxRetries) { attempt ->
             try {
-                val success = com.shieldmessenger.crypto.RustBridge.sendDeliveryAck(
+                val success = com.securelegion.crypto.RustBridge.sendDeliveryAck(
                     itemId = itemId,
                     ackType = ackType,
                     recipientEd25519Pubkey = Base64.decode(contact.publicKeyBase64, Base64.NO_WRAP),

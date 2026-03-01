@@ -12,7 +12,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.shieldmessenger.adapters.TransactionAdapter
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.services.SolanaService
 import com.shieldmessenger.utils.ThemedToast
 import kotlinx.coroutines.Dispatchers

@@ -29,7 +29,7 @@ import com.shieldmessenger.MainActivity
 import com.shieldmessenger.R
 import com.shieldmessenger.SecurityModeActivity
 import com.shieldmessenger.crypto.TorManager
-import com.shieldmessenger.crypto.RustBridge
+import com.securelegion.crypto.RustBridge
 import com.shieldmessenger.crypto.KeyChainManager
 import com.shieldmessenger.models.AckStateTracker
 import com.shieldmessenger.database.entities.sendChainKeyBytes
@@ -285,7 +285,7 @@ class TorService : Service() {
             val bridgeType = torSettings.getString("bridge_type", "none") ?: "none"
             val usingBridges = bridgeType != "none"
             // First-time users need more time — full consensus download from scratch
-            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+            val keyManager = com.securelegion.crypto.KeyManager.getInstance(this@TorService)
             val isFirstTime = !keyManager.isInitialized()
             val stallTimeoutMs = when {
                 usingBridges -> 180_000L  // 3 min with bridges
@@ -332,11 +332,11 @@ class TorService : Service() {
 
         // Initialize PendingPingStore DAO for Rust JNI ping persistence
         try {
-            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
             val dbPassphrase = keyManager.getDatabasePassphrase()
             val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
-            com.shieldmessenger.database.PendingPingStore.dao = database.pendingPingDao()
-            com.shieldmessenger.database.PendingPingStore.purgeExpired()
+            com.securelegion.database.PendingPingStore.dao = database.pendingPingDao()
+            com.securelegion.database.PendingPingStore.purgeExpired()
             Log.i(TAG, "PendingPingStore DAO initialized")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize PendingPingStore DAO", e)
@@ -574,7 +574,7 @@ class TorService : Service() {
             Log.i(TAG, "Starting PIN rotation monitor")
             while (isActive) {
                 try {
-                    val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                    val keyManager = com.securelegion.crypto.KeyManager.getInstance(this@TorService)
                     val cardManager = ContactCardManager(this@TorService)
                     val securityPrefs = getSharedPreferences("security_prefs", android.content.Context.MODE_PRIVATE)
                     val intervalMs = securityPrefs.getLong("pin_rotation_interval_ms", 24 * 60 * 60 * 1000L)
@@ -800,7 +800,7 @@ class TorService : Service() {
                     }
 
                     // Check if there are pending messages before doing DB work
-                    val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                    val keyManager = com.securelegion.crypto.KeyManager.getInstance(this@TorService)
                     val dbPassphrase = keyManager.getDatabasePassphrase()
                     val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@TorService, dbPassphrase)
                     val currentMs = System.currentTimeMillis()
@@ -1000,7 +1000,7 @@ class TorService : Service() {
                         continue
                     }
 
-                    val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                    val keyManager = com.securelegion.crypto.KeyManager.getInstance(this@TorService)
                     val dbPassphrase = keyManager.getDatabasePassphrase()
                     val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@TorService, dbPassphrase)
                     val now = System.currentTimeMillis()
@@ -1217,7 +1217,7 @@ class TorService : Service() {
     /** Populate ownOnionBases from KeyManager/TorManager. Call on lifecycle events, not in hot path. */
     private fun refreshOwnOnionCache() {
         try {
-            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
             val torManager = com.shieldmessenger.crypto.TorManager.getInstance(this)
             val set = mutableSetOf<String>()
             keyManager.getMessagingOnion()?.trim()?.lowercase()?.removeSuffix(".onion")?.let { set.add(it) }
@@ -1418,7 +1418,7 @@ class TorService : Service() {
 
                 val success = if (gateOpened) {
                     try {
-                        com.shieldmessenger.crypto.RustBridge.sendFriendRequest(
+                        com.securelegion.crypto.RustBridge.sendFriendRequest(
                             recipientOnion, encryptedPayload
                         )
                     } catch (e: Exception) {
@@ -1468,7 +1468,7 @@ class TorService : Service() {
 
                 val success = if (gateOpened) {
                     try {
-                        com.shieldmessenger.crypto.RustBridge.sendFriendRequestAccepted(
+                        com.securelegion.crypto.RustBridge.sendFriendRequestAccepted(
                             recipientOnion, encryptedAcceptance
                         )
                     } catch (e: Exception) {
@@ -2712,7 +2712,7 @@ class TorService : Service() {
             Log.i(TAG, "Tap decrypted, sender X25519: ${android.util.Base64.encodeToString(senderX25519PubKey, android.util.Base64.NO_WRAP)}")
 
             // Look up contact by X25519 public key
-            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
             val dbPassphrase = keyManager.getDatabasePassphrase()
             val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
 
@@ -2955,7 +2955,7 @@ class TorService : Service() {
             Log.i(TAG, "Processing Phase 1 friend request (PIN-encrypted)")
 
             // Retrieve user's own PIN from secure storage
-            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
             val myPin = keyManager.getContactPin()
 
             if (myPin == null) {
@@ -3180,7 +3180,7 @@ class TorService : Service() {
             Log.i(TAG, "Friend request accepted by: ${contactCard.displayName}")
 
             // Add to contacts database (WITHOUT key chain - we'll initialize it below)
-            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
             val dbPassphrase = keyManager.getDatabasePassphrase()
             val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
 
@@ -3280,7 +3280,7 @@ class TorService : Service() {
             Log.i(TAG, "Sending Phase 3 ACK to ${contactCard.displayName}")
 
             // Build ACK payload with OUR full ContactCard so they can add us
-            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
             val torManager = TorManager.getInstance(this@TorService)
             val ownContactCard = com.shieldmessenger.models.ContactCard(
                 displayName = keyManager.getUsername() ?: "Unknown",
@@ -3298,14 +3298,14 @@ class TorService : Service() {
             val ackPayload = ownContactCard.toJson()
 
             // Encrypt with their X25519 public key
-            val encryptedAck = com.shieldmessenger.crypto.RustBridge.encryptMessage(
+            val encryptedAck = com.securelegion.crypto.RustBridge.encryptMessage(
                 plaintext = ackPayload,
                 recipientX25519PublicKey = contactCard.x25519PublicKey
             )
 
             // Send to their friend-request .onion (reuse Phase 2 function - same wire format)
             serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                val success = com.shieldmessenger.crypto.RustBridge.sendFriendRequestAccepted(
+                val success = com.securelegion.crypto.RustBridge.sendFriendRequestAccepted(
                     recipientOnion = contactCard.friendRequestOnion,
                     encryptedAcceptance = encryptedAck
                 )
@@ -3366,7 +3366,7 @@ class TorService : Service() {
             }
 
             // Decrypt ACK
-            val decryptedJson = com.shieldmessenger.crypto.RustBridge.decryptMessage(
+            val decryptedJson = com.securelegion.crypto.RustBridge.decryptMessage(
                 encryptedPayload,
                 senderX25519PublicKey,
                 ByteArray(32) // privateKey parameter is deprecated/unused
@@ -3479,7 +3479,7 @@ class TorService : Service() {
     private suspend fun addContactToDatabase(contactCard: com.shieldmessenger.models.ContactCard): Long? {
         return try {
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                val keyManager = com.securelegion.crypto.KeyManager.getInstance(this@TorService)
                 val dbPassphrase = keyManager.getDatabasePassphrase()
                 val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@TorService, dbPassphrase)
 
@@ -3679,7 +3679,7 @@ class TorService : Service() {
             // Delete entries older than 7 days (604800000 ms)
             // This prevents duplicate detection from blocking legitimate new messages
             try {
-                val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                val keyManager = com.securelegion.crypto.KeyManager.getInstance(this@TorService)
                 val dbPassphrase = keyManager.getDatabasePassphrase()
                 val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@TorService, dbPassphrase)
 
@@ -3739,7 +3739,7 @@ class TorService : Service() {
 
             // Look up contact by X25519 pubkey in DB
             // TODO: cache DB instance on TorService to avoid repeated passphrase derivation
-            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
             val dbPassphrase = keyManager.getDatabasePassphrase()
             val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
             val contact = database.contactDao().getContactByX25519PublicKey(senderX25519Base64)
@@ -3799,7 +3799,7 @@ class TorService : Service() {
                 // so this is expected behavior, not an error.
                 if (ackType == "PONG_ACK") {
                     try {
-                        val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                        val keyManager = com.securelegion.crypto.KeyManager.getInstance(this@TorService)
                         val dbPassphrase = keyManager.getDatabasePassphrase()
                         val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@TorService, dbPassphrase)
 
@@ -3825,7 +3825,7 @@ class TorService : Service() {
 
                 while (retryCount < maxRetries && message == null) {
                     try {
-                        val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                        val keyManager = com.securelegion.crypto.KeyManager.getInstance(this@TorService)
                         val dbPassphrase = keyManager.getDatabasePassphrase()
                         val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@TorService, dbPassphrase)
 
@@ -3852,7 +3852,7 @@ class TorService : Service() {
                 }
 
                 try {
-                    val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                    val keyManager = com.securelegion.crypto.KeyManager.getInstance(this@TorService)
                     val dbPassphrase = keyManager.getDatabasePassphrase()
                     val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@TorService, dbPassphrase)
 
@@ -4067,7 +4067,7 @@ class TorService : Service() {
             Log.i(TAG, "Received VOICE call signaling on connection $connectionId: ${encryptedPayload.size} bytes")
 
             // Look up contact by X25519 public key to get onion address
-            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
             val dbPassphrase = keyManager.getDatabasePassphrase()
             val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
 
@@ -4129,7 +4129,7 @@ class TorService : Service() {
             Log.i(TAG, "Received Ping on connection $connectionId: ${encryptedPingWire.size} bytes")
 
             // Get database instance for tracking and deduplication
-            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
             val dbPassphrase = keyManager.getDatabasePassphrase()
             val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
 
@@ -4424,7 +4424,7 @@ class TorService : Service() {
         gate.awaitOpen(com.shieldmessenger.network.TransportGate.TIMEOUT_QUICK_MS)
         Log.d(TAG, "ACK send: transport gate check done, proceeding with $ackType")
 
-        val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+        val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
         val dbPassphrase = keyManager.getDatabasePassphrase()
         val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
         val contact = database.contactDao().getContactById(contactId) ?: run {
@@ -4656,7 +4656,7 @@ class TorService : Service() {
             Log.d(TAG, "Encrypted payload: ${encryptedPayload.size} bytes")
 
             // Look up contact by X25519 public key to see if sender is known
-            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
             val dbPassphrase = keyManager.getDatabasePassphrase()
             val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
 
@@ -4784,7 +4784,7 @@ class TorService : Service() {
                         Log.w(TAG, "Attempting lookahead recovery (counters ${expected + 1} to ${expected + MAX_LOOKAHEAD})...")
 
                         // Get onion addresses for direction mapping (needed for deriveReceiveKeyAtSequence)
-                        val keyMgr = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                        val keyMgr = com.securelegion.crypto.KeyManager.getInstance(this@TorService)
                         val ourOnion = keyMgr.getMessagingOnion()
                         val theirOnion = contact.messagingOnion
 
@@ -4841,7 +4841,7 @@ class TorService : Service() {
 
                     // Decryption succeeded - update key chain in DB while still holding mutex
                     val newCounter = usedCounter + 1
-                    val keyMgrForUpdate = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                    val keyMgrForUpdate = com.securelegion.crypto.KeyManager.getInstance(this@TorService)
                     val dbPassphraseForUpdate = keyMgrForUpdate.getDatabasePassphrase()
                     val databaseForUpdate = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@TorService, dbPassphraseForUpdate)
 
@@ -5452,7 +5452,7 @@ class TorService : Service() {
             // So we save the encrypted payload and show it as a pending request
             // The user will enter the sender's PIN when they click "Accept"
 
-            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
 
             // Store in SharedPreferences as pending friend request (Phase 1)
             // We'll decrypt it when the user provides the PIN
@@ -5508,7 +5508,7 @@ class TorService : Service() {
 
             // Decrypt acceptance notification
             val wireMessage = senderX25519PublicKey + encryptedAcceptance
-            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
             val ourEd25519PublicKey = keyManager.getSigningPublicKey()
             val ourPrivateKey = keyManager.getSigningKeyBytes()
 
@@ -5914,7 +5914,7 @@ class TorService : Service() {
             try {
                 // Decrypt acceptance notification (same as friend request decryption)
                 // decryptMessage will derive X25519 private key from Ed25519
-                val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+                val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
                 val ourEd25519PublicKey = keyManager.getSigningPublicKey()
                 val ourPrivateKey = keyManager.getSigningKeyBytes()
 
@@ -5941,7 +5941,7 @@ class TorService : Service() {
             // Update contact status to CONFIRMED
             try {
                 Log.d(TAG, "Updating contact status to CONFIRMED...")
-                val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+                val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
                 val dbPassphrase = keyManager.getDatabasePassphrase()
                 val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
 
@@ -6037,7 +6037,7 @@ class TorService : Service() {
                 Log.d(TAG, "Sending FRIEND_REQUEST_ACCEPTED response to ${recipientContactCard.displayName}")
 
                 // Get own account information
-                val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                val keyManager = com.securelegion.crypto.KeyManager.getInstance(this@TorService)
                 val ownDisplayName = keyManager.getUsername()
                     ?: throw Exception("Username not set")
                 val ownCid = keyManager.getIPFSCID()
@@ -6053,13 +6053,13 @@ class TorService : Service() {
                 val acceptanceJson = acceptance.toJson()
 
                 // Encrypt the acceptance using recipient's X25519 public key
-                val encryptedAcceptance = com.shieldmessenger.crypto.RustBridge.encryptMessage(
+                val encryptedAcceptance = com.securelegion.crypto.RustBridge.encryptMessage(
                     plaintext = acceptanceJson,
                     recipientX25519PublicKey = recipientContactCard.x25519PublicKey
                 )
 
                 // Send via Tor
-                val success = com.shieldmessenger.crypto.RustBridge.sendFriendRequestAccepted(
+                val success = com.securelegion.crypto.RustBridge.sendFriendRequestAccepted(
                     recipientOnion = recipientContactCard.friendRequestOnion,
                     encryptedAcceptance = encryptedAcceptance
                 )
@@ -6130,7 +6130,7 @@ class TorService : Service() {
 
     private fun lookupContactName(senderPublicKey: ByteArray): String {
         return try {
-            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
             val dbPassphrase = keyManager.getDatabasePassphrase()
             val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
 
@@ -6198,7 +6198,7 @@ class TorService : Service() {
                     if (ready) {
                         Log.i(TAG, "Recovery blob detected on disk! Attempting import...")
 
-                        val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                        val keyManager = com.securelegion.crypto.KeyManager.getInstance(this@TorService)
                         val seedPhrase = keyManager.getMainWalletSeedForZcash()
 
                         if (seedPhrase != null) {
@@ -6239,7 +6239,7 @@ class TorService : Service() {
                                     badFile.delete()
                                     Log.i(TAG, "Deleted invalid recovery blob, will accept new push")
                                 }
-                                com.shieldmessenger.crypto.RustBridge.setRecoveryMode(true, expectedCid, filesDir.absolutePath)
+                                com.securelegion.crypto.RustBridge.setRecoveryMode(true, expectedCid, filesDir.absolutePath)
                             }
                         } else {
                             Log.e(TAG, "Cannot recover: seed phrase not available")
@@ -6266,7 +6266,7 @@ class TorService : Service() {
     private fun sendTapsToAllContacts() {
         serviceScope.launch(Dispatchers.IO) {
             try {
-                val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                val keyManager = com.securelegion.crypto.KeyManager.getInstance(this@TorService)
                 if (!keyManager.isInitialized()) {
                     Log.d(TAG, "Skipping taps - no account yet")
                     return@launch
@@ -6427,7 +6427,7 @@ class TorService : Service() {
 
         // Count pending pings from DB (single source of truth)
         val pendingCount = try {
-            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
             val dbPassphrase = keyManager.getDatabasePassphrase()
             val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
             kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
@@ -6486,7 +6486,7 @@ class TorService : Service() {
             }
 
             // Look up sender in contacts database
-            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
             val dbPassphrase = keyManager.getDatabasePassphrase()
             val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
 
@@ -6763,7 +6763,7 @@ class TorService : Service() {
                 Log.d(TAG, "Sending read receipt for message $messageId to contact $contactId")
 
                 // Get contact info
-                val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+                val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
                 val dbPassphrase = keyManager.getDatabasePassphrase()
                 val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this, dbPassphrase)
                 val contact = kotlinx.coroutines.runBlocking {
@@ -7014,7 +7014,7 @@ class TorService : Service() {
                     // Lookup contact by X25519 public key
                     kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                         try {
-                            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(applicationContext)
+                            val keyManager = com.securelegion.crypto.KeyManager.getInstance(applicationContext)
                             val dbPassphrase = keyManager.getDatabasePassphrase()
                             val database = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(applicationContext, dbPassphrase)
 
@@ -7935,7 +7935,7 @@ class TorService : Service() {
                 Log.i(TAG, "Token: $token")
                 Log.i(TAG, "")
 
-                val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@TorService)
+                val keyManager = com.securelegion.crypto.KeyManager.getInstance(this@TorService)
                 val solanaService = SolanaService(this@TorService)
                 val senderAddress = keyManager.getSolanaAddress()
 

@@ -45,7 +45,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.shieldmessenger.adapters.MessageAdapter
 import com.shieldmessenger.crypto.KeyChainManager
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.crypto.TorManager
 import com.shieldmessenger.database.ShieldMessengerDatabase
 import com.shieldmessenger.database.entities.Message
@@ -1625,7 +1625,7 @@ class ChatActivity : BaseActivity() {
             try {
                 // Read and decrypt the encrypted voice file
                 val encryptedBytes = encryptedFile.readBytes()
-                val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+                val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
                 val decryptedAudio = keyManager.decryptVoiceFile(encryptedBytes)
 
                 // Create temporary playable file from decrypted audio
@@ -2289,7 +2289,7 @@ class ChatActivity : BaseActivity() {
                 // Show transfer details (I paid or they paid me)
                 lifecycleScope.launch {
                     try {
-                        val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@ChatActivity)
+                        val keyManager = com.securelegion.crypto.KeyManager.getInstance(this@ChatActivity)
                         val myAddress = keyManager.getSolanaAddress()
 
                         // Get contact's address

@@ -14,7 +14,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 
 /**
  * Welcome screen for new users (no wallet exists)

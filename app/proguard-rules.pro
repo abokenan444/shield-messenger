@@ -49,8 +49,8 @@
 }
 
 # Keep RustBridge completely intact (JNI callbacks)
--keep class com.shieldmessenger.crypto.RustBridge { *; }
--keep class com.shieldmessenger.crypto.RustBridge$* { *; }
+-keep class com.securelegion.crypto.RustBridge { *; }
+-keep class com.securelegion.crypto.RustBridge$* { *; }
 
 # ==================== APPLICATION CLASS ====================
 
@@ -181,8 +181,8 @@
 }
 
 # KeyManager - singleton accessed from Rust JNI
--keep class com.shieldmessenger.crypto.KeyManager { *; }
--keepclassmembers class com.shieldmessenger.crypto.KeyManager {
+-keep class com.securelegion.crypto.KeyManager { *; }
+-keepclassmembers class com.securelegion.crypto.KeyManager {
     public static ** getInstance(...);
     *;
 }

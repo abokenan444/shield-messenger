@@ -39,7 +39,7 @@ class DuressPinActivity : AppCompatActivity() {
                 val salt = android.util.Base64.decode(storedSaltB64, android.util.Base64.NO_WRAP)
 
                 // Hash entered PIN with same salt
-                val enteredPinHash = com.shieldmessenger.crypto.RustBridge.hashPassword(enteredPin, salt)
+                val enteredPinHash = com.securelegion.crypto.RustBridge.hashPassword(enteredPin, salt)
 
                 // Constant-time comparison to prevent timing attacks
                 return java.security.MessageDigest.isEqual(storedHash, enteredPinHash)
@@ -131,7 +131,7 @@ class DuressPinActivity : AppCompatActivity() {
         java.security.SecureRandom().nextBytes(salt)
 
         // Hash PIN with Argon2id (memory-hard, GPU-resistant)
-        val pinHash = com.shieldmessenger.crypto.RustBridge.hashPassword(pin, salt)
+        val pinHash = com.securelegion.crypto.RustBridge.hashPassword(pin, salt)
 
         // Store both hash and salt (salt is not secret, hash is)
         prefs.edit()

@@ -16,7 +16,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.shieldmessenger.adapters.GroupMemberAdapter
 import com.shieldmessenger.adapters.GroupMemberItem
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.database.ShieldMessengerDatabase
 import com.shieldmessenger.database.entities.ed25519PublicKeyBytes
 import com.shieldmessenger.services.CrdtGroupManager

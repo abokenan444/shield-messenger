@@ -3,7 +3,7 @@ package com.shieldmessenger.services
 import android.util.Base64
 import android.util.Log
 import com.shieldmessenger.BuildConfig
-import com.shieldmessenger.crypto.RustBridge
+import com.securelegion.crypto.RustBridge
 import com.shieldmessenger.network.OkHttpProvider
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

@@ -19,7 +19,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.shieldmessenger.utils.GlassBottomSheetDialog
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.models.ContactCard
 import com.shieldmessenger.services.ContactCardManager
 import com.shieldmessenger.utils.ImagePicker

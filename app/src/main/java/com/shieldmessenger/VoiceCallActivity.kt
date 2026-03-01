@@ -27,7 +27,7 @@ import com.shieldmessenger.utils.ThemedToast
 import com.shieldmessenger.voice.CallSignaling
 import com.shieldmessenger.voice.VoiceCallManager
 import com.shieldmessenger.voice.VoiceCallSession
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -876,7 +876,7 @@ class VoiceCallActivity : BaseActivity() {
         lifecycleScope.launch {
             try {
                 // Get contact info from database
-                val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@VoiceCallActivity)
+                val keyManager = com.securelegion.crypto.KeyManager.getInstance(this@VoiceCallActivity)
                 val dbPassphrase = keyManager.getDatabasePassphrase()
                 val db = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@VoiceCallActivity, dbPassphrase)
 
@@ -961,7 +961,7 @@ class VoiceCallActivity : BaseActivity() {
                         val contactX25519PublicKey = intent.getByteArrayExtra(EXTRA_CONTACT_X25519_PUBLIC_KEY) ?: ByteArray(0)
 
                         // Get our X25519 public key for HTTP wire format
-                        val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@VoiceCallActivity)
+                        val keyManager = com.securelegion.crypto.KeyManager.getInstance(this@VoiceCallActivity)
                         val ourX25519PublicKey = keyManager.getEncryptionPublicKey()
 
                         com.shieldmessenger.voice.CallSignaling.sendCallReject(
@@ -1002,7 +1002,7 @@ class VoiceCallActivity : BaseActivity() {
                     android.util.Log.d(TAG, "ourEphemeralKeypair.publicKey size: ${ourEphemeralKeypair.publicKey.asBytes.size}")
 
                     // Get our X25519 public key for HTTP wire format
-                    val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@VoiceCallActivity)
+                    val keyManager = com.securelegion.crypto.KeyManager.getInstance(this@VoiceCallActivity)
                     val ourX25519PublicKey = keyManager.getEncryptionPublicKey()
 
                     // Update UI to show we're sending the answer
@@ -1074,7 +1074,7 @@ class VoiceCallActivity : BaseActivity() {
                         val contactX25519PublicKey = intent.getByteArrayExtra(EXTRA_CONTACT_X25519_PUBLIC_KEY) ?: ByteArray(0)
 
                         // Get our X25519 public key for HTTP wire format
-                        val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this@VoiceCallActivity)
+                        val keyManager = com.securelegion.crypto.KeyManager.getInstance(this@VoiceCallActivity)
                         val ourX25519PublicKey = keyManager.getEncryptionPublicKey()
 
                         lifecycleScope.launch {

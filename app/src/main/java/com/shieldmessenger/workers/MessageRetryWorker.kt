@@ -3,7 +3,7 @@ package com.shieldmessenger.workers
 import android.content.Context
 import android.util.Log
 import androidx.work.*
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.database.ShieldMessengerDatabase
 import com.shieldmessenger.services.MessageService
 import com.shieldmessenger.services.TorService
@@ -170,8 +170,8 @@ class MessageRetryWorker(
         // SOFT GATE: Check Tor health AND circuits before attempting retries
         // CRITICAL: SOCKS status 1 (general failure) usually means no circuits available
         val torUnavailable = TorHealthHelper.isTorUnavailable(applicationContext)
-        val bootstrapPercent = com.shieldmessenger.crypto.RustBridge.getBootstrapStatus()
-        val circuitsEstablished = com.shieldmessenger.crypto.RustBridge.getCircuitEstablished()
+        val bootstrapPercent = com.securelegion.crypto.RustBridge.getBootstrapStatus()
+        val circuitsEstablished = com.securelegion.crypto.RustBridge.getCircuitEstablished()
 
         if (torUnavailable) {
             val status = TorHealthHelper.getStatusString(applicationContext)

@@ -11,7 +11,7 @@ import android.os.Looper
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import com.shieldmessenger.crypto.RustBridge
+import com.securelegion.crypto.RustBridge
 import com.shieldmessenger.services.TorService
 
 /**

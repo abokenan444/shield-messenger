@@ -109,7 +109,7 @@ class ShieldMessengerApplication : Application() {
         // Skip auto-start on first launch so user can configure bridges first
         // Skip auto-start if we recently shut down (restart storm suppression)
         try {
-            val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(this)
+            val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
             if (keyManager.isInitialized()) {
                 // Check for restart storm: if last shutdown was within 30s, skip auto-start
                 // SplashActivity will handle Tor init when user opens the app

@@ -135,7 +135,7 @@ class ContactCardManager(private val context: Context) {
                 Log.d(TAG, "GET $url")
 
                 // Download via Tor SOCKS5
-                val response = com.shieldmessenger.crypto.RustBridge.httpGetViaTor(url)
+                val response = com.securelegion.crypto.RustBridge.httpGetViaTor(url)
                     ?: throw Exception("HTTP GET failed - no response from .onion address")
 
                 Log.d(TAG, "Received response from .onion (${response.length} bytes)")

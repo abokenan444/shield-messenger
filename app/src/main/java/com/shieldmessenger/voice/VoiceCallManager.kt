@@ -2,7 +2,7 @@ package com.shieldmessenger.voice
 
 import android.content.Context
 import android.util.Log
-import com.shieldmessenger.crypto.RustBridge
+import com.securelegion.crypto.RustBridge
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -292,7 +292,7 @@ class VoiceCallManager private constructor(private val context: Context) : RustB
         }
 
         // Get our X25519 public key for HTTP wire format
-        val keyManager = com.shieldmessenger.crypto.KeyManager.getInstance(context)
+        val keyManager = com.securelegion.crypto.KeyManager.getInstance(context)
         val ourX25519PublicKey = keyManager.getEncryptionPublicKey()
 
         // Store answered call info for idempotency (re-send CALL_ANSWER on duplicate offers)

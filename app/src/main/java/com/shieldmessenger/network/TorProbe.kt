@@ -1,7 +1,7 @@
 package com.shieldmessenger.network
 
 import android.util.Log
-import com.shieldmessenger.crypto.RustBridge
+import com.securelegion.crypto.RustBridge
 
 /**
  * Probe to verify Tor is healthy using ControlPort (no external traffic).

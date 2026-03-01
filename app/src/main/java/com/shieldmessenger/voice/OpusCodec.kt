@@ -1,6 +1,6 @@
 package com.shieldmessenger.voice
 
-import com.shieldmessenger.crypto.RustBridge
+import com.securelegion.crypto.RustBridge
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 

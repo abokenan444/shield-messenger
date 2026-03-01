@@ -9,8 +9,8 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import com.shieldmessenger.crypto.KeyManager
-import com.shieldmessenger.crypto.RustBridge
+import com.securelegion.crypto.KeyManager
+import com.securelegion.crypto.RustBridge
 import com.shieldmessenger.crypto.TorManager
 import com.shieldmessenger.network.OkHttpProvider
 import java.io.IOException

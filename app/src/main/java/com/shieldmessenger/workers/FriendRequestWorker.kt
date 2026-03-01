@@ -3,7 +3,7 @@ package com.shieldmessenger.workers
 import android.content.Context
 import android.util.Log
 import androidx.work.*
-import com.shieldmessenger.crypto.KeyManager
+import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.database.ShieldMessengerDatabase
 import com.shieldmessenger.database.entities.PendingFriendRequest
 import kotlinx.coroutines.Dispatchers
@@ -207,7 +207,7 @@ class FriendRequestWorker(
 
         // Send Phase 1
         val success = try {
-            com.shieldmessenger.crypto.RustBridge.sendFriendRequest(
+            com.securelegion.crypto.RustBridge.sendFriendRequest(
                 recipientOnion = request.recipientOnion,
                 encryptedFriendRequest = encryptedPhase1
             )
@@ -268,7 +268,7 @@ class FriendRequestWorker(
         }
 
         val success = try {
-            com.shieldmessenger.crypto.RustBridge.sendFriendRequestAccepted(
+            com.securelegion.crypto.RustBridge.sendFriendRequestAccepted(
                 recipientOnion = request.recipientOnion,
                 encryptedAcceptance = encryptedPhase2
             )
@@ -346,7 +346,7 @@ class FriendRequestWorker(
         }
 
         val encryptedPhase3 = try {
-            com.shieldmessenger.crypto.RustBridge.encryptMessage(
+            com.securelegion.crypto.RustBridge.encryptMessage(
                 plaintext = ownContactCard.toJson(),
                 recipientX25519PublicKey = recipientCard.x25519PublicKey
             )
@@ -356,7 +356,7 @@ class FriendRequestWorker(
         }
 
         val success = try {
-            com.shieldmessenger.crypto.RustBridge.sendFriendRequestAccepted(
+            com.securelegion.crypto.RustBridge.sendFriendRequestAccepted(
                 recipientOnion = request.recipientOnion,
                 encryptedAcceptance = encryptedPhase3
             )
