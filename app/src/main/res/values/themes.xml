@@ -1,6 +1,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
-    <style name="Theme.ShieldMessenger" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.ShieldMessenger" parent="Theme.Material3.Dark.NoActionBar">
         <!-- Primary brand color. -->
         <item name="colorPrimary">#888888</item>
         <item name="colorPrimaryContainer">#666666</item>
@@ -135,7 +135,7 @@
     </style>
 
     <!-- Switch Theme -->
-    <style name="SwitchTheme" parent="Theme.Material3.DayNight">
+    <style name="SwitchTheme" parent="Theme.Material3.Dark">
         <item name="colorControlActivated">#888888</item>
         <item name="colorSwitchThumbNormal">#888888</item>
         <item name="android:colorForeground">#333333</item>

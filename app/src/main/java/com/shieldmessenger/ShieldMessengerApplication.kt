@@ -8,6 +8,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -73,6 +74,9 @@ class ShieldMessengerApplication : Application() {
         }
 
         Log.d(TAG, "Application starting...")
+
+        // Force dark mode regardless of system settings
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
 
         // Initialize crash reporter (local-only, privacy-respecting)
         CrashReporter.initialize(this)
