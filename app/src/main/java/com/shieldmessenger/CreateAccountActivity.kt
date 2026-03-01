@@ -504,11 +504,17 @@ class CreateAccountActivity : AppCompatActivity() {
                 overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
                 finish()
 
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 Log.e("CreateAccount", "Failed to create account", e)
                 hideLoading()
-                ThemedToast.showLong(this@CreateAccountActivity, "Failed to create account: ${e.message}")
                 createAccountButton.isEnabled = true
+                // Show detailed error dialog so we can diagnose the issue
+                val errorDetails = "${e.javaClass.simpleName}: ${e.message}\n\n${e.stackTraceToString().take(1500)}"
+                androidx.appcompat.app.AlertDialog.Builder(this@CreateAccountActivity)
+                    .setTitle("Account Creation Failed")
+                    .setMessage(errorDetails)
+                    .setPositiveButton("OK", null)
+                    .show()
             }
         }
     }
