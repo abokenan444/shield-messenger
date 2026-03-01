@@ -209,15 +209,23 @@ class MainActivity : BaseActivity() {
         findViewById<View>(R.id.groupsView).visibility = View.GONE
         findViewById<View>(R.id.contactsView).visibility = View.GONE
 
-        // Show chat list (no empty state)
+        // Show chat list
         val chatList = findViewById<RecyclerView>(R.id.chatList)
-        chatList.visibility = View.VISIBLE
+        // chatList starts hidden; setupChatList() will show it if there are chats
 
-        setupClickListeners()
-        scheduleSelfDestructWorker()
-        scheduleMessageRetryWorker()
-        scheduleSkippedKeyCleanupWorker()
+        try {
+            setupClickListeners()
+        } catch (e: Throwable) {
+            Log.e("MainActivity", "Failed to setup click listeners", e)
+        }
 
+        try {
+            scheduleSelfDestructWorker()
+            scheduleMessageRetryWorker()
+            scheduleSkippedKeyCleanupWorker()
+        } catch (e: Throwable) {
+            Log.e("MainActivity", "Failed to schedule workers", e)
+        }
 
         // Start Tor foreground service (shows notification and handles Ping-Pong protocol)
         startTorService()

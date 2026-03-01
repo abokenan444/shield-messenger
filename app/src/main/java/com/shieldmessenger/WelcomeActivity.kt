@@ -28,6 +28,23 @@ class WelcomeActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Check if account already exists BEFORE showing any UI
+        // This handles the case where CreateAccountActivity crashed mid-setup
+        // but the wallet was already initialized
+        try {
+            val keyManager = KeyManager.getInstance(this)
+            if (keyManager.isInitialized()) {
+                Log.i("WelcomeActivity", "Account already exists - redirecting to LockActivity")
+                val intent = Intent(this, LockActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                startActivity(intent)
+                finish()
+                return
+            }
+        } catch (e: Exception) {
+            Log.e("WelcomeActivity", "Error checking account status", e)
+        }
+
         // Security: Prevent screenshots and screen recording
         // TODO: Re-enable FLAG_SECURE after demo recording
         // window.setFlags(
@@ -47,24 +64,6 @@ class WelcomeActivity : AppCompatActivity() {
 
         setupClickListeners()
         setupImportText()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        // If account was already created (e.g. CreateAccountActivity crashed mid-setup),
-        // redirect to LockActivity instead of showing the welcome screen again
-        try {
-            val keyManager = KeyManager.getInstance(this)
-            if (keyManager.isInitialized()) {
-                Log.i("WelcomeActivity", "Account already exists - redirecting to LockActivity")
-                val intent = Intent(this, LockActivity::class.java)
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                startActivity(intent)
-                finish()
-            }
-        } catch (e: Exception) {
-            Log.e("WelcomeActivity", "Error checking account status", e)
-        }
     }
 
     private fun setupClickListeners() {
