@@ -58,7 +58,7 @@ class WelcomeActivity : AppCompatActivity() {
 
     private fun setupImportText() {
         val importTextView = findViewById<TextView>(R.id.importText)
-        val fullText = "Transferring to a new device? Import"
+        val fullText = "Already have an account? Import"
         val spannableString = SpannableString(fullText)
 
         // Find the "Import" part and make it clickable

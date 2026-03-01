@@ -85,11 +85,12 @@ class AccountCreatedActivity : AppCompatActivity() {
         confirmCheckbox = findViewById(R.id.confirmCheckbox)
         continueButton = findViewById(R.id.continueButton)
 
-        // Enable button only when checkbox is checked
+        // Continue button is enabled when checkbox is checked
         confirmCheckbox.setOnCheckedChangeListener { _, isChecked ->
-            continueButton.isEnabled = isChecked
-            continueButton.alpha = if (isChecked) 1.0f else 0.5f
+            continueButton.alpha = if (isChecked) 1.0f else 0.6f
         }
+        // Start with button usable but dimmed
+        continueButton.alpha = 0.6f
     }
 
     private fun loadAccountInfo() {
@@ -128,21 +129,34 @@ class AccountCreatedActivity : AppCompatActivity() {
 
         // Continue button - navigate to MainActivity
         findViewById<View>(R.id.continueButton).setOnClickListener {
-            Log.i("AccountCreated", "User confirmed they have written down the keys")
+            if (!confirmCheckbox.isChecked) {
+                ThemedToast.show(this, "Please confirm you saved your seed phrase")
+                return@setOnClickListener
+            }
+            navigateToMain(seedConfirmed = true)
+        }
 
-            // Mark seed phrase as confirmed
-            val prefs = getSharedPreferences("account_setup", MODE_PRIVATE)
-            prefs.edit().putBoolean("seed_phrase_confirmed", true).apply()
+        // Skip button - go to main without confirming seed
+        findViewById<View>(R.id.skipButton).setOnClickListener {
+            navigateToMain(seedConfirmed = false)
+        }
+    }
 
-            // Clear the seed phrase backup from storage (security)
+    private fun navigateToMain(seedConfirmed: Boolean) {
+        Log.i("AccountCreated", "Navigating to main (seed confirmed: $seedConfirmed)")
+
+        val prefs = getSharedPreferences("account_setup", MODE_PRIVATE)
+        prefs.edit().putBoolean("seed_phrase_confirmed", seedConfirmed).apply()
+
+        if (seedConfirmed) {
             val keyManager = KeyManager.getInstance(this)
             keyManager.clearSeedPhraseBackup()
-
-            val intent = Intent(this, MainActivity::class.java)
-            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            startActivity(intent)
-            finish()
         }
+
+        val intent = Intent(this, MainActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        finish()
     }
 
     private fun showQrDialog(data: String) {
