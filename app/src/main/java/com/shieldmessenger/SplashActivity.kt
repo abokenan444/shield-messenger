@@ -56,18 +56,24 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun initializeApp() {
-        // Request battery optimization exemption (keeps Tor alive in background)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val pm = getSystemService(POWER_SERVICE) as PowerManager
-            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
-                Log.i("SplashActivity", "Requesting battery optimization exemption")
-                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                    data = Uri.parse("package:$packageName")
+        // Only request battery optimization exemption if user already has an account
+        // (Tor is not needed during first-time setup, and the system dialog is white/jarring)
+        val keyManager = KeyManager.getInstance(this)
+        if (keyManager.isInitialized()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val pm = getSystemService(POWER_SERVICE) as PowerManager
+                if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                    Log.i("SplashActivity", "Requesting battery optimization exemption")
+                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                        data = Uri.parse("package:$packageName")
+                    }
+                    @Suppress("DEPRECATION")
+                    startActivityForResult(intent, BATTERY_OPTIMIZATION_REQUEST_CODE)
+                    return
                 }
-                @Suppress("DEPRECATION")
-                startActivityForResult(intent, BATTERY_OPTIMIZATION_REQUEST_CODE)
-                return
             }
+        } else {
+            Log.i("SplashActivity", "No account yet - skipping battery optimization request")
         }
         navigateToNextScreen()
     }
