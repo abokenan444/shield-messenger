@@ -1,7 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
-  <rect width="512" height="512" fill="#0f172a"/>
-  <path d="M256 77 L410 179 V333 L256 435 L102 333 V179 Z" stroke="#22c55e" stroke-width="10" fill="#22c55e" fill-opacity="0.1"/>
-  <path d="M256 154 L333 204 V282 L256 332 L179 282 V204 Z" stroke="#22c55e" stroke-width="7" fill="#22c55e" fill-opacity="0.2"/>
-  <circle cx="256" cy="241" r="26" fill="#22c55e"/>
-  <path d="M217 282 Q256 318 295 282" stroke="#22c55e" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <rect width="512" height="512" fill="#0A0F1A"/>
+  <!-- Outer shield -->
+  <path d="M256 51 L92 128 L92 267 C92 368 150 450 256 480 C362 450 420 368 420 267 L420 128 Z" fill="#22c55e" opacity="0.15" stroke="#22c55e" stroke-width="5"/>
+  <!-- Inner shield -->
+  <path d="M256 82 L118 147 L118 267 C118 352 170 418 256 448 C342 418 394 352 394 267 L394 147 Z" fill="#0f172a" stroke="#22c55e" stroke-width="3"/>
+  <!-- Letter S -->
+  <path d="M222 228 C222 218 213 212 196 212 C179 212 170 218 170 228 C170 248 222 244 222 264 C222 274 213 280 196 280 C179 280 170 274 170 264" stroke="#22c55e" stroke-width="12" stroke-linecap="round" fill="none"/>
+  <!-- Letter M -->
+  <path d="M252 280 L252 212 L280 250 L308 212 L308 280" stroke="white" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Top accent -->
+  <path d="M256 102 L155 144 L155 160 L256 118 L357 160 L357 144 Z" fill="#22c55e" opacity="0.4"/>
+  <!-- Checkmark -->
+  <path d="M213 330 L240 357 L294 303" stroke="#22c55e" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

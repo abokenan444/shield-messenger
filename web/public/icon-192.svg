@@ -1,7 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" fill="none">
-  <rect width="192" height="192" rx="38" fill="#0f172a"/>
-  <path d="M96 29 L154 67 V125 L96 163 L38 125 V67 Z" stroke="#22c55e" stroke-width="5" fill="#22c55e" fill-opacity="0.1"/>
-  <path d="M96 58 L125 77 V106 L96 125 L67 106 V77 Z" stroke="#22c55e" stroke-width="4" fill="#22c55e" fill-opacity="0.2"/>
-  <circle cx="96" cy="90" r="10" fill="#22c55e"/>
-  <path d="M81 106 Q96 119 111 106" stroke="#22c55e" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <rect width="192" height="192" rx="38" fill="#0A0F1A"/>
+  <!-- Outer shield -->
+  <path d="M96 19 L35 48 L35 100 C35 138 57 169 96 180 C135 169 157 138 157 100 L157 48 Z" fill="#22c55e" opacity="0.15" stroke="#22c55e" stroke-width="2.5"/>
+  <!-- Inner shield -->
+  <path d="M96 31 L44 55 L44 100 C44 132 64 157 96 168 C128 157 148 132 148 100 L148 55 Z" fill="#0f172a" stroke="#22c55e" stroke-width="1.5"/>
+  <!-- Letter S -->
+  <path d="M83 85 C83 81 79 79 73 79 C67 79 63 81 63 85 C63 93 83 91 83 99 C83 103 79 105 73 105 C67 105 63 103 63 99" stroke="#22c55e" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+  <!-- Letter M -->
+  <path d="M94 105 L94 79 L104 94 L114 79 L114 105" stroke="white" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Top accent -->
+  <path d="M96 38 L58 54 L58 60 L96 44 L134 60 L134 54 Z" fill="#22c55e" opacity="0.4"/>
+  <!-- Checkmark -->
+  <path d="M79 123 L89 133 L109 113" stroke="#22c55e" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

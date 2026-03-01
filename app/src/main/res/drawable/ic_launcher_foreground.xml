@@ -5,22 +5,51 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Shield with diagonal cut, centered in adaptive icon safe zone -->
+    <!-- Professional Shield Messenger logo -->
     <group
-        android:translateX="30"
-        android:translateY="33"
-        android:scaleX="1.9"
-        android:scaleY="1.9">
+        android:translateX="22"
+        android:translateY="18">
 
-        <!-- White shield (same path as ic_shield) -->
+        <!-- Outer shield shape - green accent -->
+        <path
+            android:fillColor="#22C55E"
+            android:pathData="M32,2 L6,14 L6,38 C6,56.5 16.4,72.6 32,78 C47.6,72.6 58,56.5 58,38 L58,14 Z" />
+
+        <!-- Inner shield shape - dark fill -->
+        <path
+            android:fillColor="#0A0A0A"
+            android:pathData="M32,6 L10,16.5 L10,38 C10,54.2 19.2,68.8 32,73.8 C44.8,68.8 54,54.2 54,38 L54,16.5 Z" />
+
+        <!-- Letter S -->
+        <path
+            android:fillColor="#22C55E"
+            android:pathData="M27.5,30 C27.5,28.2 25.8,27 23.5,27 C21.2,27 19.5,28.2 19.5,30 C19.5,34 27.5,33 27.5,37 C27.5,38.8 25.8,40 23.5,40 C21.2,40 19.5,38.8 19.5,37 M23.5,25.5 L23.5,27 M23.5,40 L23.5,41.5"
+            android:strokeColor="#22C55E"
+            android:strokeWidth="2.2"
+            android:strokeLineCap="round" />
+
+        <!-- Letter M -->
         <path
             android:fillColor="#FFFFFF"
-            android:pathData="M12,1L3,5v6c0,5.55 3.84,10.74 9,12 5.16,-1.26 9,-6.45 9,-12V5l-9,-4z" />
+            android:pathData="M33,40 L33,27 L37,34 L41,27 L41,40"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="2.2"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
 
-        <!-- Diagonal cut line (black to match background) -->
+        <!-- Top accent line -->
         <path
-            android:fillColor="#000000"
-            android:pathData="M4.5,19.5 L19,5 L20,6 L5.5,20.5Z" />
+            android:fillColor="#22C55E"
+            android:pathData="M32,10 L18,16 L18,18 L32,12 L46,18 L46,16 Z"
+            android:fillAlpha="0.6" />
+
+        <!-- Shield checkmark accent -->
+        <path
+            android:pathData="M27,49 L31,53 L39,45"
+            android:strokeColor="#22C55E"
+            android:strokeWidth="2"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
 
     </group>
 
