@@ -153,11 +153,11 @@ class MainActivity : BaseActivity() {
 
         // Verify account setup is complete before showing main screen
         val keyManager = KeyManager.getInstance(this)
-        if (!keyManager.isAccountSetupComplete()) {
-            Log.w("MainActivity", "Account setup incomplete - redirecting to CreateAccount")
-            ThemedToast.showLong(this, "Please complete account setup")
-            val intent = Intent(this, CreateAccountActivity::class.java)
-            intent.putExtra("RESUME_SETUP", true)
+        if (!keyManager.isInitialized()) {
+            // No wallet at all — redirect to welcome screen
+            Log.w("MainActivity", "No wallet found - redirecting to WelcomeActivity")
+            val intent = Intent(this, WelcomeActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             startActivity(intent)
             finish()
             return
