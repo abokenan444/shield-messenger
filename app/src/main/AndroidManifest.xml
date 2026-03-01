@@ -199,6 +199,10 @@
             android:launchMode="singleTop" />
 
         <activity
+            android:name=".BackupActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".BridgeActivity"
             android:exported="false" />
 

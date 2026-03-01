@@ -85,6 +85,17 @@ class SettingsActivity : BaseActivity() {
             startActivity(Intent(this, TotpSetupActivity::class.java))
         }
 
+        // Backup & Restore (paid feature)
+        findViewById<View>(R.id.backupItem).setOnClickListener {
+            val subscriptionManager = com.shieldmessenger.services.SubscriptionManager.getInstance(this)
+            if (subscriptionManager.isSupporter()) {
+                startActivity(Intent(this, BackupActivity::class.java))
+            } else {
+                ThemedToast.show(this, "Backup is a premium feature. Please subscribe first.")
+                startActivity(Intent(this, SubscriptionActivity::class.java))
+            }
+        }
+
         // Wipe Account
         findViewById<View>(R.id.wipeAccountButton).setOnClickListener {
             startActivity(Intent(this, WipeAccountActivity::class.java))
