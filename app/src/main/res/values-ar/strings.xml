@@ -22,24 +22,28 @@
     <string name="all">الكل</string>
     <string name="allow_access_to_photos">السماح بالوصول للصور</string>
     <string name="amount">المبلغ</string>
-    <string name="amount_to_shield_zec">المبلغ للتحويل (ZEC)</string>
+    <string name="amount_to_shield_zec">المبلغ للتحويل المحمي (ZEC)</string>
     <string name="anonymous">مجهول</string>
     <string name="answer_calls_when_app_closed">الرد على المكالمات عند إغلاق التطبيق</string>
     <string name="app_locked">التطبيق مقفل</string>
     <string name="app_security">أمان التطبيق</string>
     <string name="applications_fee">رسوم التطبيق</string>
     <string name="are_you_sure_you_want_to_delete_this_con">هل أنت متأكد أنك تريد حذف جهة الاتصال هذه؟ لا يمكن التراجع عن هذا الإجراء.</string>
-    <string name="assets_swap">تبادل الأصول</string>
+    <string name="assets_swap">تبديل الأصول</string>
     <string name="autolock_timer">مؤقت القفل التلقائي</string>
     <string name="available">متاح</string>
     <string name="back_to_home">العودة للرئيسية</string>
     <string name="backup_amp_restore">النسخ الاحتياطي والاستعادة</string>
+    <string name="balance_00000">الرصيد: 0.0000</string>
     <string name="before_you_proceed">قبل المتابعة</string>
     <string name="biometric_unlock">فتح بالبصمة</string>
+    <string name="birthday_height">ارتفاع البداية:</string>
+    <string name="birthday_height_optional">ارتفاع البداية (اختياري)</string>
     <string name="block">حظر</string>
+    <string name="bootstrap">التمهيد: -</string>
     <string name="bridge">جسر</string>
-    <string name="bridges_help_you_connect_to_tor_in_censo">الجسور تساعدك على الاتصال بـ Tor في المناطق المحجوبة. اختر نوع الجسر أدناه.</string>
-    <string name="call">مكالمة</string>
+    <string name="bridges_help_you_connect_to_tor_in_censo">تساعدك الجسور على الاتصال بـ Tor في المناطق المحظورة حيث يتم حجب Tor. اختر نوع الجسر أدناه.</string>
+    <string name="call">اتصال</string>
     <string name="call_ended">انتهت المكالمة</string>
     <string name="call_history">سجل المكالمات</string>
     <string name="call_log">سجل المكالمات</string>
@@ -47,108 +51,463 @@
     <string name="call_will_be_missed_in_30s">ستفوت المكالمة خلال 30 ثانية</string>
     <string name="cancel">إلغاء</string>
     <string name="cancel_2">إلغاء</string>
-    <string name="change_group_pin">تغيير PIN المجموعة</string>
+    <string name="change_group_pin">تغيير رمز المجموعة</string>
     <string name="change_password">تغيير كلمة المرور</string>
-    <string name="change_pin">تغيير PIN</string>
+    <string name="change_pin">تغيير الرمز</string>
     <string name="change_profile_photo">تغيير صورة الملف الشخصي</string>
     <string name="channel">قناة</string>
     <string name="channel_settings">إعدادات القناة</string>
     <string name="chats">المحادثات</string>
     <string name="checking">جاري التحقق...</string>
     <string name="choose_from_gallery">اختيار من المعرض</string>
+    <string name="circuits">الدوائر: -</string>
     <string name="clear_all">مسح الكل</string>
     <string name="close">إغلاق</string>
     <string name="communication">الاتصالات</string>
-    <string name="communication_mode">وضع الاتصالات</string>
+    <string name="communication_mode">وضع الاتصال</string>
     <string name="compose">إنشاء</string>
     <string name="confirm">تأكيد</string>
     <string name="confirm_account_wipe">تأكيد مسح الحساب</string>
+    <string name="confirm_message">تأكيد الرسالة</string>
     <string name="confirm_new_password">تأكيد كلمة المرور الجديدة</string>
-    <string name="contact_pin">PIN جهة الاتصال</string>
+    <string name="confirm_pin">تأكيد الرمز</string>
+    <string name="confirm_request">تأكيد الطلب</string>
+    <string name="confirm_transaction">تأكيد المعاملة</string>
+    <string name="confirmed">مؤكد</string>
+    <string name="connect_directly_to_tor_without_bridges">الاتصال مباشرة بـ Tor بدون جسور</string>
+    <string name="connecting">جاري الاتصال...</string>
+    <string name="connecting_2">جاري الاتصال</string>
+    <string name="contact">جهة اتصال</string>
+    <string name="contact_card">بطاقة جهة الاتصال</string>
+    <string name="contact_name">اسم جهة الاتصال</string>
+    <string name="contact_pin">رمز جهة الاتصال</string>
+    <string name="contact_sales">اتصل بالمبيعات</string>
+    <string name="contact_us">اتصل بنا</string>
     <string name="contacts">جهات الاتصال</string>
     <string name="continue_text">متابعة</string>
     <string name="create">إنشاء</string>
+    <string name="create_a_group_to_get_started">أنشئ مجموعة للبدء</string>
     <string name="create_account">إنشاء حساب</string>
+    <string name="create_backup">إنشاء نسخة احتياطية</string>
     <string name="create_group">إنشاء مجموعة</string>
+    <string name="create_new_identity">إنشاء هوية جديدة؟</string>
+    <string name="create_new_identity_2">إنشاء هوية جديدة</string>
+    <string name="create_new_wallet">إنشاء محفظة جديدة</string>
+    <string name="create_wallet">إنشاء محفظة</string>
+    <string name="creating_backup">جاري إنشاء النسخة الاحتياطية...</string>
+    <string name="currency">العملة</string>
+    <string name="current_balance">الرصيد الحالي</string>
     <string name="current_password">كلمة المرور الحالية</string>
+    <string name="current_plan_free">الخطة الحالية: مجانية</string>
     <string name="custom_bridge">جسر مخصص</string>
-    <string name="d">د</string>
+    <string name="date">التاريخ</string>
+    <string name="date_amp_time">التاريخ والوقت</string>
+    <string name="dec_28_2024_at_245_pm">28 ديسمبر 2024 الساعة 2:45 م</string>
+    <string name="decentralized_amp_peertopeer">🌐  لامركزي ونظير لنظير</string>
     <string name="decline">رفض</string>
+    <string name="default_text">افتراضي</string>
     <string name="delete">حذف</string>
     <string name="delete_account">حذف الحساب</string>
     <string name="delete_contact">حذف جهة الاتصال</string>
+    <string name="delete_wallet">حذف المحفظة</string>
     <string name="developer">المطور</string>
+    <string name="developer_options">خيارات المطور</string>
+    <string name="developer_tools_and_debugging_features">أدوات المطور وميزات التصحيح</string>
+    <string name="device_protection">حماية الجهاز</string>
+    <string name="device_settings">إعدادات الجهاز</string>
+    <string name="disable_2fa">تعطيل المصادقة الثنائية</string>
+    <string name="disconnected">غير متصل</string>
+    <string name="disguises_tor_as_normal_https_web_traffi">يخفي Tor كحركة مرور HTTPS عادية (الأصعب في الكشف)</string>
+    <string name="distress_options">خيارات الطوارئ</string>
     <string name="done">تم</string>
-    <string name="download">تحميل</string>
-    <string name="duress_pin">PIN الطوارئ</string>
+    <string name="download">تنزيل</string>
+    <string name="downloading">جاري التنزيل...</string>
+    <string name="dump_counters">تفريغ العدادات</string>
+    <string name="duress_pin">رمز الطوارئ</string>
+    <string name="emergency_pin">رمز الطوارئ</string>
     <string name="enable_2fa">تفعيل المصادقة الثنائية</string>
-    <string name="exchange">تبادل</string>
+    <string name="enable_notifications">تفعيل الإشعارات</string>
+    <string name="enable_securemesh">تفعيل SecureMesh</string>
+    <string name="enabled_24h">مفعّل (24 ساعة)</string>
+    <string name="encrypted_backup">نسخة احتياطية مشفرة</string>
+    <string name="endtoend_encrypted">🔒  مشفر من طرف لطرف</string>
+    <string name="endtoend_encrypted_messagingn_voice_call">• رسائل مشفرة من طرف لطرف\n• مكالمات صوتية عبر Tor\n• رسائل ذاتية التدمير\n• ميزات المحفظة الأساسية\n• التحقق من جهات الاتصال بـ QR</string>
+    <string name="english">الإنجليزية</string>
+    <string name="enter_a_new_6digit_pin">أدخل رمزاً جديداً من 6 أرقام</string>
+    <string name="enter_the_6digit_code_from_your_authenti">أدخل الرمز المكون من 6 أرقام من تطبيق المصادقة للتحقق:</string>
+    <string name="enter_your_12word_seed_phrase_to_import_">أدخل عبارة الاسترداد المكونة من 12 كلمة لاستيراد حسابك. سيتم استيراد هوية المراسلة ومحاولة استرداد جهات الاتصال.</string>
+    <string name="enter_your_own_bridge_address">أدخل عنوان الجسر الخاص بك</string>
+    <string name="enterprise">المؤسسات</string>
+    <string name="erase_all_data_when_duress_pin_is_entere">مسح جميع البيانات عند إدخال رمز الطوارئ</string>
+    <string name="errors">الأخطاء</string>
+    <string name="event_log">سجل الأحداث</string>
+    <string name="everything_in_freen_video_calls_over_tor">• كل ما في المجاني\n• مكالمات فيديو عبر Tor\n• مشاركة الملفات (حتى 10 ميجا)\n• توجيه أولوية Tor\n• ميزات محفظة متقدمة\n• دعم التطوير</string>
+    <string name="everything_in_supportern_custom_tor_brid">• كل ما في الداعم\n• نشر جسر Tor مخصص\n• إدارة الفريق\n• بنية تحتية مخصصة\n• اتفاقية مستوى الخدمة ودعم أولوية\n• خيار الاستضافة الذاتية</string>
+    <string name="exchange">تبديل</string>
+    <string name="exchange_fee">رسوم التبديل</string>
+    <string name="exchange_fee_2">رسوم التبديل</string>
+    <string name="exchange_rate">سعر الصرف</string>
+    <string name="expirers_date_time">تاريخ/وقت الانتهاء</string>
+    <string name="expires">ينتهي</string>
+    <string name="export_contacts_amp_messages">تصدير جهات الاتصال والرسائل</string>
+    <string name="export_seed_phrase">تصدير عبارة الاسترداد</string>
+    <string name="export_seed_phrase_for_wallet">تصدير عبارة الاسترداد للمحفظة</string>
+    <string name="export_type">نوع التصدير</string>
+    <string name="fail_0">فشل: 0</string>
     <string name="fee">الرسوم</string>
     <string name="file">ملف</string>
     <string name="free">مجاني</string>
+    <string name="friend_request_address">عنوان طلب الصداقة</string>
+    <string name="friend_request_security">أمان طلبات الصداقة</string>
     <string name="friend_requests">طلبات الصداقة</string>
+    <string name="friends_address">عنوان الصديق</string>
     <string name="from">من</string>
+    <string name="from_2">من:</string>
+    <string name="from_wallet">من المحفظة</string>
+    <string name="from_your_wallet">من (محفظتك):</string>
     <string name="gallery">المعرض</string>
     <string name="get_started">ابدأ الآن</string>
+    <string name="gif">صور متحركة</string>
+    <string name="gifs_will_be_available_in_the_next_updat">ستتوفر الصور المتحركة في التحديث القادم</string>
     <string name="group">مجموعة</string>
     <string name="group_name">اسم المجموعة</string>
     <string name="groups">المجموعات</string>
+    <string name="hint_base58_string_or_json_array_123">نص Base58 أو مصفوفة JSON [1,2,3,...]</string>
+    <string name="hint_confirm_duress_pin">تأكيد رمز الطوارئ</string>
+    <string name="hint_confirm_new_password">تأكيد كلمة المرور الجديدة</string>
+    <string name="hint_confirm_password">تأكيد كلمة المرور</string>
+    <string name="hint_enter_12_or_24word_seed_phrase_of_solana">أدخل عبارة الاسترداد المكونة من 12 أو 24 كلمة لمحفظة Solana</string>
+    <string name="hint_enter_24word_seed_phrase_of_zcash_wallet">أدخل عبارة الاسترداد المكونة من 24 كلمة لمحفظة Zcash</string>
+    <string name="hint_enter_amount">أدخل المبلغ...</string>
+    <string name="hint_enter_current_password">أدخل كلمة المرور الحالية</string>
+    <string name="hint_enter_duress_pin">أدخل رمز الطوارئ</string>
+    <string name="hint_enter_friendu0027s_onion_address">أدخل عنوان .onion الخاص بالصديق</string>
+    <string name="hint_enter_group_name">أدخل اسم المجموعة</string>
+    <string name="hint_enter_new_group_name">أدخل اسم المجموعة الجديد</string>
+    <string name="hint_enter_new_password">أدخل كلمة المرور الجديدة</string>
+    <string name="hint_enter_or_scan_address">أدخل أو امسح العنوان</string>
+    <string name="hint_enter_password">أدخل كلمة المرور</string>
+    <string name="hint_enter_wallet_name">أدخل اسم المحفظة</string>
+    <string name="hint_enter_your_password_to_confirm">أدخل كلمة المرور للتأكيد</string>
+    <string name="hint_leave_empty_to_use_current_height">اتركه فارغاً لاستخدام الارتفاع الحالي</string>
+    <string name="hint_my_imported_wallet">محفظتي المستوردة</string>
+    <string name="hint_password">كلمة المرور</string>
+    <string name="hint_paste_bridge_address_here">الصق عنوان الجسر هنا...</string>
+    <string name="hint_search">بحث...</string>
+    <string name="hint_search_2">بحث</string>
+    <string name="hint_search_contacts">بحث في جهات الاتصال...</string>
+    <string name="hint_search_members">بحث في الأعضاء...</string>
+    <string name="hint_type_a_message">اكتب رسالة...</string>
+    <string name="hint_type_delete_in_capital_letters">اكتب DELETE بأحرف كبيرة</string>
+    <string name="hint_username">اسم المستخدم</string>
+    <string name="i_understand_this_action_is_permanent">أفهم أن هذا الإجراء دائم</string>
+    <string name="identity_rotator">تدوير الهوية</string>
     <string name="import_account">استيراد حساب</string>
+    <string name="import_existing_sol_or_zec_wallet">استيراد محفظة SOL أو ZEC موجودة</string>
+    <string name="import_from_backup_file">استيراد من ملف النسخة الاحتياطية</string>
+    <string name="import_text">استيراد</string>
+    <string name="import_type">نوع الاستيراد</string>
+    <string name="import_wallet">استيراد محفظة</string>
+    <string name="in_24_hours">خلال 24 ساعة</string>
     <string name="incoming_call">مكالمة واردة</string>
+    <string name="incoming_yesterday_1245">واردة • أمس • 12:45</string>
+    <string name="invited_by_alice">بدعوة من Alice</string>
+    <string name="ive_written_it_down">لقد كتبتها</string>
+    <string name="jan_11_2026_at_149_pm">11 يناير 2026 الساعة 1:49 م</string>
+    <string name="keep_your_backup_file_safe_anyone_with_a">حافظ على أمان ملف النسخة الاحتياطية. أي شخص لديه وصول لكلمة مرور جهازك وهذا الملف يمكنه قراءة رسائلك.</string>
     <string name="language">اللغة</string>
+    <string name="last_backup">آخر نسخة احتياطية</string>
+    <string name="last_call_2_hours_ago">آخر مكالمة: منذ ساعتين</string>
+    <string name="leave">مغادرة</string>
+    <string name="license_agreementnnshield_messenger_is_l">اتفاقية الترخيص\n\nشيلد ماسنجر مرخص بموجب PolyForm Noncommercial License 1.0.0</string>
     <string name="loading">جاري التحميل...</string>
+    <string name="loading_transactions">جاري تحميل المعاملات...</string>
     <string name="location">الموقع</string>
+    <string name="lora_mesh_network_for_offgrid_encrypted_">شبكة LoRa mesh للاتصال المشفر بدون إنترنت</string>
+    <string name="lt_000001_sol">~&amp;lt; 0.00001 SOL</string>
+    <string name="main_tor">Tor الرئيسي</string>
+    <string name="make_sure_to_backup_your_private_key_sec">تأكد من نسخ مفتاحك الخاص احتياطياً بأمان. يمكنك عرضه في أي وقت من إعدادات المحفظة.</string>
+    <string name="make_sure_you_have_backed_up_your_seed_p">تأكد من نسخ عبارة الاسترداد احتياطياً للوصول إلى الأموال أو التحويل. ستفقد جهات اتصالك وستحتاج لإعادة إضافتها لأنك ستحتاج لإنشاء هوية جديدة.</string>
+    <string name="manual_entry_legacy">إدخال يدوي (قديم)</string>
     <string name="max">الحد الأقصى</string>
+    <string name="max_pin_uses">الحد الأقصى لاستخدام الرمز</string>
     <string name="members">الأعضاء</string>
     <string name="message">رسالة</string>
+    <string name="message_alerts">تنبيهات الرسائل</string>
+    <string name="message_content">محتوى الرسالة</string>
+    <string name="message_content_goes_here">محتوى الرسالة يظهر هنا...</string>
+    <string name="message_count">عدد الرسائل</string>
+    <string name="message_privacy">خصوصية الرسائل</string>
     <string name="messages">الرسائل</string>
+    <string name="min_9_characters_must_include_at_least_1">9 أحرف كحد أدنى. يجب أن تتضمن حرفاً كبيراً واحداً على الأقل، وحرفاً صغيراً، ورقماً، ورمزاً خاصاً (!@#$%^&amp;amp;*). بدون أرقام متتالية (123) أو أحرف مكررة (aaaa).</string>
+    <string name="money_sent">تم إرسال الأموال</string>
     <string name="mute">كتم</string>
+    <string name="my_groups">مجموعاتي</string>
+    <string name="n_1_hour">ساعة واحدة</string>
+    <string name="n_1_minute">دقيقة واحدة</string>
+    <string name="n_1_sol_09347_zec">1 SOL = 0.9347 ZEC</string>
+    <string name="n_1_week_ago">منذ أسبوع</string>
+    <string name="n_1_word">1. كلمة</string>
+    <string name="n_10_word">10. كلمة</string>
+    <string name="n_11_word">11. كلمة</string>
+    <string name="n_12_mb">1.2 ميجا</string>
+    <string name="n_12_word">12. كلمة</string>
+    <string name="n_15_min_17_feb_2023">15 دقيقة 17 فبراير 2023</string>
+    <string name="n_15_minutes">15 دقيقة</string>
+    <string name="n_17_feb_2023">17 فبراير 2023</string>
+    <string name="n_1m_ago">منذ دقيقة</string>
+    <string name="n_2_days_ago">منذ يومين</string>
+    <string name="n_2_weeks_ago">منذ أسبوعين</string>
+    <string name="n_2_word">2. كلمة</string>
+    <string name="n_24_hours">24 ساعة</string>
+    <string name="n_2m">2 دقيقة</string>
+    <string name="n_3_weeks_ago">منذ 3 أسابيع</string>
+    <string name="n_3_word">3. كلمة</string>
+    <string name="n_30_minutes">30 دقيقة</string>
+    <string name="n_30_seconds">30 ثانية</string>
+    <string name="n_4_word">4. كلمة</string>
+    <string name="n_48_hours">48 ساعة</string>
+    <string name="n_5_days_ago">منذ 5 أيام</string>
+    <string name="n_5_minutes">5 دقائق</string>
+    <string name="n_5_word">5. كلمة</string>
+    <string name="n_6_hours">6 ساعات</string>
+    <string name="n_6_word">6. كلمة</string>
+    <string name="n_7_days">7 أيام</string>
+    <string name="n_7_word">7. كلمة</string>
+    <string name="n_8_word">8. كلمة</string>
+    <string name="n_9_word">9. كلمة</string>
     <string name="name">الاسم</string>
     <string name="network">الشبكة</string>
+    <string name="network_fee">رسوم الشبكة</string>
     <string name="network_status">حالة الشبكة</string>
     <string name="never">أبداً</string>
+    <string name="never_share_your_private_key_or_seed_phr">لا تشارك مفتاحك الخاص أو عبارة الاسترداد أبداً. أي شخص لديه وصول إليها يمكنه التحكم بأموالك.</string>
+    <string name="new_call">مكالمة جديدة</string>
+    <string name="new_contact_card_cidpin">بطاقة اتصال جديدة (CID/PIN)</string>
     <string name="new_group">مجموعة جديدة</string>
-    <string name="new_password">كلمة مرور جديدة</string>
+    <string name="new_identity_includes">الهوية الجديدة تتضمن:</string>
+    <string name="new_password">كلمة المرور الجديدة</string>
+    <string name="new_tor_onion_address">عنوان Tor Onion جديد</string>
+    <string name="new_wallet">محفظة جديدة</string>
     <string name="next">التالي</string>
+    <string name="no_call_data_availablennmake_a_voice_cal">لا توجد بيانات مكالمات\n\nقم بإجراء مكالمة صوتية لرؤية\nمقاييس الجودة هنا</string>
+    <string name="no_call_history_yet">لا يوجد سجل مكالمات بعد</string>
     <string name="no_calls_yet">لا توجد مكالمات بعد</string>
     <string name="no_contacts">لا توجد جهات اتصال</string>
+    <string name="no_contacts_yet">لا توجد جهات اتصال بعد</string>
+    <string name="no_groups_yet">لا توجد مجموعات بعد</string>
+    <string name="no_log_entries_found">لم يتم العثور على إدخالات</string>
     <string name="no_messages_yet">لا توجد رسائل بعد</string>
+    <string name="no_messages_yet_2">لا توجد رسائل بعد</string>
     <string name="no_transactions_yet">لا توجد معاملات بعد</string>
+    <string name="nodes_connected">العقد المتصلة</string>
+    <string name="none_default">لا شيء (افتراضي)</string>
+    <string name="normal">عادي</string>
+    <string name="not_monitored">غير مراقب</string>
+    <string name="notification">إشعار</string>
+    <string name="notification_sound">صوت الإشعار</string>
     <string name="notifications">الإشعارات</string>
+    <string name="obfuscates_traffic_to_look_like_random_d">يخفي حركة المرور لتبدو كبيانات عشوائية</string>
+    <string name="ok_0">نجاح: 0</string>
+    <string name="only_shielded_funds_can_be_sent_shield_y">يمكن إرسال الأموال المحمية فقط. قم بحماية ZEC الشفاف لتمكين المدفوعات.</string>
+    <string name="open_source_amp_transparent">🛡️  مفتوح المصدر وشفاف</string>
+    <string name="or_enter_this_key_manually">أو أدخل هذا المفتاح يدوياً:</string>
     <string name="outgoing_call">مكالمة صادرة</string>
+    <string name="paid">مدفوع</string>
+    <string name="pair_lora_device">إقران جهاز LoRa</string>
     <string name="pay">دفع</string>
-    <string name="pending">قيد الانتظار</string>
-    <string name="pin">PIN</string>
-    <string name="please_wait">الرجاء الانتظار...</string>
+    <string name="payment_request">طلب دفع</string>
+    <string name="payment_type">نوع الدفع</string>
+    <string name="pending">معلق</string>
+    <string name="pending_invites">الدعوات المعلقة</string>
+    <string name="permanently_remove_this_wallet">إزالة هذه المحفظة نهائياً</string>
+    <string name="permissions">الأذونات</string>
+    <string name="pin">الرمز</string>
+    <string name="pin_rotation">تدوير الرمز</string>
+    <string name="pin_uses_05">استخدامات الرمز: 0/5</string>
+    <string name="play_sound_for_notifications">تشغيل صوت للإشعارات</string>
+    <string name="please_wait">يرجى الانتظار</string>
+    <string name="position_the_qr_code_within_the_frame">ضع رمز QR داخل الإطار</string>
     <string name="premium_feature">ميزة مميزة</string>
+    <string name="preparing">جاري التحضير...</string>
+    <string name="preparing_transaction">جاري تحضير المعاملة...</string>
     <string name="privacy">الخصوصية</string>
+    <string name="private_key">المفتاح الخاص</string>
+    <string name="private_key_2">المفتاح الخاص</string>
+    <string name="private_messaging_with_endtoend_encrypti">مراسلة خاصة مع تشفير من طرف لطرف.\nبدون خوادم. بدون تتبع. بدون جمع بيانات.\nمحادثاتك ملكك.</string>
+    <string name="private_secure_free">خاص. آمن. مجاني.</string>
+    <string name="private_text">خاص</string>
     <string name="profile">الملف الشخصي</string>
-    <string name="receive">استقبال</string>
-    <string name="received">مستلم</string>
+    <string name="promote">ترقية</string>
+    <string name="realtime_tor_health_monitoring_updates_e">مراقبة صحة Tor في الوقت الفعلي (تحديث كل ثانيتين)</string>
+    <string name="receive">استلام</string>
+    <string name="receive_to">الاستلام إلى:</string>
+    <string name="received">مُستلم</string>
+    <string name="received_sol">SOL مُستلم</string>
+    <string name="received_usdc">USDC مُستلم</string>
     <string name="recent">الأخيرة</string>
+    <string name="recent_activity">النشاط الأخير</string>
+    <string name="recent_calls">المكالمات الأخيرة</string>
+    <string name="recipient_address">عنوان المستلم</string>
+    <string name="recommended">موصى به</string>
+    <string name="recovery_seed">عبارة الاسترداد</string>
     <string name="remove">إزالة</string>
+    <string name="remove_photo">إزالة الصورة</string>
+    <string name="rename_group">إعادة تسمية المجموعة</string>
+    <string name="request">طلب</string>
+    <string name="request_details">تفاصيل الطلب</string>
+    <string name="request_expires_in">ينتهي الطلب خلال</string>
+    <string name="request_id">معرف الطلب</string>
+    <string name="requested">مطلوب</string>
+    <string name="require_manual_approval_to_download_mess">يتطلب موافقة يدوية لتنزيل الرسائل</string>
+    <string name="reset_state">إعادة تعيين الحالة</string>
+    <string name="restore_backup">استعادة النسخة الاحتياطية</string>
+    <string name="routes_through_microsoft_azure_slower_bu">يمر عبر Microsoft Azure (أبطأ لكن أصعب في الحجب)</string>
     <string name="save">حفظ</string>
-    <string name="scan_qr">مسح رمز QR</string>
+    <string name="save_2">حفظ</string>
+    <string name="save_duress_pin">حفظ رمز الطوارئ</string>
+    <string name="save_pin">حفظ الرمز</string>
+    <string name="scan_qr">مسح QR</string>
     <string name="scan_qr_code">مسح رمز QR</string>
+    <string name="scenario">السيناريو</string>
+    <string name="secure_call">مكالمة آمنة</string>
+    <string name="securemesh">SecureMesh</string>
+    <string name="securemesh_uses_lora_radio_technology_to">يستخدم SecureMesh تقنية راديو LoRa لإنشاء شبكة mesh لامركزية للاتصال الآمن بدون اتصال خلوي أو إنترنت.</string>
+    <string name="securepay">الدفع الآمن</string>
     <string name="seed_phrase">عبارة الاسترداد</string>
+    <string name="seed_phrase_2">عبارة الاسترداد</string>
+    <string name="select_chain">اختيار السلسلة</string>
+    <string name="select_contacts">اختيار جهات الاتصال</string>
+    <string name="select_currency">اختيار العملة</string>
+    <string name="select_token">اختيار الرمز</string>
+    <string name="selfdestruct">التدمير الذاتي</string>
     <string name="send">إرسال</string>
+    <string name="send_friend_request">إرسال طلب صداقة</string>
+    <string name="send_image">إرسال صورة</string>
     <string name="send_message">إرسال رسالة</string>
-    <string name="sent">مرسل</string>
+    <string name="send_money">إرسال أموال</string>
+    <string name="send_now">إرسال الآن</string>
+    <string name="send_read_receipts">إرسال إيصالات القراءة</string>
+    <string name="send_request">إرسال الطلب</string>
+    <string name="sending_request">جاري إرسال الطلب...</string>
+    <string name="sending_transaction">جاري إرسال المعاملة</string>
+    <string name="sent">مُرسل</string>
+    <string name="sent_0">مُرسل: 0</string>
+    <string name="sent_sol">SOL مُرسل</string>
+    <string name="sent_sol_2">$SOL مُرسل</string>
+    <string name="sent_usdc">USDC مُرسل</string>
     <string name="settings">الإعدادات</string>
     <string name="share">مشاركة</string>
+    <string name="share_this_so_others_can_add_you">شارك هذا ليتمكن الآخرون من إضافتك</string>
+    <string name="shield">حماية</string>
     <string name="shield_messenger">شيلد ماسنجر</string>
+    <string name="shield_messenger_2">شيلد ماسنجر</string>
+    <string name="shield_messenger_cannot_recover_your_see">لا يستطيع شيلد ماسنجر استرداد عبارة الاسترداد. أنت مسؤول عن الحفاظ عليها بأمان.</string>
+    <string name="shield_zcash">حماية Zcash</string>
+    <string name="shielded">محمي:</string>
+    <string name="shielded_2">محمي</string>
+    <string name="show_address_amp_pin_fields_in_add_frien">إظهار حقول العنوان والرمز في إضافة صديق</string>
+    <string name="show_last_seen">إظهار آخر ظهور</string>
+    <string name="show_message_content">إظهار محتوى الرسالة</string>
+    <string name="show_message_content_in_notifications">إظهار محتوى الرسالة في الإشعارات</string>
+    <string name="show_missed_call_log_if_disabled">إظهار سجل المكالمات الفائتة إذا معطل</string>
+    <string name="show_notifications_for_new_messages">إظهار إشعارات للرسائل الجديدة</string>
     <string name="sign_in">تسجيل الدخول</string>
-    <string name="status">الحالة</string>
+    <string name="sign_in_2">تسجيل الدخول</string>
+    <string name="signal_strength">قوة الإشارة</string>
+    <string name="skip_for_now">تخطي الآن</string>
+    <string name="slide_to_answer">اسحب للرد</string>
+    <string name="sol_blockchain_wallet">محفظة بلوكتشين SOL</string>
+    <string name="sol_wallet_1">SOL - المحفظة 1</string>
+    <string name="standard_solana_transaction">معاملة Solana قياسية</string>
+    <string name="standard_transaction">معاملة قياسية</string>
+    <string name="start">بدء</string>
+    <string name="start_a_conversation_to_get_started">ابدأ محادثة للبدء</string>
+    <string name="status">الحالة: </string>
+    <string name="status_2">الحالة</string>
+    <string name="stop">إيقاف</string>
+    <string name="stress_test">اختبار الإجهاد</string>
     <string name="subscribe">اشتراك</string>
     <string name="subscription">الاشتراك</string>
-    <string name="swap">تبادل</string>
+    <string name="succeeded">نجح</string>
+    <string name="supporter">الداعم</string>
+    <string name="swap">تبديل</string>
+    <string name="swap_complete">اكتمل التبديل</string>
+    <string name="swap_crypto">تبديل العملات</string>
+    <string name="system_log">سجل النظام</string>
+    <string name="system_message">رسالة النظام</string>
     <string name="take_photo">التقاط صورة</string>
+    <string name="tap_for_details">انقر للتفاصيل</string>
     <string name="terms_of_service">شروط الخدمة</string>
+    <string name="test_contact">جهة اتصال تجريبية</string>
+    <string name="testnet_mode">وضع الشبكة التجريبية</string>
+    <string name="this_transaction_cannot_be_reversed_plea">لا يمكن عكس هذه المعاملة. يرجى التحقق من جميع التفاصيل قبل الإرسال.</string>
+    <string name="this_will_generate_a_completely_new_iden">سيؤدي هذا إلى إنشاء هوية جديدة تماماً لحسابك.</string>
+    <string name="this_will_permanently_delete_this_wallet">سيتم حذف هذه المحفظة نهائياً من جهازك.</string>
     <string name="time">الوقت</string>
     <string name="to">إلى</string>
+    <string name="to_2">إلى:</string>
+    <string name="to_3">إلى</string>
+    <string name="to_address">إلى العنوان</string>
     <string name="today">اليوم</string>
+    <string name="tokens">الرموز</string>
+    <string name="tor_bridges">جسور Tor</string>
+    <string name="tor_health">صحة Tor</string>
+    <string name="tor_vpn_mode">وضع Tor VPN</string>
+    <string name="total_balance">الرصيد الإجمالي</string>
     <string name="transaction_details">تفاصيل المعاملة</string>
+    <string name="transaction_details_2">تفاصيل المعاملة</string>
+    <string name="transaction_failed_insufficient_funds">فشلت المعاملة: رصيد غير كافٍ</string>
+    <string name="transaction_hash">هاش المعاملة</string>
+    <string name="transaction_id">معرف المعاملة</string>
+    <string name="transaction_number">رقم المعاملة</string>
     <string name="transactions">المعاملات</string>
+    <string name="transfer_details">تفاصيل التحويل</string>
+    <string name="transparent">شفاف:</string>
+    <string name="twofactor_auth">المصادقة الثنائية</string>
+    <string name="twofactor_auth_2fa">المصادقة الثنائية (2FA)</string>
+    <string name="twofactor_authentication_is_enabled">المصادقة الثنائية مفعّلة</string>
+    <string name="type_quotdeletequot_to_confirm">اكتب &amp;quot;DELETE&amp;quot; للتأكيد</string>
+    <string name="unified">موحد</string>
+    <string name="unlock">فتح القفل</string>
+    <string name="unlock_to_answer_this_call">افتح القفل للرد على هذه المكالمة</string>
+    <string name="usd_value">القيمة بالدولار</string>
+    <string name="use_testnet_for_zcash_testnetzecrocks_an">استخدم الشبكة التجريبية لـ Zcash (testnet.zec.rocks) و Solana devnet. يسمح بالاختبار بأموال وهمية.</string>
+    <string name="uses_temporary_proxies_from_volunteers_r">يستخدم وكلاء مؤقتين من المتطوعين (موصى به لمعظم المناطق المحظورة)</string>
+    <string name="value">القيمة</string>
+    <string name="version_014_beta">الإصدار 0.1.4 بيتا</string>
+    <string name="video_call_connecting">جاري اتصال مكالمة الفيديو...</string>
+    <string name="view_on_solana_explorer">عرض على مستكشف Solana</string>
+    <string name="voice_tor">صوت Tor</string>
     <string name="wallet">المحفظة</string>
+    <string name="wallet_1">المحفظة 1</string>
+    <string name="wallet_2">المحفظة 2</string>
+    <string name="wallet_actions">إجراءات المحفظة</string>
+    <string name="wallet_address">عنوان المحفظة</string>
+    <string name="wallet_created_successfully">تم إنشاء المحفظة بنجاح</string>
+    <string name="wallet_name">اسم المحفظة</string>
+    <string name="wallet_name_2">اسم المحفظة</string>
+    <string name="wallet_settings">إعدادات المحفظة</string>
+    <string name="wallet_type">نوع المحفظة</string>
+    <string name="wants_to_send_you">يريد إرسال</string>
+    <string name="warnings">التحذيرات</string>
+    <string name="whats_good_how_are_you">كيف حالك؟</string>
     <string name="wipe_account">مسح الحساب</string>
+    <string name="wipe_on_10_failed_logins">مسح بعد 10 محاولات فاشلة</string>
+    <string name="wipe_phone">مسح الهاتف</string>
+    <string name="you_have_been_invited_to_this_group">لقد تمت دعوتك إلى هذه المجموعة</string>
+    <string name="you_have_successfully_requested">تم طلبك بنجاح!</string>
+    <string name="you_have_successfully_sent">تم إرسالك بنجاح!</string>
+    <string name="you_will_need_to_send_new_friend_request">ستحتاج لإرسال طلبات صداقة جديدة لجهات اتصالك</string>
+    <string name="your_12word_seed_phrase">عبارة الاسترداد المكونة من 12 كلمة:</string>
+    <string name="your_account_is_protected_with_an_additi">حسابك محمي برمز TOTP إضافي. سيُطلب منك الرمز في كل مرة تسجل فيها الدخول.</string>
+    <string name="your_account_recovery_seed">عبارة استرداد حسابك</string>
+    <string name="your_assets">أصولك</string>
+    <string name="your_backup_is_encrypted_with_aes256gcm_">نسختك الاحتياطية مشفرة بـ AES-256-GCM باستخدام كلمة مرور جهازك. أنت فقط يمكنك فك تشفيرها.</string>
+    <string name="your_crypto_wallet_will_remain_untouched">محفظتك الرقمية ستبقى كما هي</string>
+    <string name="your_new_wallet_has_been_generated">تم إنشاء محفظتك الجديدة</string>
+    <string name="your_privacy_your_right">خصوصيتك، حقك.</string>
+    <string name="your_transaction_history_will_appear_her">سيظهر سجل معاملاتك هنا</string>
+    <string name="zec_blockchain_wallet">محفظة بلوكتشين ZEC</string>
+    <string name="zec_wallet_2">ZEC - المحفظة 2</string>
 </resources>
