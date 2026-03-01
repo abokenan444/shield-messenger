@@ -231,23 +231,16 @@ class LockActivity : AppCompatActivity() {
 
                 // Check if account setup is complete (has wallet, contact card, AND username)
                 if (!keyManager.isAccountSetupComplete()) {
-                    Log.w("LockActivity", "Account incomplete - need to finish setup")
-                    ThemedToast.showLong(this, "Please complete account setup")
+                    Log.w("LockActivity", "Account incomplete - unlocking anyway")
+                }
 
-                    // Redirect to CreateAccountActivity to finish setup
-                    val intent = Intent(this, CreateAccountActivity::class.java)
-                    intent.putExtra("RESUME_SETUP", true)
-                    startActivity(intent)
-                    finish()
-                } else {
-                    Log.i("LockActivity", "Account complete, unlocking app")
+                Log.i("LockActivity", "Password verified, unlocking app")
 
-                    // Offer biometric enrollment first, then unlock app
-                    // If biometric dialog is shown, unlockApp() is called after user responds
-                    // If no dialog shown, unlockApp() is called immediately
-                    offerBiometricEnrollment(keyManager) {
-                        unlockApp()
-                    }
+                // Offer biometric enrollment first, then unlock app
+                // If biometric dialog is shown, unlockApp() is called after user responds
+                // If no dialog shown, unlockApp() is called immediately
+                offerBiometricEnrollment(keyManager) {
+                    unlockApp()
                 }
             } else {
                 // Password incorrect

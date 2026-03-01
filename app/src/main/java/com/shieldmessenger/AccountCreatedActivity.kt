@@ -145,10 +145,12 @@ class AccountCreatedActivity : AppCompatActivity() {
     private fun navigateToMain(seedConfirmed: Boolean) {
         Log.i("AccountCreated", "Navigating to main (seed confirmed: $seedConfirmed)")
 
+        // Always mark as confirmed so the user is never redirected back to this screen
         val prefs = getSharedPreferences("account_setup", MODE_PRIVATE)
-        prefs.edit().putBoolean("seed_phrase_confirmed", seedConfirmed).apply()
+        prefs.edit().putBoolean("seed_phrase_confirmed", true).apply()
 
         if (seedConfirmed) {
+            // User explicitly confirmed backup — safe to clear seed from storage
             val keyManager = KeyManager.getInstance(this)
             keyManager.clearSeedPhraseBackup()
         }
