@@ -18,7 +18,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.securelegion.crypto.KeyManager
 
-class SplashActivity : AppCompatActivity() {
+class SplashActivity : BaseActivity() {
 
     private val NOTIFICATION_PERMISSION_REQUEST_CODE = 1001
     private val BATTERY_OPTIMIZATION_REQUEST_CODE = 1002

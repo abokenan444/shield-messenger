@@ -13,7 +13,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:text="Today"
+        android:text="@string/today"
         android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="12sp"
         android:paddingBottom="8dp"
@@ -62,7 +62,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="4dp"
-                        android:text="Received"
+                        android:text="@string/received"
                         android:textColor="#00D4AA"
                         android:textSize="11sp" />
 
@@ -74,7 +74,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="$0.75"
+                    android:text="@string/n_075"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="28sp"
                     android:textStyle="bold" />
@@ -84,7 +84,7 @@
                     android:id="@+id/paymentAmountUsd"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="0.005 SOL"
+                    android:text="@string/n_0005_sol"
                     android:textColor="#666666"
                     android:textSize="13sp"
                     android:clickable="true"
@@ -96,7 +96,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="Tap for details"
+                    android:text="@string/tap_for_details"
                     android:textColor="#555555"
                     android:textSize="11sp" />
 

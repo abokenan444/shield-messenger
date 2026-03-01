@@ -14,7 +14,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Contact Card"
+        android:text="@string/contact_card"
         android:textSize="24sp"
         android:textColor="?attr/colorOnSurface"
         android:fontFamily="@font/space_grotesk_bold"
@@ -25,7 +25,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Share this so others can add you"
+        android:text="@string/share_this_so_others_can_add_you"
         android:textSize="14sp"
         android:textColor="?attr/colorOnSurfaceVariant"
         android:fontFamily="@font/poppins_regular"
@@ -64,7 +64,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Friend Request Address"
+            android:text="@string/friend_request_address"
             android:textSize="14sp"
             android:fontFamily="@font/poppins_medium"
             android:textColor="#8C8C8C"
@@ -116,7 +116,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Contact PIN"
+            android:text="@string/contact_pin"
             android:textSize="14sp"
             android:fontFamily="@font/poppins_medium"
             android:textColor="#8C8C8C"
@@ -171,7 +171,7 @@
         android:id="@+id/pinUsesText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="PIN uses: 0/5"
+        android:text="@string/pin_uses_05"
         android:textSize="12sp"
         android:textColor="#8C8C8C"
         android:fontFamily="@font/poppins_regular"
@@ -196,7 +196,7 @@
         android:layout_height="56dp"
         android:background="@drawable/swap_button_bg"
         android:gravity="center"
-        android:text="Share"
+        android:text="@string/share"
         android:textSize="18sp"
         android:textColor="?attr/colorOnSurface"
         android:fontFamily="@font/poppins_semibold"

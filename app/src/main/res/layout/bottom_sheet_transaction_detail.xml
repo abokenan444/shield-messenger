@@ -23,7 +23,7 @@
         android:id="@+id/txDetailType"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Sent"
+        android:text="@string/sent"
         android:textSize="28sp"
         android:textColor="?attr/colorOnSurface"
         android:fontFamily="@font/space_grotesk_bold"
@@ -65,7 +65,7 @@
             android:id="@+id/txDetailAmount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="-0.03619 SOL"
+            android:text="@string/n_003619_sol"
             android:textSize="36sp"
             android:textColor="?attr/colorOnSurface"
             android:fontFamily="@font/space_grotesk_bold"
@@ -92,7 +92,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Date"
+                android:text="@string/date"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_regular" />
@@ -101,7 +101,7 @@
                 android:id="@+id/txDetailDate"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Jan 11, 2026 at 1:49 pm"
+                android:text="@string/jan_11_2026_at_149_pm"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurface"
                 android:fontFamily="@font/poppins_medium" />
@@ -118,7 +118,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Status"
+                android:text="@string/status_2"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_regular" />
@@ -127,7 +127,7 @@
                 android:id="@+id/txDetailStatus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Succeeded"
+                android:text="@string/succeeded"
                 android:textSize="14sp"
                 android:textColor="#4CAF50"
                 android:fontFamily="@font/poppins_medium" />
@@ -145,7 +145,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="To"
+                android:text="@string/to"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_regular" />
@@ -160,7 +160,7 @@
                     android:id="@+id/txDetailAddress"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="DKwi...iQtW"
+                    android:text="@string/dkwiiqtw"
                     android:textSize="14sp"
                     android:textColor="?attr/colorOnSurface"
                     android:fontFamily="@font/poppins_medium" />
@@ -189,7 +189,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Network"
+                android:text="@string/network"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_regular" />
@@ -198,7 +198,7 @@
                 android:id="@+id/txDetailNetwork"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Solana"
+                android:text="@string/solana"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurface"
                 android:fontFamily="@font/poppins_medium" />
@@ -214,7 +214,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Network Fee"
+                android:text="@string/network_fee"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_regular" />
@@ -223,7 +223,7 @@
                 android:id="@+id/txDetailNetworkFee"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="~&lt; 0.00001 SOL"
+                android:text="@string/lt_000001_sol"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurface"
                 android:fontFamily="@font/poppins_medium" />

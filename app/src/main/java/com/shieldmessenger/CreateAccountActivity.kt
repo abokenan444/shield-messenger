@@ -48,7 +48,7 @@ import androidx.lifecycle.lifecycleScope
 import org.web3j.crypto.MnemonicUtils
 import java.security.SecureRandom
 
-class CreateAccountActivity : AppCompatActivity() {
+class CreateAccountActivity : BaseActivity() {
 
     private lateinit var usernameInput: EditText
     private lateinit var passwordInput: EditText

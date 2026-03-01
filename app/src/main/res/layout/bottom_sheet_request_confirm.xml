@@ -14,7 +14,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Confirm Request"
+        android:text="@string/confirm_request"
         android:textSize="24sp"
         android:textColor="?attr/colorOnSurface"
         android:fontFamily="@font/space_grotesk_bold"
@@ -35,7 +35,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="@font/space_grotesk_medium"
-            android:text="$50.00"
+            android:text="@string/n_5000"
             android:textColor="#C0C0C0"
             android:textSize="48sp" />
 
@@ -68,7 +68,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/poppins_regular"
-                    android:text="From"
+                    android:text="@string/from"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="14sp" />
 
@@ -77,7 +77,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/poppins_medium"
-                    android:text="Contact Name"
+                    android:text="@string/contact_name"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="14sp" />
             </LinearLayout>
@@ -94,7 +94,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/poppins_regular"
-                    android:text="To"
+                    android:text="@string/to"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="14sp" />
 
@@ -103,7 +103,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/poppins_medium"
-                    android:text="Wallet 1"
+                    android:text="@string/wallet_1"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="14sp" />
             </LinearLayout>
@@ -120,7 +120,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/poppins_regular"
-                    android:text="Currency"
+                    android:text="@string/currency"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="14sp" />
 
@@ -129,7 +129,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/poppins_medium"
-                    android:text="USD"
+                    android:text="@string/usd"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="14sp" />
             </LinearLayout>
@@ -145,7 +145,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/poppins_regular"
-                    android:text="Payment Type"
+                    android:text="@string/payment_type"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="14sp" />
 
@@ -154,7 +154,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/poppins_medium"
-                    android:text="15 minutes"
+                    android:text="@string/n_15_minutes"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="14sp" />
             </LinearLayout>
@@ -175,7 +175,7 @@
             android:layout_height="56dp"
             android:background="@drawable/swap_button_bg"
             android:fontFamily="@font/poppins_semibold"
-            android:text="SEND REQUEST"
+            android:text="@string/send_request"
             android:textAllCaps="true"
             android:textColor="?attr/colorOnSurface"
             android:textSize="16sp"
@@ -188,7 +188,7 @@
             android:layout_height="56dp"
             android:background="@drawable/wallet_dropdown_bg"
             android:fontFamily="@font/poppins_semibold"
-            android:text="CANCEL"
+            android:text="@string/cancel_2"
             android:textAllCaps="true"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="16sp" />

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">شیلد مسنجر</string>
+
+    <string name="about">درباره</string>
+    <string name="accept">پذیرش</string>
+    <string name="add_friend">افزودن دوست</string>
+    <string name="address">آدرس</string>
+    <string name="all">همه</string>
+    <string name="amount">مبلغ</string>
+    <string name="anonymous">ناشناس</string>
+    <string name="available">موجود</string>
+    <string name="biometric_unlock">باز کردن بیومتریک</string>
+    <string name="block">مسدود</string>
+    <string name="call">تماس</string>
+    <string name="call_ended">تماس پایان یافت</string>
+    <string name="cancel">لغو</string>
+    <string name="change_password">تغییر رمز عبور</string>
+    <string name="chats">گفتگوها</string>
+    <string name="close">بستن</string>
+    <string name="confirm">تأیید</string>
+    <string name="contacts">مخاطبین</string>
+    <string name="continue_text">ادامه</string>
+    <string name="create_account">ایجاد حساب</string>
+    <string name="delete">حذف</string>
+    <string name="done">انجام شد</string>
+    <string name="download">دانلود</string>
+    <string name="file">فایل</string>
+    <string name="free">رایگان</string>
+    <string name="gallery">گالری</string>
+    <string name="group">گروه</string>
+    <string name="incoming_call">تماس ورودی</string>
+    <string name="language">زبان</string>
+    <string name="loading">در حال بارگذاری...</string>
+    <string name="message">پیام</string>
+    <string name="messages">پیام‌ها</string>
+    <string name="mute">بی‌صدا</string>
+    <string name="name">نام</string>
+    <string name="network">شبکه</string>
+    <string name="never">هرگز</string>
+    <string name="next">بعدی</string>
+    <string name="notifications">اعلان‌ها</string>
+    <string name="pending">در انتظار</string>
+    <string name="privacy">حریم خصوصی</string>
+    <string name="profile">پروفایل</string>
+    <string name="save">ذخیره</string>
+    <string name="send">ارسال</string>
+    <string name="sent">ارسال شد</string>
+    <string name="settings">تنظیمات</string>
+    <string name="share">اشتراک</string>
+    <string name="sign_in">ورود</string>
+    <string name="today">امروز</string>
+    <string name="wallet">کیف پول</string>
+</resources>

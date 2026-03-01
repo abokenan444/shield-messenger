@@ -27,7 +27,7 @@ import java.math.BigDecimal
 import java.text.SimpleDateFormat
 import java.util.*
 
-class RequestMoneyActivity : AppCompatActivity() {
+class RequestMoneyActivity : BaseActivity() {
 
     companion object {
         private const val TAG = "RequestMoneyActivity"

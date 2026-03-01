@@ -42,7 +42,7 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:layout_marginStart="16dp"
-        android:text="Alice Sanford"
+        android:text="@string/alice_sanford"
         android:textSize="16sp"
         android:textColor="?attr/colorOnSurface"
         android:fontFamily="@font/poppins_regular" />

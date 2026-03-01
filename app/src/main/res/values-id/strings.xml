@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Shield Messenger</string>
+
+    <string name="about">Tentang</string>
+    <string name="accept">Terima</string>
+    <string name="add_friend">Tambah Teman</string>
+    <string name="address">Alamat</string>
+    <string name="all">Semua</string>
+    <string name="amount">Jumlah</string>
+    <string name="anonymous">Anonim</string>
+    <string name="available">Tersedia</string>
+    <string name="biometric_unlock">Buka Kunci Biometrik</string>
+    <string name="block">Blokir</string>
+    <string name="call">Panggilan</string>
+    <string name="call_ended">Panggilan Berakhir</string>
+    <string name="cancel">Batal</string>
+    <string name="change_password">Ubah Kata Sandi</string>
+    <string name="chats">Obrolan</string>
+    <string name="close">Tutup</string>
+    <string name="confirm">KONFIRMASI</string>
+    <string name="contacts">Kontak</string>
+    <string name="create_account">Buat Akun</string>
+    <string name="delete">Hapus</string>
+    <string name="done">Selesai</string>
+    <string name="download">Unduh</string>
+    <string name="file">Berkas</string>
+    <string name="free">Gratis</string>
+    <string name="gallery">Galeri</string>
+    <string name="group">Grup</string>
+    <string name="incoming_call">Panggilan Masuk</string>
+    <string name="language">Bahasa</string>
+    <string name="loading">Memuat...</string>
+    <string name="message">Pesan</string>
+    <string name="messages">Pesan</string>
+    <string name="mute">Bisukan</string>
+    <string name="name">Nama</string>
+    <string name="network">Jaringan</string>
+    <string name="never">Tidak pernah</string>
+    <string name="next">Berikutnya</string>
+    <string name="notifications">Notifikasi</string>
+    <string name="pending">Tertunda</string>
+    <string name="privacy">Privasi</string>
+    <string name="profile">Profil</string>
+    <string name="save">Simpan</string>
+    <string name="send">Kirim</string>
+    <string name="sent">Terkirim</string>
+    <string name="settings">Pengaturan</string>
+    <string name="share">Bagikan</string>
+    <string name="sign_in">Masuk</string>
+    <string name="today">Hari ini</string>
+    <string name="wallet">Dompet</string>
+</resources>

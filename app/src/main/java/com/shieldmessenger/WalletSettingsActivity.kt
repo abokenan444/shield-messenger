@@ -23,7 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class WalletSettingsActivity : AppCompatActivity() {
+class WalletSettingsActivity : BaseActivity() {
 
     private var selectedChain: String = "SOLANA" // Default to Solana
     private var currentWallet: Wallet? = null

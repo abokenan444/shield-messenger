@@ -45,7 +45,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Create Wallet"
+            android:text="@string/create_wallet"
             android:textSize="28sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/space_grotesk_bold"
@@ -80,7 +80,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Wallet Name"
+                android:text="@string/wallet_name"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_medium"
@@ -92,7 +92,7 @@
                 android:layout_height="56dp"
                 android:background="@drawable/settings_box_bg"
                 android:padding="16dp"
-                android:hint="Enter wallet name"
+                android:hint="@string/hint_enter_wallet_name"
                 android:textColor="?attr/colorOnSurface"
                 android:textColorHint="#555555"
                 android:fontFamily="@font/poppins_regular"
@@ -106,7 +106,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Wallet Type"
+                android:text="@string/wallet_type"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_medium"
@@ -149,7 +149,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Solana"
+                        android:text="@string/solana"
                         android:textSize="16sp"
                         android:textColor="?attr/colorOnSurface"
                         android:fontFamily="@font/poppins_semibold" />
@@ -157,7 +157,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="SOL blockchain wallet"
+                        android:text="@string/sol_blockchain_wallet"
                         android:textSize="12sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/poppins_regular" />
@@ -209,7 +209,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Zcash"
+                        android:text="@string/zcash"
                         android:textSize="16sp"
                         android:textColor="?attr/colorOnSurface"
                         android:fontFamily="@font/poppins_semibold" />
@@ -217,7 +217,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="ZEC blockchain wallet"
+                        android:text="@string/zec_blockchain_wallet"
                         android:textSize="12sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/poppins_regular" />
@@ -237,7 +237,7 @@
                 android:id="@+id/createWalletButton"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
-                android:text="Create Wallet"
+                android:text="@string/create_wallet"
                 android:textSize="16sp"
                 android:textColor="?attr/colorOnSurface"
                 android:fontFamily="@font/poppins_semibold"

@@ -46,7 +46,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Wallet 1"
+            android:text="@string/wallet_1"
             android:textSize="28sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/space_grotesk_bold"
@@ -124,7 +124,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="$0.00"
+                    android:text="@string/n_000_2"
                     android:textSize="28sp"
                     android:textColor="?attr/colorOnSurface"
                     android:fontFamily="@font/space_grotesk_bold" />
@@ -176,7 +176,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Send"
+                        android:text="@string/send"
                         android:textSize="12sp"
                         android:textColor="#AAAAAA"
                         android:fontFamily="@font/poppins_medium" />
@@ -207,7 +207,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Receive"
+                        android:text="@string/receive"
                         android:textSize="12sp"
                         android:textColor="#AAAAAA"
                         android:fontFamily="@font/poppins_medium" />
@@ -239,7 +239,7 @@
                         android:id="@+id/shieldButtonLabel"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Shield"
+                        android:text="@string/shield"
                         android:textSize="12sp"
                         android:textColor="#AAAAAA"
                         android:fontFamily="@font/poppins_medium" />
@@ -262,7 +262,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Tokens"
+                    android:text="@string/tokens"
                     android:textSize="18sp"
                     android:textColor="?attr/colorOnSurface"
                     android:fontFamily="@font/space_grotesk_bold"
@@ -304,7 +304,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Solana"
+                            android:text="@string/solana"
                             android:textSize="16sp"
                             android:textColor="?attr/colorOnSurface"
                             android:fontFamily="@font/poppins_medium" />
@@ -312,7 +312,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="SOL"
+                            android:text="@string/sol"
                             android:textSize="12sp"
                             android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/poppins_regular" />
@@ -329,7 +329,7 @@
                             android:id="@+id/solBalance"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="$0.00"
+                            android:text="@string/n_000_2"
                             android:textSize="16sp"
                             android:textColor="?attr/colorOnSurface"
                             android:fontFamily="@font/poppins_medium" />
@@ -338,7 +338,7 @@
                             android:id="@+id/solAmount"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="0.0000 SOL"
+                            android:text="@string/n_00000_sol"
                             android:textSize="12sp"
                             android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/poppins_regular"
@@ -384,7 +384,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Zcash"
+                            android:text="@string/zcash"
                             android:textSize="16sp"
                             android:textColor="?attr/colorOnSurface"
                             android:fontFamily="@font/poppins_medium" />
@@ -392,7 +392,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="ZEC"
+                            android:text="@string/zec"
                             android:textSize="12sp"
                             android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/poppins_regular" />
@@ -409,7 +409,7 @@
                             android:id="@+id/zecBalance"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="$0.00"
+                            android:text="@string/n_000_2"
                             android:textSize="16sp"
                             android:textColor="?attr/colorOnSurface"
                             android:fontFamily="@font/poppins_medium" />
@@ -418,7 +418,7 @@
                             android:id="@+id/zecAmount"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="0.0000 ZEC"
+                            android:text="@string/n_00000_zec"
                             android:textSize="12sp"
                             android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/poppins_regular"
@@ -444,7 +444,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Shielded"
+                    android:text="@string/shielded_2"
                     android:textSize="18sp"
                     android:textColor="?attr/colorOnSurface"
                     android:fontFamily="@font/space_grotesk_bold"
@@ -487,7 +487,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Solana"
+                            android:text="@string/solana"
                             android:textSize="16sp"
                             android:textColor="?attr/colorOnSurface"
                             android:fontFamily="@font/poppins_medium" />
@@ -495,7 +495,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="SOL"
+                            android:text="@string/sol"
                             android:textSize="12sp"
                             android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/poppins_regular" />
@@ -512,7 +512,7 @@
                             android:id="@+id/solShieldedBalance"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="$0.00"
+                            android:text="@string/n_000_2"
                             android:textSize="16sp"
                             android:textColor="?attr/colorOnSurface"
                             android:fontFamily="@font/poppins_medium" />
@@ -521,7 +521,7 @@
                             android:id="@+id/solShieldedAmount"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="0.0000 SOL"
+                            android:text="@string/n_00000_sol"
                             android:textSize="12sp"
                             android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/poppins_regular"
@@ -568,7 +568,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Zcash"
+                            android:text="@string/zcash"
                             android:textSize="16sp"
                             android:textColor="?attr/colorOnSurface"
                             android:fontFamily="@font/poppins_medium" />
@@ -576,7 +576,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="ZEC"
+                            android:text="@string/zec"
                             android:textSize="12sp"
                             android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/poppins_regular" />
@@ -593,7 +593,7 @@
                             android:id="@+id/zecShieldedBalance"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="$0.00"
+                            android:text="@string/n_000_2"
                             android:textSize="16sp"
                             android:textColor="?attr/colorOnSurface"
                             android:fontFamily="@font/poppins_medium" />
@@ -602,7 +602,7 @@
                             android:id="@+id/zecShieldedAmount"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="0.0000 ZEC"
+                            android:text="@string/n_00000_zec"
                             android:textSize="12sp"
                             android:textColor="?attr/colorOnSurfaceVariant"
                             android:fontFamily="@font/poppins_regular"

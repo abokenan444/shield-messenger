@@ -35,7 +35,7 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:layout_marginEnd="20dp"
-        android:text="Group"
+        android:text="@string/group"
         android:fontFamily="@font/space_grotesk_bold"
         android:textSize="20sp"
         android:textColor="?attr/colorOnSurfaceVariant"
@@ -94,7 +94,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="Settings"
+        android:text="@string/settings"
         android:fontFamily="@font/space_grotesk_bold"
         android:textSize="18sp"
         android:textColor="?attr/colorOnSurfaceVariant"
@@ -158,7 +158,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Change PIN"
+                    android:text="@string/change_pin"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />
@@ -213,7 +213,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Members"
+                    android:text="@string/members"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />
@@ -268,7 +268,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Advanced"
+                    android:text="@string/advanced"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />
@@ -323,7 +323,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Permissions"
+                    android:text="@string/permissions"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />

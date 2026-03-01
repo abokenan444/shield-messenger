@@ -19,7 +19,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Select Token"
+        android:text="@string/select_token"
         android:textSize="20sp"
         android:textColor="?attr/colorOnSurface"
         android:fontFamily="@font/space_grotesk_bold"

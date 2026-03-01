@@ -44,7 +44,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Add Friend"
+            android:text="@string/add_friend"
             android:textSize="24sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/space_grotesk_bold"
@@ -122,7 +122,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Scan QR"
+                        android:text="@string/scan_qr"
                         android:textSize="14sp"
                         android:fontFamily="@font/space_grotesk_bold"
                         android:textColor="?attr/colorOnSurface" />
@@ -151,7 +151,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Gallery"
+                        android:text="@string/gallery"
                         android:textSize="14sp"
                         android:fontFamily="@font/space_grotesk_bold"
                         android:textColor="?attr/colorOnSurface" />
@@ -171,7 +171,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Friends Address"
+                    android:text="@string/friends_address"
                     android:textSize="14sp"
                     android:fontFamily="@font/poppins_medium"
                     android:textColor="#8C8C8C"
@@ -187,7 +187,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
                         android:background="@drawable/lock_password_input_bg"
-                        android:hint="Enter friend\u0027s .onion address"
+                        android:hint="@string/hint_enter_friendu0027s_onion_address"
                         android:inputType="text"
                         android:textColorHint="#666666"
                         android:textColor="#8C8C8C"
@@ -202,7 +202,7 @@
                     android:id="@+id/pinLabel"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Contact PIN"
+                    android:text="@string/contact_pin"
                     android:textSize="14sp"
                     android:fontFamily="@font/poppins_medium"
                     android:textColor="#8C8C8C"
@@ -264,7 +264,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="36dp"
-                        android:text="-"
+                        android:text="@string/str_25"
                         android:textColor="#666666"
                         android:textSize="20sp"
                         android:gravity="center"
@@ -317,7 +317,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="36dp"
-                        android:text="-"
+                        android:text="@string/str_25"
                         android:textColor="#666666"
                         android:textSize="20sp"
                         android:gravity="center"
@@ -400,7 +400,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Friend Requests"
+                android:text="@string/friend_requests"
                 android:textSize="16sp"
                 android:fontFamily="@font/poppins_medium"
                 android:textColor="#8C8C8C"
@@ -429,7 +429,7 @@
                 android:id="@+id/searchButton"
                 android:layout_width="match_parent"
                 android:layout_height="60dp"
-                android:text="Send Friend Request"
+                android:text="@string/send_friend_request"
                 android:textSize="16sp"
                 android:fontFamily="@font/space_grotesk_bold"
                 android:textColor="?attr/colorOnSurface"
@@ -485,7 +485,7 @@
                 android:id="@+id/loadingText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Sending request..."
+                android:text="@string/sending_request"
                 android:textSize="16sp"
                 android:textColor="?attr/colorOnSurface"
                 android:fontFamily="@font/poppins_medium" />
@@ -494,7 +494,7 @@
                 android:id="@+id/loadingSubtext"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Please wait"
+                android:text="@string/please_wait"
                 android:textSize="14sp"
                 android:textColor="#CCCCCC"
                 android:fontFamily="@font/poppins_regular"

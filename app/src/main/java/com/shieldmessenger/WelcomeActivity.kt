@@ -23,7 +23,7 @@ import com.securelegion.crypto.KeyManager
  * Security: This activity is separate from LockActivity to maintain
  * clear separation between authentication and onboarding flows
  */
-class WelcomeActivity : AppCompatActivity() {
+class WelcomeActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

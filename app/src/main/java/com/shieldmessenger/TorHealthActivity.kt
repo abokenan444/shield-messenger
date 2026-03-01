@@ -26,7 +26,7 @@ import com.shieldmessenger.services.TorService
  *
  * Updates every 2 seconds
  */
-class TorHealthActivity : AppCompatActivity() {
+class TorHealthActivity : BaseActivity() {
 
     companion object {
         private const val TAG = "TorHealthActivity"

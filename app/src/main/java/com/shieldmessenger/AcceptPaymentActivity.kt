@@ -26,7 +26,7 @@ import kotlinx.coroutines.withContext
  * Activity for accepting an incoming payment.
  * When someone sends you money, you pick which wallet to receive it to.
  */
-class AcceptPaymentActivity : AppCompatActivity() {
+class AcceptPaymentActivity : BaseActivity() {
 
     companion object {
         private const val TAG = "AcceptPaymentActivity"

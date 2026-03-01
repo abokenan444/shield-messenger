@@ -61,7 +61,7 @@
             android:id="@+id/navMessagesLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Chats"
+            android:text="@string/chats"
             android:textSize="10sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/poppins_medium" />
@@ -113,7 +113,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Contacts"
+            android:text="@string/contacts"
             android:textSize="10sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/poppins_medium" />
@@ -144,7 +144,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Wallet"
+            android:text="@string/wallet"
             android:textSize="10sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/poppins_medium" />
@@ -175,7 +175,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Profile"
+            android:text="@string/profile"
             android:textSize="10sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/poppins_medium" />

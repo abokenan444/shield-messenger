@@ -14,7 +14,7 @@ import androidx.core.view.WindowCompat
 import com.shieldmessenger.utils.ThemedToast
 import org.web3j.crypto.MnemonicUtils
 
-class RestoreAccountActivity : AppCompatActivity() {
+class RestoreAccountActivity : BaseActivity() {
 
     private val seedWords = mutableListOf<EditText>()
     private lateinit var importButton: TextView

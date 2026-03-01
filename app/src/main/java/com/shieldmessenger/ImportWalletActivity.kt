@@ -16,7 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class ImportWalletActivity : AppCompatActivity() {
+class ImportWalletActivity : BaseActivity() {
 
     private var selectedChain = "SOLANA" // Default to Solana
     private var solanaImportType = "SEED_PHRASE" // Default to seed phrase for Solana

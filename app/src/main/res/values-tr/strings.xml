@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Shield Messenger</string>
+
+    <string name="about">Hakkında</string>
+    <string name="accept">Kabul Et</string>
+    <string name="add_friend">Arkadaş Ekle</string>
+    <string name="address">Adres</string>
+    <string name="all">Tümü</string>
+    <string name="amount">Miktar</string>
+    <string name="anonymous">Anonim</string>
+    <string name="available">Mevcut</string>
+    <string name="biometric_unlock">Biyometrik Kilit Açma</string>
+    <string name="block">Engelle</string>
+    <string name="call">Arama</string>
+    <string name="call_ended">Arama Sona Erdi</string>
+    <string name="cancel">İptal</string>
+    <string name="change_password">Şifre Değiştir</string>
+    <string name="chats">Sohbetler</string>
+    <string name="close">Kapat</string>
+    <string name="confirm">ONAYLA</string>
+    <string name="contacts">Kişiler</string>
+    <string name="continue_text">Devam</string>
+    <string name="create_account">Hesap Oluştur</string>
+    <string name="decline">Reddet</string>
+    <string name="delete">Sil</string>
+    <string name="done">Tamam</string>
+    <string name="download">İndir</string>
+    <string name="file">Dosya</string>
+    <string name="free">Ücretsiz</string>
+    <string name="gallery">Galeri</string>
+    <string name="group">Grup</string>
+    <string name="incoming_call">Gelen Arama</string>
+    <string name="language">Dil</string>
+    <string name="loading">Yükleniyor...</string>
+    <string name="message">Mesaj</string>
+    <string name="messages">Mesajlar</string>
+    <string name="mute">Sessize Al</string>
+    <string name="name">Ad</string>
+    <string name="network">Ağ</string>
+    <string name="never">Asla</string>
+    <string name="next">İleri</string>
+    <string name="notifications">Bildirimler</string>
+    <string name="pending">Beklemede</string>
+    <string name="privacy">Gizlilik</string>
+    <string name="profile">Profil</string>
+    <string name="save">Kaydet</string>
+    <string name="send">Gönder</string>
+    <string name="sent">Gönderildi</string>
+    <string name="settings">Ayarlar</string>
+    <string name="share">Paylaş</string>
+    <string name="sign_in">Giriş Yap</string>
+    <string name="today">Bugün</string>
+    <string name="wallet">Cüzdan</string>
+</resources>

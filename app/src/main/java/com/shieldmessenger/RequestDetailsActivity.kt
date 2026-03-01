@@ -12,7 +12,7 @@ import com.shieldmessenger.services.ZcashService
 import com.shieldmessenger.utils.ThemedToast
 import kotlinx.coroutines.launch
 
-class RequestDetailsActivity : AppCompatActivity() {
+class RequestDetailsActivity : BaseActivity() {
 
     companion object {
         const val EXTRA_RECIPIENT_NAME = "RECIPIENT_NAME"

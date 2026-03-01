@@ -24,7 +24,7 @@
             android:id="@+id/backButton"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:text="‹"
+            android:text="@string/str_381"
             android:textSize="32sp"
             android:textColor="?attr/colorOnSurface"
             android:gravity="center"
@@ -42,7 +42,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="TRANSACTIONS"
+            android:text="@string/transactions"
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="?attr/colorOnSurface"
@@ -91,7 +91,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Received SOL"
+                        android:text="@string/received_sol"
                         android:textSize="16sp"
                         android:textStyle="bold"
                         android:textColor="?attr/colorOnSurface"
@@ -100,7 +100,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="2 days ago"
+                        android:text="@string/n_2_days_ago"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurfaceVariant" />
 
@@ -109,7 +109,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="+0.0008 SOL"
+                    android:text="@string/n_00008_sol"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/success_green"
@@ -137,7 +137,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Sent SOL"
+                        android:text="@string/sent_sol"
                         android:textSize="16sp"
                         android:textStyle="bold"
                         android:textColor="?attr/colorOnSurface"
@@ -146,7 +146,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="5 days ago"
+                        android:text="@string/n_5_days_ago"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurfaceVariant" />
 
@@ -155,7 +155,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="-0.0002 SOL"
+                    android:text="@string/n_00002_sol"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="?attr/colorOnSurface"
@@ -183,7 +183,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Received USDC"
+                        android:text="@string/received_usdc"
                         android:textSize="16sp"
                         android:textStyle="bold"
                         android:textColor="?attr/colorOnSurface"
@@ -192,7 +192,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="1 week ago"
+                        android:text="@string/n_1_week_ago"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurfaceVariant" />
 
@@ -201,7 +201,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="+10.00 USDC"
+                    android:text="@string/n_1000_usdc"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/success_green"
@@ -229,7 +229,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Sent USDC"
+                        android:text="@string/sent_usdc"
                         android:textSize="16sp"
                         android:textStyle="bold"
                         android:textColor="?attr/colorOnSurface"
@@ -238,7 +238,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="2 weeks ago"
+                        android:text="@string/n_2_weeks_ago"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurfaceVariant" />
 
@@ -247,7 +247,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="-5.00 USDC"
+                    android:text="@string/n_500_usdc"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="?attr/colorOnSurface"
@@ -274,7 +274,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Received SOL"
+                        android:text="@string/received_sol"
                         android:textSize="16sp"
                         android:textStyle="bold"
                         android:textColor="?attr/colorOnSurface"
@@ -283,7 +283,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="3 weeks ago"
+                        android:text="@string/n_3_weeks_ago"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurfaceVariant" />
 
@@ -292,7 +292,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="+0.0005 SOL"
+                    android:text="@string/n_00005_sol"
                     android:textSize="16sp"
                     android:textStyle="bold"
                     android:textColor="@color/success_green"

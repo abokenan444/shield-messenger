@@ -20,7 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class CreateWalletActivity : AppCompatActivity() {
+class CreateWalletActivity : BaseActivity() {
 
     private lateinit var walletNameInput: EditText
     private lateinit var solanaOption: View

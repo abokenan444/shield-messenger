@@ -25,7 +25,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="A"
+            android:text="@string/a"
             android:textSize="24sp"
             android:textColor="?attr/colorOnSurface"
             android:fontFamily="@font/space_grotesk_bold" />
@@ -45,7 +45,7 @@
             android:id="@+id/contactName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Alice"
+            android:text="@string/alice"
             android:textSize="16sp"
             android:textColor="?attr/colorOnSurface"
             android:fontFamily="@font/poppins_medium" />
@@ -55,7 +55,7 @@
             android:id="@+id/lastCallStatus"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Last call: 2 hours ago"
+            android:text="@string/last_call_2_hours_ago"
             android:textSize="12sp"
             android:textColor="#666666"
             android:fontFamily="@font/poppins_regular"

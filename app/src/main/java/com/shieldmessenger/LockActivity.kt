@@ -1,5 +1,6 @@
 package com.shieldmessenger
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.text.SpannableString
@@ -19,12 +20,17 @@ import androidx.lifecycle.lifecycleScope
 import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.database.ShieldMessengerDatabase
 import com.shieldmessenger.utils.BiometricAuthHelper
+import com.shieldmessenger.utils.LocaleHelper
 import com.shieldmessenger.utils.SecureWipe
 import com.shieldmessenger.utils.ThemedToast
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 class LockActivity : AppCompatActivity() {
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleHelper.applyLocale(newBase))
+    }
 
     private lateinit var passwordSection: LinearLayout
     private lateinit var biometricHelper: BiometricAuthHelper
@@ -92,6 +98,15 @@ class LockActivity : AppCompatActivity() {
         setupBiometricUI()
         setupClickListeners()
         setupForgotPasswordText()
+
+        // Auto-trigger biometric prompt if biometric unlock is enabled
+        if (biometricHelper.isBiometricAvailable() == BiometricAuthHelper.BiometricStatus.AVAILABLE
+            && biometricHelper.isBiometricEnabled()) {
+            // Delay slightly to ensure the activity is fully visible before showing prompt
+            window.decorView.post {
+                authenticateWithBiometric()
+            }
+        }
     }
 
     private fun setupBiometricUI() {

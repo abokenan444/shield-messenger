@@ -39,7 +39,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Mute"
+                    android:text="@string/mute"
                     android:textColor="#FFFFFF"
                     android:textSize="11sp"
                     android:fontFamily="@font/poppins_medium" />
@@ -73,7 +73,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Remove"
+                    android:text="@string/remove"
                     android:textColor="#FFFFFF"
                     android:textSize="11sp"
                     android:fontFamily="@font/poppins_medium" />
@@ -107,7 +107,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Promote"
+                    android:text="@string/promote"
                     android:textColor="#FFFFFF"
                     android:textSize="11sp"
                     android:fontFamily="@font/poppins_medium" />

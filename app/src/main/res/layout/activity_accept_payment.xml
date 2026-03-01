@@ -42,7 +42,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Accept Payment"
+            android:text="@string/accept_payment"
             android:textSize="28sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/space_grotesk_bold"
@@ -101,7 +101,7 @@
                         android:id="@+id/senderName"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Bob"
+                        android:text="@string/bob"
                         android:textSize="18sp"
                         android:textColor="?attr/colorOnSurface"
                         android:fontFamily="@font/poppins_semibold" />
@@ -109,7 +109,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="wants to send you"
+                        android:text="@string/wants_to_send_you"
                         android:textSize="12sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/poppins_regular" />
@@ -130,7 +130,7 @@
                     android:id="@+id/amountDisplay"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="1.5000 SOL"
+                    android:text="@string/n_15000_sol"
                     android:textSize="42sp"
                     android:textColor="#C0C0C0"
                     android:fontFamily="@font/space_grotesk_bold"
@@ -140,7 +140,7 @@
                     android:id="@+id/amountUsd"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="~ $150.00 USD"
+                    android:text="@string/n_15000_usd"
                     android:textSize="14sp"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:fontFamily="@font/poppins_regular"
@@ -160,7 +160,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="RECEIVE TO:"
+                    android:text="@string/receive_to"
                     android:textSize="13sp"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:fontFamily="@font/poppins_regular"
@@ -177,7 +177,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Wallet Name"
+                        android:text="@string/wallet_name"
                         android:textSize="12sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/poppins_regular" />
@@ -196,7 +196,7 @@
                             android:id="@+id/walletNameText"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Wallet 1"
+                            android:text="@string/wallet_1"
                             android:textSize="14sp"
                             android:textColor="?attr/colorOnSurface"
                             android:fontFamily="@font/poppins_medium"
@@ -224,7 +224,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Address"
+                        android:text="@string/address"
                         android:textSize="12sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/poppins_regular" />
@@ -233,7 +233,7 @@
                         android:id="@+id/walletAddressShort"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="ADm9P.....2eoLX5"
+                        android:text="@string/adm9p2eolx5"
                         android:textSize="12sp"
                         android:textColor="?attr/colorOnSurface"
                         android:fontFamily="monospace" />
@@ -256,7 +256,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Expires"
+                    android:text="@string/expires"
                     android:textSize="14sp"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:fontFamily="@font/poppins_regular" />
@@ -265,7 +265,7 @@
                     android:id="@+id/expiryText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="in 24 hours"
+                    android:text="@string/in_24_hours"
                     android:textSize="14sp"
                     android:textColor="?attr/colorOnSurface"
                     android:fontFamily="@font/poppins_medium" />
@@ -280,7 +280,7 @@
                 android:layout_marginTop="16dp"
                 android:background="@drawable/wallet_action_button_bg"
                 android:fontFamily="@font/poppins_semibold"
-                android:text="Accept Payment"
+                android:text="@string/accept_payment"
                 android:textAllCaps="false"
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="16sp" />
@@ -293,7 +293,7 @@
                 android:layout_marginTop="12dp"
                 android:background="@android:color/transparent"
                 android:fontFamily="@font/poppins_medium"
-                android:text="Decline"
+                android:text="@string/decline"
                 android:textAllCaps="false"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:textSize="16sp" />

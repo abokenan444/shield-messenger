@@ -11,7 +11,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Wallet Created Successfully"
+        android:text="@string/wallet_created_successfully"
         android:textSize="20sp"
         android:textColor="?attr/colorOnSurface"
         android:fontFamily="@font/space_grotesk_bold"
@@ -22,7 +22,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Your new wallet has been generated"
+        android:text="@string/your_new_wallet_has_been_generated"
         android:textSize="14sp"
         android:textColor="?attr/colorOnSurfaceVariant"
         android:fontFamily="@font/poppins_regular"
@@ -33,7 +33,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Wallet Name"
+        android:text="@string/wallet_name"
         android:textSize="12sp"
         android:textColor="#666666"
         android:fontFamily="@font/poppins_medium"
@@ -43,7 +43,7 @@
         android:id="@+id/walletNameText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Wallet 2"
+        android:text="@string/wallet_2"
         android:textSize="16sp"
         android:textColor="?attr/colorOnSurface"
         android:fontFamily="@font/poppins_medium"
@@ -53,7 +53,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Wallet Address"
+        android:text="@string/wallet_address"
         android:textSize="12sp"
         android:textColor="#666666"
         android:fontFamily="@font/poppins_medium"
@@ -72,7 +72,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="ADm9P...2eoLX5"
+            android:text="@string/adm9p2eolx5_2"
             android:textSize="14sp"
             android:textColor="?attr/colorOnSurface"
             android:fontFamily="@font/poppins_regular" />
@@ -101,7 +101,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Make sure to backup your private key securely. You can view it anytime from wallet settings."
+            android:text="@string/make_sure_to_backup_your_private_key_sec"
             android:textSize="12sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/poppins_regular"
@@ -114,7 +114,7 @@
         android:id="@+id/doneButton"
         android:layout_width="match_parent"
         android:layout_height="56dp"
-        android:text="Done"
+        android:text="@string/done"
         android:textSize="16sp"
         android:textColor="?attr/colorOnSurface"
         android:fontFamily="@font/poppins_semibold"

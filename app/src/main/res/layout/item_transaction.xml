@@ -32,7 +32,7 @@
             android:id="@+id/transactionType"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Sent"
+            android:text="@string/sent"
             android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="?attr/colorOnSurface" />
@@ -42,7 +42,7 @@
             android:id="@+id/transactionAddress"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="ABC1...XYZ9"
+            android:text="@string/abc1xyz9"
             android:textSize="13sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:layout_marginTop="2dp" />
@@ -54,7 +54,7 @@
         android:id="@+id/transactionAmount"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="-0.0002 SOL"
+        android:text="@string/n_00002_sol"
         android:textSize="16sp"
         android:textStyle="bold"
         android:textColor="?attr/colorOnSurface"

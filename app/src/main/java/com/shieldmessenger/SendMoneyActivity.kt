@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.math.BigDecimal
 
-class SendMoneyActivity : AppCompatActivity() {
+class SendMoneyActivity : BaseActivity() {
 
     companion object {
         private const val TAG = "SendMoneyActivity"

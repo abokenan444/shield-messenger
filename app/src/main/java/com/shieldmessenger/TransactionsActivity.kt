@@ -14,7 +14,7 @@ import com.shieldmessenger.utils.ThemedToast
 // import com.shieldmessenger.utils.finishWithSlideAnimation
 // import com.shieldmessenger.utils.startActivityWithSlideAnimation
 
-class TransactionsActivity : AppCompatActivity() {
+class TransactionsActivity : BaseActivity() {
 
     private lateinit var swipeRefresh: SwipeRefreshLayout
 

@@ -43,7 +43,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Communication"
+            android:text="@string/communication"
             android:textSize="24sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/space_grotesk_bold"
@@ -78,7 +78,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="SecureMesh"
+                android:text="@string/securemesh"
                 android:textSize="18sp"
                 android:textColor="?attr/colorOnSurface"
                 android:fontFamily="@font/space_grotesk_bold"
@@ -87,7 +87,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="LoRa mesh network for off-grid encrypted communication"
+                android:text="@string/lora_mesh_network_for_offgrid_encrypted_"
                 android:textSize="13sp"
                 android:textColor="#666666"
                 android:fontFamily="@font/poppins_regular"
@@ -129,7 +129,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Enable SecureMesh"
+                        android:text="@string/enable_securemesh"
                         android:textSize="16sp"
                         android:textColor="#CCCCCC"
                         android:fontFamily="@font/poppins_medium" />
@@ -138,7 +138,7 @@
                         android:id="@+id/secureMeshStatus"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Disconnected"
+                        android:text="@string/disconnected"
                         android:textSize="12sp"
                         android:textColor="#666666"
                         android:fontFamily="@font/poppins_regular" />
@@ -169,7 +169,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Network Status"
+                    android:text="@string/network_status"
                     android:textSize="14sp"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:fontFamily="@font/poppins_medium"
@@ -186,7 +186,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Nodes Connected"
+                        android:text="@string/nodes_connected"
                         android:textSize="14sp"
                         android:textColor="#666666"
                         android:fontFamily="@font/poppins_regular" />
@@ -195,7 +195,7 @@
                         android:id="@+id/nodesConnected"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="0"
+                        android:text="@string/n_0"
                         android:textSize="14sp"
                         android:textColor="#CCCCCC"
                         android:fontFamily="@font/poppins_medium" />
@@ -213,7 +213,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Signal Strength"
+                        android:text="@string/signal_strength"
                         android:textSize="14sp"
                         android:textColor="#666666"
                         android:fontFamily="@font/poppins_regular" />
@@ -222,7 +222,7 @@
                         android:id="@+id/signalStrength"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="--"
+                        android:text="@string/str_99"
                         android:textSize="14sp"
                         android:textColor="#CCCCCC"
                         android:fontFamily="@font/poppins_medium" />
@@ -239,7 +239,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Channel"
+                        android:text="@string/channel"
                         android:textSize="14sp"
                         android:textColor="#666666"
                         android:fontFamily="@font/poppins_regular" />
@@ -248,7 +248,7 @@
                         android:id="@+id/meshChannel"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Default"
+                        android:text="@string/default_text"
                         android:textSize="14sp"
                         android:textColor="#CCCCCC"
                         android:fontFamily="@font/poppins_medium" />
@@ -269,7 +269,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="About SecureMesh"
+                    android:text="@string/about_securemesh"
                     android:textSize="14sp"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:fontFamily="@font/poppins_medium"
@@ -278,7 +278,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="SecureMesh uses LoRa radio technology to create a decentralized mesh network for secure communication without cellular or internet connectivity.\n\nRequirements:\n\u2022 Meshtastic-compatible LoRa device\n\u2022 Bluetooth enabled\n\u2022 Device paired via Bluetooth"
+                    android:text="@string/securemesh_uses_lora_radio_technology_to"
                     android:textSize="13sp"
                     android:textColor="#666666"
                     android:fontFamily="@font/poppins_regular"
@@ -298,7 +298,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Device Settings"
+                    android:text="@string/device_settings"
                     android:textSize="18sp"
                     android:textColor="?attr/colorOnSurface"
                     android:fontFamily="@font/space_grotesk_bold"
@@ -338,7 +338,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Pair LoRa Device"
+                        android:text="@string/pair_lora_device"
                         android:textSize="16sp"
                         android:textColor="#CCCCCC"
                         android:fontFamily="@font/poppins_medium" />
@@ -392,7 +392,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Channel Settings"
+                        android:text="@string/channel_settings"
                         android:textSize="16sp"
                         android:textColor="#CCCCCC"
                         android:fontFamily="@font/poppins_medium" />

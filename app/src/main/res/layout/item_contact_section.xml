@@ -7,7 +7,7 @@
     android:paddingEnd="20dp"
     android:paddingTop="16dp"
     android:paddingBottom="8dp"
-    android:text="A"
+    android:text="@string/a"
     android:textSize="14sp"
     android:textColor="?attr/colorOnSurfaceVariant"
     android:fontFamily="@font/poppins_medium" />

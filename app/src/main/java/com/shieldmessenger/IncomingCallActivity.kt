@@ -37,7 +37,7 @@ import kotlinx.coroutines.launch
  * Receives data from:
  * - Intent extras (callId, contactId, contactName, contactOnion, etc.)
  */
-class IncomingCallActivity : AppCompatActivity() {
+class IncomingCallActivity : BaseActivity() {
 
     companion object {
         private const val TAG = "IncomingCallActivity"

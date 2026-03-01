@@ -31,7 +31,7 @@
             android:id="@+id/titleText"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Import Account"
+            android:text="@string/import_account"
             android:fontFamily="@font/space_grotesk_bold"
             android:textSize="20sp"
             android:textColor="?attr/colorOnSurfaceVariant"
@@ -46,7 +46,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="32dp"
             android:layout_marginTop="48dp"
-            android:text="Account Recovery Seed"
+            android:text="@string/account_recovery_seed"
             android:fontFamily="@font/space_grotesk_bold"
             android:textSize="16sp"
             android:textColor="?attr/colorOnSurfaceVariant"
@@ -68,24 +68,24 @@
             app:layout_constraintEnd_toEndOf="parent">
 
             <!-- Row 1 -->
-            <EditText android:id="@+id/word1" style="@style/SeedWordInput" android:hint="1" />
-            <EditText android:id="@+id/word2" style="@style/SeedWordInput" android:hint="2" />
-            <EditText android:id="@+id/word3" style="@style/SeedWordInput" android:hint="3" />
+            <EditText android:id="@+id/word1" style="@style/SeedWordInput" android:hint="@string/hint_1" />
+            <EditText android:id="@+id/word2" style="@style/SeedWordInput" android:hint="@string/hint_2" />
+            <EditText android:id="@+id/word3" style="@style/SeedWordInput" android:hint="@string/hint_3" />
 
             <!-- Row 2 -->
-            <EditText android:id="@+id/word4" style="@style/SeedWordInput" android:hint="4" />
-            <EditText android:id="@+id/word5" style="@style/SeedWordInput" android:hint="5" />
-            <EditText android:id="@+id/word6" style="@style/SeedWordInput" android:hint="6" />
+            <EditText android:id="@+id/word4" style="@style/SeedWordInput" android:hint="@string/hint_4" />
+            <EditText android:id="@+id/word5" style="@style/SeedWordInput" android:hint="@string/hint_5" />
+            <EditText android:id="@+id/word6" style="@style/SeedWordInput" android:hint="@string/hint_6" />
 
             <!-- Row 3 -->
-            <EditText android:id="@+id/word7" style="@style/SeedWordInput" android:hint="7" />
-            <EditText android:id="@+id/word8" style="@style/SeedWordInput" android:hint="8" />
-            <EditText android:id="@+id/word9" style="@style/SeedWordInput" android:hint="9" />
+            <EditText android:id="@+id/word7" style="@style/SeedWordInput" android:hint="@string/hint_7" />
+            <EditText android:id="@+id/word8" style="@style/SeedWordInput" android:hint="@string/hint_8" />
+            <EditText android:id="@+id/word9" style="@style/SeedWordInput" android:hint="@string/hint_9" />
 
             <!-- Row 4 -->
-            <EditText android:id="@+id/word10" style="@style/SeedWordInput" android:hint="10" />
-            <EditText android:id="@+id/word11" style="@style/SeedWordInput" android:hint="11" />
-            <EditText android:id="@+id/word12" style="@style/SeedWordInput" android:hint="12" />
+            <EditText android:id="@+id/word10" style="@style/SeedWordInput" android:hint="@string/hint_10" />
+            <EditText android:id="@+id/word11" style="@style/SeedWordInput" android:hint="@string/hint_11" />
+            <EditText android:id="@+id/word12" style="@style/SeedWordInput" android:hint="@string/hint_12" />
 
         </GridLayout>
 
@@ -97,7 +97,7 @@
             android:layout_marginStart="32dp"
             android:layout_marginEnd="32dp"
             android:layout_marginTop="16dp"
-            android:text="Enter your 12-word seed phrase to import your account. This will import your messaging identity and attempt to recover your contacts."
+            android:text="@string/enter_your_12word_seed_phrase_to_import_"
             android:fontFamily="@font/poppins_regular"
             android:textSize="13sp"
             android:textColor="#5C5C5C"
@@ -113,7 +113,7 @@
             android:layout_marginStart="32dp"
             android:layout_marginEnd="32dp"
             android:layout_marginTop="24dp"
-            android:text="Import"
+            android:text="@string/import_text"
             android:textSize="16sp"
             android:textColor="?attr/colorOnSurface"
             android:fontFamily="@font/space_grotesk_bold"

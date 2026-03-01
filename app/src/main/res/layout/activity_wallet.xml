@@ -56,7 +56,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Messages"
+                android:text="@string/messages"
                 android:textSize="10sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_medium" />
@@ -86,7 +86,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Accounts"
+                android:text="@string/accounts"
                 android:textSize="10sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_medium" />
@@ -116,7 +116,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="New Wallet"
+                android:text="@string/new_wallet"
                 android:textSize="10sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_medium" />
@@ -145,7 +145,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Recent"
+                android:text="@string/recent"
                 android:textSize="10sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_medium" />

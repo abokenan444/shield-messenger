@@ -38,7 +38,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Backup &amp; Restore"
+            android:text="@string/backup_amp_restore"
             android:textSize="20sp"
             android:textColor="#FFFFFF"
             android:fontFamily="@font/poppins_semibold"
@@ -79,7 +79,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Encrypted Backup"
+                    android:text="@string/encrypted_backup"
                     android:textSize="18sp"
                     android:textColor="#FFFFFF"
                     android:textAlignment="center"
@@ -89,7 +89,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Your backup is encrypted with AES-256-GCM using your device password. Only you can decrypt it."
+                    android:text="@string/your_backup_is_encrypted_with_aes256gcm_"
                     android:textSize="13sp"
                     android:textColor="#888888"
                     android:textAlignment="center"
@@ -125,7 +125,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Last Backup"
+                        android:text="@string/last_backup"
                         android:textSize="14sp"
                         android:textColor="#CCCCCC"
                         android:fontFamily="@font/poppins_medium" />
@@ -134,7 +134,7 @@
                         android:id="@+id/lastBackupDate"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Never"
+                        android:text="@string/never"
                         android:textSize="12sp"
                         android:textColor="#888888" />
 
@@ -180,7 +180,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Create Backup"
+                        android:text="@string/create_backup"
                         android:textSize="16sp"
                         android:textColor="#FFFFFF"
                         android:fontFamily="@font/poppins_medium" />
@@ -188,7 +188,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Export contacts &amp; messages"
+                        android:text="@string/export_contacts_amp_messages"
                         android:textSize="12sp"
                         android:textColor="#888888" />
 
@@ -240,7 +240,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Restore Backup"
+                        android:text="@string/restore_backup"
                         android:textSize="16sp"
                         android:textColor="#FFFFFF"
                         android:fontFamily="@font/poppins_medium" />
@@ -248,7 +248,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Import from backup file"
+                        android:text="@string/import_from_backup_file"
                         android:textSize="12sp"
                         android:textColor="#888888" />
 
@@ -277,7 +277,7 @@
                     android:id="@+id/progressTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Creating backup..."
+                    android:text="@string/creating_backup"
                     android:textSize="16sp"
                     android:textColor="#FFFFFF"
                     android:fontFamily="@font/poppins_medium"
@@ -298,7 +298,7 @@
                     android:id="@+id/progressStatus"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Preparing..."
+                    android:text="@string/preparing"
                     android:textSize="13sp"
                     android:textColor="#888888" />
 
@@ -324,7 +324,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Keep your backup file safe. Anyone with access to your device password and this file can read your messages."
+                    android:text="@string/keep_your_backup_file_safe_anyone_with_a"
                     android:textSize="12sp"
                     android:textColor="#999999"
                     android:lineSpacingExtra="3dp" />

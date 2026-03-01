@@ -239,7 +239,7 @@ dependencies {
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     // Biometric authentication
-    implementation("androidx.biometric:biometric:1.2.0-alpha05")
+    implementation("androidx.biometric:biometric:1.1.0")
 
     // Cryptography libraries (5.2.0+ has 16KB-aligned libsodium.so)
     implementation("com.goterl:lazysodium-android:5.2.0@aar")

@@ -20,7 +20,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Select Currency"
+        android:text="@string/select_currency"
         android:textSize="22sp"
         android:textColor="?attr/colorOnSurface"
         android:fontFamily="@font/space_grotesk_bold"
@@ -59,7 +59,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="SOL"
+                    android:text="@string/sol"
                     android:textSize="16sp"
                     android:textColor="?attr/colorOnSurface"
                     android:fontFamily="@font/poppins_semibold" />
@@ -67,7 +67,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Solana"
+                    android:text="@string/solana"
                     android:textSize="12sp"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:fontFamily="@font/poppins_regular" />
@@ -107,7 +107,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="ZEC"
+                    android:text="@string/zec"
                     android:textSize="16sp"
                     android:textColor="?attr/colorOnSurface"
                     android:fontFamily="@font/poppins_semibold" />
@@ -115,7 +115,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Zcash (Shielded)"
+                    android:text="@string/zcash_shielded"
                     android:textSize="12sp"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:fontFamily="@font/poppins_regular" />

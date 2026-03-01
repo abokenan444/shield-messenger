@@ -31,7 +31,7 @@ import java.util.*
  * Captures ERROR and WARN level logs from the app's process,
  * with color-coded display and copy/share for easy bug reporting.
  */
-class SystemLogActivity : AppCompatActivity() {
+class SystemLogActivity : BaseActivity() {
 
     companion object {
         private const val TAG = "SystemLogActivity"

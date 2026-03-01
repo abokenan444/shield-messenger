@@ -24,7 +24,7 @@
             android:id="@+id/backButton"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:text="‹"
+            android:text="@string/str_381"
             android:textSize="32sp"
             android:textColor="?attr/colorOnSurface"
             android:gravity="center"
@@ -42,7 +42,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="TRANSACTION DETAILS"
+            android:text="@string/transaction_details"
             android:textSize="18sp"
             android:textStyle="bold"
             android:textColor="?attr/colorOnSurface"
@@ -79,7 +79,7 @@
                     android:id="@+id/transactionType"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Received"
+                    android:text="@string/received"
                     android:textSize="16sp"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:layout_marginBottom="8dp" />
@@ -88,7 +88,7 @@
                     android:id="@+id/transactionAmount"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="+0.0008 SOL"
+                    android:text="@string/n_00008_sol"
                     android:textSize="32sp"
                     android:textStyle="bold"
                     android:textColor="@color/success_green"
@@ -98,7 +98,7 @@
                     android:id="@+id/transactionStatus"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Confirmed"
+                    android:text="@string/confirmed"
                     android:textSize="14sp"
                     android:textColor="@color/success_green" />
 
@@ -108,7 +108,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Transaction Details"
+                android:text="@string/transaction_details_2"
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:textColor="?attr/colorOnSurface"
@@ -126,7 +126,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="From"
+                    android:text="@string/from"
                     android:textSize="13sp"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:layout_marginBottom="4dp" />
@@ -135,7 +135,7 @@
                     android:id="@+id/transactionFrom"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="7xKXtg2CW87d97TXJSDpbD5jBkheMKvZkRqJa4RsXU9wQ"
+                    android:text="@string/n_7xkxtg2cw87d97txjsdpbd5jbkhemkvzkrqja4rs"
                     android:textSize="12sp"
                     android:textColor="?attr/colorOnSurface"
                     android:fontFamily="monospace" />
@@ -154,7 +154,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="To"
+                    android:text="@string/to"
                     android:textSize="13sp"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:layout_marginBottom="4dp" />
@@ -163,7 +163,7 @@
                     android:id="@+id/transactionTo"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="9vKq7XRmKsH3bCnPfTw4LgYsWdRzNpVxAqBh2FmEuTcK"
+                    android:text="@string/n_9vkq7xrmksh3bcnpftw4lgyswdrznpvxaqbh2fme"
                     android:textSize="12sp"
                     android:textColor="?attr/colorOnSurface"
                     android:fontFamily="monospace" />
@@ -182,7 +182,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Transaction Hash"
+                    android:text="@string/transaction_hash"
                     android:textSize="13sp"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:layout_marginBottom="4dp" />
@@ -191,7 +191,7 @@
                     android:id="@+id/transactionHash"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="3Qz8vK9Y7nB2xR4wP6tM8hF5jL1sD9cA7vN4qX2mE6pS"
+                    android:text="@string/n_3qz8vk9y7nb2xr4wp6tm8hf5jl1sd9ca7vn4qx2m"
                     android:textSize="12sp"
                     android:textColor="@color/primary_blue"
                     android:fontFamily="monospace" />
@@ -210,7 +210,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Date &amp; Time"
+                    android:text="@string/date_amp_time"
                     android:textSize="13sp"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:layout_marginBottom="4dp" />
@@ -219,7 +219,7 @@
                     android:id="@+id/transactionDate"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Dec 28, 2024 at 2:45 PM"
+                    android:text="@string/dec_28_2024_at_245_pm"
                     android:textSize="14sp"
                     android:textColor="?attr/colorOnSurface" />
 
@@ -237,7 +237,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Network Fee"
+                    android:text="@string/network_fee"
                     android:textSize="14sp"
                     android:textColor="?attr/colorOnSurfaceVariant" />
 
@@ -245,7 +245,7 @@
                     android:id="@+id/transactionFee"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="0.000005 SOL"
+                    android:text="@string/n_0000005_sol"
                     android:textSize="14sp"
                     android:textColor="?attr/colorOnSurface"
                     android:fontFamily="monospace" />
@@ -257,7 +257,7 @@
                 android:id="@+id/viewOnExplorerButton"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="View on Solana Explorer"
+                android:text="@string/view_on_solana_explorer"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:textColor="?attr/colorOnSurface"

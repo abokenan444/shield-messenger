@@ -15,7 +15,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
-        android:text="Swap Complete"
+        android:text="@string/swap_complete"
         android:textSize="24sp"
         android:textColor="?attr/colorOnSurface"
         android:fontFamily="@font/space_grotesk_bold"
@@ -48,7 +48,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/poppins_regular"
-                    android:text="From"
+                    android:text="@string/from"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="14sp" />
 
@@ -57,7 +57,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/poppins_medium"
-                    android:text="$60 SOL"
+                    android:text="@string/n_60_sol"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="14sp" />
             </LinearLayout>
@@ -74,7 +74,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/poppins_regular"
-                    android:text="To"
+                    android:text="@string/to"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="14sp" />
 
@@ -83,7 +83,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/poppins_medium"
-                    android:text="$56.08 ZEC"
+                    android:text="@string/n_5608_zec"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="14sp" />
             </LinearLayout>
@@ -100,7 +100,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/poppins_regular"
-                    android:text="Exchange Rate"
+                    android:text="@string/exchange_rate"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="14sp" />
 
@@ -109,7 +109,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/poppins_medium"
-                    android:text="1 SOL = 0.9347 ZEC"
+                    android:text="@string/n_1_sol_09347_zec"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="14sp" />
             </LinearLayout>
@@ -126,7 +126,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/poppins_regular"
-                    android:text="Exchange Fee"
+                    android:text="@string/exchange_fee_2"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="14sp" />
 
@@ -135,7 +135,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/poppins_medium"
-                    android:text="$3.08"
+                    android:text="@string/n_308_2"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="14sp" />
             </LinearLayout>
@@ -152,7 +152,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/poppins_regular"
-                    android:text="Network Fee"
+                    android:text="@string/network_fee"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="14sp" />
 
@@ -161,7 +161,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/poppins_medium"
-                    android:text="$0.00"
+                    android:text="@string/n_000_2"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="14sp" />
             </LinearLayout>
@@ -177,7 +177,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:fontFamily="@font/poppins_regular"
-                    android:text="Transaction ID"
+                    android:text="@string/transaction_id"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="14sp" />
 
@@ -186,7 +186,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/poppins_medium"
-                    android:text="0x1234...5678"
+                    android:text="@string/n_0x12345678"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="14sp" />
             </LinearLayout>
@@ -206,7 +206,7 @@
             android:layout_height="56dp"
             android:background="@drawable/swap_button_bg"
             android:fontFamily="@font/poppins_semibold"
-            android:text="Back to Home"
+            android:text="@string/back_to_home"
             android:textAllCaps="false"
             android:textColor="?attr/colorOnSurface"
             android:textSize="16sp" />

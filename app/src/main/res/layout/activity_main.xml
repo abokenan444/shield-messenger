@@ -39,7 +39,7 @@
                 android:id="@+id/headerTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Chats"
+                android:text="@string/chats"
                 android:textSize="34sp"
                 android:textColor="@color/lock_title_gray"
                 android:fontFamily="@font/space_grotesk_bold" />
@@ -93,7 +93,7 @@
                     android:layout_weight="1"
                     android:layout_marginStart="10dp"
                     android:background="@android:color/transparent"
-                    android:hint="Search"
+                    android:hint="@string/hint_search_2"
                     android:textColorHint="#666666"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="16sp"
@@ -155,7 +155,7 @@
                 android:id="@+id/tabMessages"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Messages"
+                android:text="@string/messages"
                 android:textSize="13sp"
                 android:textColor="?attr/colorOnSurface"
                 android:fontFamily="@font/poppins_medium"
@@ -177,7 +177,7 @@
                     android:id="@+id/tabGroups"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Groups"
+                    android:text="@string/groups"
                     android:textSize="13sp"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:fontFamily="@font/poppins_medium"
@@ -274,7 +274,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
-                    android:text="No Messages Yet"
+                    android:text="@string/no_messages_yet"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="16sp"
                     android:fontFamily="@font/poppins_medium" />
@@ -283,7 +283,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="Start a conversation to get started"
+                    android:text="@string/start_a_conversation_to_get_started"
                     android:textColor="#666666"
                     android:textSize="13sp"
                     android:fontFamily="@font/poppins_regular" />
@@ -383,7 +383,7 @@
                 android:id="@+id/navMessagesLabel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Chats"
+                android:text="@string/chats"
                 android:textSize="10sp"
                 android:textColor="@color/lock_title_gray"
                 android:fontFamily="@font/space_grotesk_bold" />
@@ -435,7 +435,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Contacts"
+                android:text="@string/contacts"
                 android:textSize="10sp"
                 android:textColor="@color/lock_title_gray"
                 android:fontFamily="@font/space_grotesk_bold" />
@@ -466,7 +466,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Profile"
+                android:text="@string/profile"
                 android:textSize="10sp"
                 android:textColor="@color/lock_title_gray"
                 android:fontFamily="@font/space_grotesk_bold" />

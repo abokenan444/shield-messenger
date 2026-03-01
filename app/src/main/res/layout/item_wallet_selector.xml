@@ -38,7 +38,7 @@
             android:id="@+id/walletName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Account 1"
+            android:text="@string/account_1"
             android:textSize="15sp"
             android:textColor="?attr/colorOnSurface"
             android:fontFamily="@font/poppins_medium" />
@@ -47,7 +47,7 @@
             android:id="@+id/walletBalance"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="$0.00"
+            android:text="@string/n_000_2"
             android:textSize="12sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/poppins_regular" />

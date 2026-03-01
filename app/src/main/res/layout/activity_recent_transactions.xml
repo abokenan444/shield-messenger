@@ -44,7 +44,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Recent Activity"
+            android:text="@string/recent_activity"
             android:textSize="22sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/space_grotesk_bold"
@@ -109,7 +109,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="No Transactions Yet"
+                    android:text="@string/no_transactions_yet"
                     android:textSize="18sp"
                     android:textStyle="bold"
                     android:textColor="#CCCCCC"
@@ -119,7 +119,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Your transaction history will appear here"
+                    android:text="@string/your_transaction_history_will_appear_her"
                     android:textSize="14sp"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:fontFamily="@font/poppins_regular"
@@ -146,7 +146,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Loading transactions..."
+                    android:text="@string/loading_transactions"
                     android:textSize="14sp"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:fontFamily="@font/poppins_regular" />

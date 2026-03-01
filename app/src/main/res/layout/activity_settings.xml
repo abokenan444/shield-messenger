@@ -43,7 +43,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Settings"
+            android:text="@string/settings"
             android:textSize="24sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/space_grotesk_bold"
@@ -107,7 +107,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Duress PIN"
+                    android:text="@string/duress_pin"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />
@@ -159,7 +159,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Wipe on 10 failed logins"
+                    android:text="@string/wipe_on_10_failed_logins"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />
@@ -208,7 +208,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Change Password"
+                    android:text="@string/change_password"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />
@@ -262,7 +262,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Biometric Unlock"
+                    android:text="@string/biometric_unlock"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />
@@ -310,7 +310,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Advanced Security"
+                    android:text="@string/advanced_security"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />
@@ -364,7 +364,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Two-Factor Auth (2FA)"
+                    android:text="@string/twofactor_auth_2fa"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />
@@ -418,7 +418,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Subscription"
+                    android:text="@string/subscription"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />
@@ -478,7 +478,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Backup &amp; Restore"
+                        android:text="@string/backup_amp_restore"
                         android:textSize="16sp"
                         android:textColor="#CCCCCC"
                         android:fontFamily="@font/poppins_medium" />
@@ -486,7 +486,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Premium feature"
+                        android:text="@string/premium_feature"
                         android:textSize="11sp"
                         android:textColor="#4CAF50" />
 
@@ -548,7 +548,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Language"
+                        android:text="@string/language"
                         android:textSize="16sp"
                         android:textColor="#CCCCCC"
                         android:fontFamily="@font/poppins_medium" />
@@ -557,7 +557,7 @@
                         android:id="@+id/currentLanguageText"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="English"
+                        android:text="@string/english"
                         android:textSize="11sp"
                         android:textColor="#888888" />
 
@@ -611,7 +611,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Notification"
+                    android:text="@string/notification"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />
@@ -665,7 +665,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="About"
+                    android:text="@string/about"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />
@@ -719,7 +719,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Delete Account"
+                    android:text="@string/delete_account"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />
@@ -773,7 +773,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Bridge"
+                    android:text="@string/bridge"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />
@@ -828,7 +828,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Communication Mode"
+                    android:text="@string/communication_mode"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />
@@ -881,7 +881,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Tor VPN Mode"
+                    android:text="@string/tor_vpn_mode"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />
@@ -900,7 +900,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Privacy"
+                android:text="@string/privacy"
                 android:textSize="14sp"
                 android:textColor="#888888"
                 android:fontFamily="@font/poppins_medium"
@@ -939,7 +939,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Send Read Receipts"
+                    android:text="@string/send_read_receipts"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />
@@ -985,7 +985,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Show Last Seen"
+                    android:text="@string/show_last_seen"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />
@@ -1033,7 +1033,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Developer"
+                    android:text="@string/developer"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />

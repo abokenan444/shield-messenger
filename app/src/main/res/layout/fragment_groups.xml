@@ -23,7 +23,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Pending Invites"
+            android:text="@string/pending_invites"
             android:textColor="?attr/colorOnSurface"
             android:textSize="14sp"
             android:fontFamily="@font/space_grotesk_bold" />
@@ -32,7 +32,7 @@
             android:id="@+id/inviteCount"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="2"
+            android:text="@string/hint_2"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="13sp"
             android:fontFamily="@font/poppins_medium" />
@@ -62,7 +62,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="My Groups"
+            android:text="@string/my_groups"
             android:textColor="?attr/colorOnSurface"
             android:textSize="14sp"
             android:fontFamily="@font/space_grotesk_bold" />
@@ -99,7 +99,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="No Groups Yet"
+            android:text="@string/no_groups_yet"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="16sp"
             android:fontFamily="@font/poppins_medium" />
@@ -108,7 +108,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="Create a group to get started"
+            android:text="@string/create_a_group_to_get_started"
             android:textColor="#666666"
             android:textSize="13sp"
             android:fontFamily="@font/poppins_regular" />

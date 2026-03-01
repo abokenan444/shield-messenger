@@ -30,7 +30,7 @@
             android:id="@+id/tokenName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Solana"
+            android:text="@string/solana"
             android:textSize="15sp"
             android:textColor="?attr/colorOnSurface"
             android:fontFamily="@font/poppins_medium" />
@@ -39,7 +39,7 @@
             android:id="@+id/tokenSymbol"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="SOL"
+            android:text="@string/sol"
             android:textSize="12sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/poppins_regular" />
@@ -51,7 +51,7 @@
         android:id="@+id/tokenBalance"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="0.0"
+        android:text="@string/n_00"
         android:textSize="14sp"
         android:textColor="?attr/colorOnSurface"
         android:fontFamily="@font/poppins_medium" />

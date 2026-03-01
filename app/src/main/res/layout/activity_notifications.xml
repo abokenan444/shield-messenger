@@ -44,7 +44,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Notifications"
+            android:text="@string/notifications"
             android:textSize="24sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/space_grotesk_bold"
@@ -80,7 +80,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="MESSAGE ALERTS"
+                android:text="@string/message_alerts"
                 android:textSize="12sp"
                 android:fontFamily="@font/poppins_medium"
                 android:textColor="?attr/colorOnSurfaceVariant"
@@ -108,7 +108,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Enable Notifications"
+                        android:text="@string/enable_notifications"
                         android:textSize="16sp"
                         android:fontFamily="@font/poppins_medium"
                         android:textColor="?attr/colorOnSurface" />
@@ -116,7 +116,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Show notifications for new messages"
+                        android:text="@string/show_notifications_for_new_messages"
                         android:textSize="12sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/poppins_regular"
@@ -156,7 +156,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Show Message Content"
+                        android:text="@string/show_message_content"
                         android:textSize="16sp"
                         android:fontFamily="@font/poppins_medium"
                         android:textColor="?attr/colorOnSurface" />
@@ -164,7 +164,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Show message content in notifications"
+                        android:text="@string/show_message_content_in_notifications"
                         android:textSize="12sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/poppins_regular"
@@ -203,7 +203,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Notification Sound"
+                        android:text="@string/notification_sound"
                         android:textSize="16sp"
                         android:fontFamily="@font/poppins_medium"
                         android:textColor="?attr/colorOnSurface" />
@@ -211,7 +211,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Play sound for notifications"
+                        android:text="@string/play_sound_for_notifications"
                         android:textSize="12sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/poppins_regular"

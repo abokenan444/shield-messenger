@@ -13,7 +13,7 @@ import com.securelegion.crypto.RustBridge
  * Available tools:
  * - Call Log: View call quality telemetry from last voice call
  */
-class DeveloperActivity : AppCompatActivity() {
+class DeveloperActivity : BaseActivity() {
 
     companion object {
         private const val TAG = "DeveloperActivity"

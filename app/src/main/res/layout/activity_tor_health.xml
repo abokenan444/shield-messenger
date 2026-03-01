@@ -43,7 +43,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Tor Health"
+            android:text="@string/tor_health"
             android:textSize="24sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/space_grotesk_bold"
@@ -78,7 +78,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Real-time Tor health monitoring (updates every 2 seconds)"
+                android:text="@string/realtime_tor_health_monitoring_updates_e"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_regular"
@@ -97,7 +97,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Main Tor"
+                    android:text="@string/main_tor"
                     android:textSize="18sp"
                     android:textColor="?attr/colorOnSurface"
                     android:fontFamily="@font/poppins_semibold"
@@ -121,7 +121,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Status: "
+                        android:text="@string/status"
                         android:textSize="14sp"
                         android:textColor="#AAAAAA"
                         android:fontFamily="@font/poppins_regular" />
@@ -130,7 +130,7 @@
                         android:id="@+id/mainTorStatusText"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Checking..."
+                        android:text="@string/checking"
                         android:textSize="14sp"
                         android:textColor="#CCCCCC"
                         android:fontFamily="@font/poppins_medium" />
@@ -142,7 +142,7 @@
                     android:id="@+id/mainCircuitsText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Circuits: -"
+                    android:text="@string/circuits"
                     android:textSize="14sp"
                     android:textColor="#AAAAAA"
                     android:fontFamily="@font/poppins_regular"
@@ -153,7 +153,7 @@
                     android:id="@+id/mainBootstrapText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Bootstrap: -"
+                    android:text="@string/bootstrap"
                     android:textSize="14sp"
                     android:textColor="#AAAAAA"
                     android:fontFamily="@font/poppins_regular" />
@@ -172,7 +172,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Voice Tor"
+                    android:text="@string/voice_tor"
                     android:textSize="18sp"
                     android:textColor="?attr/colorOnSurface"
                     android:fontFamily="@font/poppins_semibold"
@@ -195,7 +195,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Status: "
+                        android:text="@string/status"
                         android:textSize="14sp"
                         android:textColor="#AAAAAA"
                         android:fontFamily="@font/poppins_regular" />
@@ -204,7 +204,7 @@
                         android:id="@+id/voiceTorStatusText"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Not Monitored"
+                        android:text="@string/not_monitored"
                         android:textSize="14sp"
                         android:textColor="#666666"
                         android:fontFamily="@font/poppins_medium" />
@@ -224,7 +224,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Network"
+                    android:text="@string/network"
                     android:textSize="18sp"
                     android:textColor="?attr/colorOnSurface"
                     android:fontFamily="@font/poppins_semibold"
@@ -247,7 +247,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Status: "
+                        android:text="@string/status"
                         android:textSize="14sp"
                         android:textColor="#AAAAAA"
                         android:fontFamily="@font/poppins_regular" />
@@ -256,7 +256,7 @@
                         android:id="@+id/networkStatusText"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Checking..."
+                        android:text="@string/checking"
                         android:textSize="14sp"
                         android:textColor="#CCCCCC"
                         android:fontFamily="@font/poppins_medium" />

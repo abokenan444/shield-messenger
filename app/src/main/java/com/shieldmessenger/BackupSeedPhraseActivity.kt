@@ -8,7 +8,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import com.shieldmessenger.utils.ThemedToast
 
-class BackupSeedPhraseActivity : AppCompatActivity() {
+class BackupSeedPhraseActivity : BaseActivity() {
 
     private lateinit var seedPhrase: String
     private lateinit var wordViews: List<TextView>

@@ -25,7 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class SwapActivity : AppCompatActivity() {
+class SwapActivity : BaseActivity() {
 
     private lateinit var backButton: View
 

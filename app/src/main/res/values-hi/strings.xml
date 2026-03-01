@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">शील्ड मैसेंजर</string>
+
+    <string name="about">के बारे में</string>
+    <string name="accept">स्वीकार करें</string>
+    <string name="add_friend">मित्र जोड़ें</string>
+    <string name="address">पता</string>
+    <string name="all">सभी</string>
+    <string name="amount">राशि</string>
+    <string name="anonymous">गुमनाम</string>
+    <string name="available">उपलब्ध</string>
+    <string name="biometric_unlock">बायोमेट्रिक अनलॉक</string>
+    <string name="block">ब्लॉक</string>
+    <string name="call">कॉल</string>
+    <string name="call_ended">कॉल समाप्त</string>
+    <string name="cancel">रद्द करें</string>
+    <string name="change_password">पासवर्ड बदलें</string>
+    <string name="chats">चैट</string>
+    <string name="close">बंद करें</string>
+    <string name="confirm">पुष्टि करें</string>
+    <string name="contacts">संपर्क</string>
+    <string name="create_account">खाता बनाएं</string>
+    <string name="delete">हटाएं</string>
+    <string name="done">हो गया</string>
+    <string name="download">डाउनलोड</string>
+    <string name="file">फ़ाइल</string>
+    <string name="free">मुफ़्त</string>
+    <string name="gallery">गैलरी</string>
+    <string name="group">समूह</string>
+    <string name="incoming_call">आने वाली कॉल</string>
+    <string name="language">भाषा</string>
+    <string name="loading">लोड हो रहा है...</string>
+    <string name="message">संदेश</string>
+    <string name="messages">संदेश</string>
+    <string name="mute">म्यूट</string>
+    <string name="name">नाम</string>
+    <string name="network">नेटवर्क</string>
+    <string name="never">कभी नहीं</string>
+    <string name="next">अगला</string>
+    <string name="notifications">सूचनाएं</string>
+    <string name="pending">लंबित</string>
+    <string name="privacy">गोपनीयता</string>
+    <string name="profile">प्रोफ़ाइल</string>
+    <string name="save">सहेजें</string>
+    <string name="send">भेजें</string>
+    <string name="sent">भेजा गया</string>
+    <string name="settings">सेटिंग्स</string>
+    <string name="share">साझा करें</string>
+    <string name="sign_in">साइन इन</string>
+    <string name="today">आज</string>
+    <string name="wallet">वॉलेट</string>
+</resources>

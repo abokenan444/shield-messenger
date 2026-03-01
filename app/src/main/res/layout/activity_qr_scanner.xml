@@ -127,7 +127,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Scan QR Code"
+                android:text="@string/scan_qr_code"
                 android:textSize="22sp"
                 android:textColor="?attr/colorOnSurface"
                 android:fontFamily="@font/space_grotesk_bold"
@@ -143,7 +143,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Position the QR code within the frame"
+            android:text="@string/position_the_qr_code_within_the_frame"
             android:textSize="14sp"
             android:textColor="#CCCCCC"
             android:fontFamily="@font/poppins_regular"

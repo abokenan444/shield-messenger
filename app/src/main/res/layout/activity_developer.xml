@@ -43,7 +43,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Developer"
+            android:text="@string/developer"
             android:textSize="24sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/space_grotesk_bold"
@@ -78,7 +78,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Developer tools and debugging features"
+                android:text="@string/developer_tools_and_debugging_features"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_regular"
@@ -119,7 +119,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Tor Health"
+                    android:text="@string/tor_health"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />
@@ -174,7 +174,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Call Log"
+                    android:text="@string/call_log"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />
@@ -229,7 +229,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="System Log"
+                    android:text="@string/system_log"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />
@@ -284,7 +284,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Stress Test"
+                    android:text="@string/stress_test"
                     android:textSize="16sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_medium" />

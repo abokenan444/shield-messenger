@@ -19,7 +19,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Shield Zcash"
+        android:text="@string/shield_zcash"
         android:textSize="22sp"
         android:textColor="?attr/colorOnSurface"
         android:fontFamily="@font/space_grotesk_bold"
@@ -40,7 +40,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Current Balance"
+            android:text="@string/current_balance"
             android:textSize="14sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:layout_marginBottom="12dp" />
@@ -56,7 +56,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Transparent:"
+                android:text="@string/transparent"
                 android:textSize="16sp"
                 android:textColor="?attr/colorOnSurface" />
 
@@ -64,7 +64,7 @@
                 android:id="@+id/transparentAmount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="0.0000 ZEC"
+                android:text="@string/n_00000_zec"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:textColor="@color/silver_gradient_start" />
@@ -80,7 +80,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Shielded:"
+                android:text="@string/shielded"
                 android:textSize="16sp"
                 android:textColor="?attr/colorOnSurface" />
 
@@ -88,7 +88,7 @@
                 android:id="@+id/shieldedAmount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="0.0000 ZEC"
+                android:text="@string/n_00000_zec"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:textColor="@color/silver_gradient_start" />
@@ -99,7 +99,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Only shielded funds can be sent. Shield your transparent ZEC to enable payments."
+        android:text="@string/only_shielded_funds_can_be_sent_shield_y"
         android:textSize="13sp"
         android:textColor="?attr/colorOnSurfaceVariant"
         android:gravity="center"
@@ -111,7 +111,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Amount to Shield (ZEC)"
+        android:text="@string/amount_to_shield_zec"
         android:textSize="14sp"
         android:textColor="?attr/colorOnSurface"
         android:paddingStart="24dp"
@@ -136,7 +136,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:background="@android:color/transparent"
-            android:hint="Enter amount..."
+            android:hint="@string/hint_enter_amount"
             android:textColorHint="#666666"
             android:textColor="?attr/colorOnSurface"
             android:textSize="16sp"
@@ -152,7 +152,7 @@
         android:layout_height="56dp"
         android:layout_marginStart="24dp"
         android:layout_marginEnd="24dp"
-        android:text="Shield"
+        android:text="@string/shield"
         android:textSize="16sp"
         android:textStyle="bold"
         android:textColor="?attr/colorOnSurface"

@@ -12,7 +12,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:text="Today"
+        android:text="@string/today"
         android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="12sp"
         android:paddingBottom="8dp"
@@ -53,7 +53,7 @@
                     android:id="@+id/fileName"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="document.pdf"
+                    android:text="@string/documentpdf"
                     android:textColor="#FFFFFF"
                     android:textSize="14sp"
                     android:fontFamily="@font/poppins_medium"
@@ -64,7 +64,7 @@
                     android:id="@+id/fileSize"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="1.2 MB"
+                    android:text="@string/n_12_mb"
                     android:textColor="#AAAAAA"
                     android:textSize="11sp" />
 

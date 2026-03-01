@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">شیلڈ میسنجر</string>
+
+    <string name="about">کے بارے میں</string>
+    <string name="accept">قبول کریں</string>
+    <string name="add_friend">دوست شامل کریں</string>
+    <string name="address">پتا</string>
+    <string name="all">سب</string>
+    <string name="amount">رقم</string>
+    <string name="available">دستیاب</string>
+    <string name="biometric_unlock">بائیو میٹرک انلاک</string>
+    <string name="block">بلاک</string>
+    <string name="call">کال</string>
+    <string name="cancel">منسوخ</string>
+    <string name="chats">چیٹس</string>
+    <string name="close">بند کریں</string>
+    <string name="contacts">رابطے</string>
+    <string name="delete">حذف کریں</string>
+    <string name="done">ہو گیا</string>
+    <string name="download">ڈاؤن لوڈ</string>
+    <string name="file">فائل</string>
+    <string name="free">مفت</string>
+    <string name="gallery">گیلری</string>
+    <string name="group">گروپ</string>
+    <string name="language">زبان</string>
+    <string name="message">پیغام</string>
+    <string name="messages">پیغامات</string>
+    <string name="name">نام</string>
+    <string name="next">اگلا</string>
+    <string name="notifications">اطلاعات</string>
+    <string name="privacy">رازداری</string>
+    <string name="profile">پروفائل</string>
+    <string name="save">محفوظ کریں</string>
+    <string name="send">بھیجیں</string>
+    <string name="settings">ترتیبات</string>
+    <string name="share">شیئر کریں</string>
+    <string name="sign_in">سائن ان</string>
+    <string name="today">آج</string>
+    <string name="wallet">والیٹ</string>
+</resources>

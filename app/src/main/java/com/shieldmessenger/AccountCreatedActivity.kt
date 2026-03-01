@@ -25,7 +25,7 @@ import com.shieldmessenger.utils.ThemedToast
  * AccountCreatedActivity - Shows recovery seed phrase after successful creation
  * User must confirm they have written down the 12-word seed before continuing.
  */
-class AccountCreatedActivity : AppCompatActivity() {
+class AccountCreatedActivity : BaseActivity() {
 
     private lateinit var seedPhraseBox: TextView
     private lateinit var confirmCheckbox: CheckBox

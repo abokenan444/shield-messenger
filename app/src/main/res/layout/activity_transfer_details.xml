@@ -43,7 +43,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Transfer Details"
+            android:text="@string/transfer_details"
             android:textSize="28sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/space_grotesk_bold"
@@ -108,7 +108,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="16dp"
-                    android:text="Alex"
+                    android:text="@string/alex"
                     android:textSize="18sp"
                     android:textColor="?attr/colorOnSurface"
                     android:fontFamily="@font/poppins_semibold" />
@@ -126,7 +126,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="You have successfully sent!"
+                    android:text="@string/you_have_successfully_sent"
                     android:textSize="14sp"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:fontFamily="@font/poppins_regular"
@@ -136,7 +136,7 @@
                     android:id="@+id/amountSent"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="$1,250"
+                    android:text="@string/n_1250"
                     android:textSize="48sp"
                     android:textColor="#C0C0C0"
                     android:fontFamily="@font/space_grotesk_bold" />
@@ -147,7 +147,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="FROM:"
+                android:text="@string/from_2"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_regular"
@@ -170,7 +170,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Wallet Name"
+                        android:text="@string/wallet_name"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/poppins_regular" />
@@ -179,7 +179,7 @@
                         android:id="@+id/fromWalletName"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Wallet 2"
+                        android:text="@string/wallet_2"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurface"
                         android:fontFamily="@font/poppins_regular" />
@@ -196,7 +196,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Address"
+                        android:text="@string/address"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/poppins_regular" />
@@ -205,7 +205,7 @@
                         android:id="@+id/fromAddress"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="ADm9P.....2eoLX5"
+                        android:text="@string/adm9p2eolx5"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurface"
                         android:fontFamily="@font/poppins_regular" />
@@ -218,7 +218,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="TO:"
+                android:text="@string/to_2"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_regular"
@@ -241,7 +241,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Wallet Name"
+                        android:text="@string/wallet_name"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/poppins_regular" />
@@ -250,7 +250,7 @@
                         android:id="@+id/toWalletName"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Wallet 2"
+                        android:text="@string/wallet_2"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurface"
                         android:fontFamily="@font/poppins_regular" />
@@ -268,7 +268,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Address"
+                        android:text="@string/address"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/poppins_regular" />
@@ -277,7 +277,7 @@
                         android:id="@+id/toAddress"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="ADm9P.....2eoLX5"
+                        android:text="@string/adm9p2eolx5"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurface"
                         android:fontFamily="@font/poppins_regular" />
@@ -295,7 +295,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Sent $SOL"
+                        android:text="@string/sent_sol_2"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/poppins_regular" />
@@ -304,7 +304,7 @@
                         android:id="@+id/sentSol"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="10"
+                        android:text="@string/hint_10"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurface"
                         android:fontFamily="@font/poppins_regular" />
@@ -322,7 +322,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Money Sent"
+                        android:text="@string/money_sent"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/poppins_regular" />
@@ -331,7 +331,7 @@
                         android:id="@+id/moneySent"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="$1,250"
+                        android:text="@string/n_1250"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurface"
                         android:fontFamily="@font/poppins_regular" />
@@ -349,7 +349,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Expirers Date/ Time"
+                        android:text="@string/expirers_date_time"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/poppins_regular" />
@@ -358,7 +358,7 @@
                         android:id="@+id/expiryDateTime"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="15 Min 17 Feb 2023"
+                        android:text="@string/n_15_min_17_feb_2023"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurface"
                         android:fontFamily="@font/poppins_regular" />
@@ -376,7 +376,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Transaction number"
+                        android:text="@string/transaction_number"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/poppins_regular" />
@@ -385,7 +385,7 @@
                         android:id="@+id/transactionNumber"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="#2023ED101"
+                        android:text="@string/n_2023ed101"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurface"
                         android:fontFamily="@font/poppins_regular" />
@@ -403,7 +403,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Applications fee"
+                        android:text="@string/applications_fee"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/poppins_regular" />
@@ -412,7 +412,7 @@
                         android:id="@+id/applicationsFee"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="$00.00"
+                        android:text="@string/n_0000"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurface"
                         android:fontFamily="@font/poppins_regular" />
@@ -430,7 +430,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Time"
+                        android:text="@string/time"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/poppins_regular" />
@@ -439,7 +439,7 @@
                         android:id="@+id/transactionTime"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="09:41 pm"
+                        android:text="@string/n_0941_pm"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurface"
                         android:fontFamily="@font/poppins_regular" />
@@ -456,7 +456,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Date"
+                        android:text="@string/date"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/poppins_regular" />
@@ -465,7 +465,7 @@
                         android:id="@+id/transactionDate"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="17 Feb, 2023"
+                        android:text="@string/n_17_feb_2023"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurface"
                         android:fontFamily="@font/poppins_regular" />
@@ -494,7 +494,7 @@
             android:layout_marginEnd="12dp"
             android:background="@drawable/swap_button_bg"
             android:fontFamily="@font/poppins_semibold"
-            android:text="Back to Home"
+            android:text="@string/back_to_home"
             android:textAllCaps="false"
             android:textColor="?attr/colorOnSurface"
             android:textSize="16sp" />

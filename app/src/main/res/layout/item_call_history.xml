@@ -36,7 +36,7 @@
             android:id="@+id/contactName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Alice"
+            android:text="@string/alice"
             android:textSize="16sp"
             android:textColor="?attr/colorOnSurface"
             android:fontFamily="@font/poppins_medium" />
@@ -46,7 +46,7 @@
             android:id="@+id/callInfo"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Incoming • Yesterday • 12:45"
+            android:text="@string/incoming_yesterday_1245"
             android:textSize="13sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/poppins_regular"

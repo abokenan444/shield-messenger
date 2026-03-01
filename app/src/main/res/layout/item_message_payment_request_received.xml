@@ -13,7 +13,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:text="Today"
+        android:text="@string/today"
         android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="12sp"
         android:paddingBottom="8dp"
@@ -48,7 +48,7 @@
                     android:id="@+id/paymentLabel"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Payment Request"
+                    android:text="@string/payment_request"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="11sp" />
 
@@ -58,7 +58,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="$0.75"
+                    android:text="@string/n_075"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="28sp"
                     android:textStyle="bold" />
@@ -68,7 +68,7 @@
                     android:id="@+id/paymentAmountUsd"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="0.005 SOL"
+                    android:text="@string/n_0005_sol"
                     android:textColor="#666666"
                     android:textSize="13sp"
                     android:clickable="true"
@@ -83,7 +83,7 @@
                     android:background="@drawable/dark_gray_button_bg"
                     android:gravity="center"
                     android:paddingVertical="10dp"
-                    android:text="Pay"
+                    android:text="@string/pay"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="14sp"
                     android:textStyle="bold" />
@@ -94,7 +94,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:text="Paid"
+                    android:text="@string/paid"
                     android:textColor="#00D4AA"
                     android:textSize="12sp"
                     android:visibility="gone" />

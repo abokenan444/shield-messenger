@@ -212,7 +212,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:background="@android:color/transparent"
-                    android:hint="Type a message..."
+                    android:hint="@string/hint_type_a_message"
                     android:textColorHint="#666666"
                     android:textColor="?attr/colorOnSurface"
                     android:textSize="15sp"
@@ -295,7 +295,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
-                        android:text="0:00"
+                        android:text="@string/n_000"
                         android:textColor="?attr/colorOnSurface"
                         android:textSize="15sp"
                         android:fontFamily="@font/poppins_medium" />

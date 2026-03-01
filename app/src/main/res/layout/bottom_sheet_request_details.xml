@@ -30,7 +30,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Request Details"
+            android:text="@string/request_details"
             android:textSize="22sp"
             android:textColor="?attr/colorOnSurface"
             android:fontFamily="@font/space_grotesk_bold"
@@ -61,7 +61,7 @@
         android:id="@+id/detailsStatusMessage"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="You have successfully requested!"
+        android:text="@string/you_have_successfully_requested"
         android:textSize="14sp"
         android:textColor="?attr/colorOnSurfaceVariant"
         android:fontFamily="@font/poppins_regular"
@@ -73,7 +73,7 @@
         android:id="@+id/detailsAmount"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="$0.00"
+        android:text="@string/n_000_2"
         android:textSize="42sp"
         android:textColor="#C0C0C0"
         android:fontFamily="@font/space_grotesk_bold"
@@ -100,7 +100,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Requested"
+                android:text="@string/requested"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_regular" />
@@ -109,7 +109,7 @@
                 android:id="@+id/detailsCryptoAmount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="0.00 SOL"
+                android:text="@string/n_000_sol"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurface"
                 android:fontFamily="@font/poppins_medium" />
@@ -126,7 +126,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="USD Value"
+                android:text="@string/usd_value"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_regular" />
@@ -135,7 +135,7 @@
                 android:id="@+id/detailsUsdValue"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="$0.00"
+                android:text="@string/n_000_2"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurface"
                 android:fontFamily="@font/poppins_medium" />
@@ -152,7 +152,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Payment Type"
+                android:text="@string/payment_type"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_regular" />
@@ -161,7 +161,7 @@
                 android:id="@+id/detailsPaymentType"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Private"
+                android:text="@string/private_text"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurface"
                 android:fontFamily="@font/poppins_medium" />
@@ -178,7 +178,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Network Fee"
+                android:text="@string/network_fee"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_regular" />
@@ -187,7 +187,7 @@
                 android:id="@+id/detailsNetworkFee"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="~0.000005 SOL"
+                android:text="@string/n_0000005_sol_2"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurface"
                 android:fontFamily="@font/poppins_medium" />
@@ -204,7 +204,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Request ID"
+                android:text="@string/request_id"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_regular" />
@@ -234,7 +234,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Time"
+                android:text="@string/time"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_regular" />
@@ -259,7 +259,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="Date"
+                android:text="@string/date"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_regular" />
@@ -283,7 +283,7 @@
         android:layout_height="56dp"
         android:background="@drawable/swap_button_bg"
         android:fontFamily="@font/poppins_semibold"
-        android:text="Done"
+        android:text="@string/done"
         android:textAllCaps="false"
         android:textColor="?attr/colorOnSurface"
         android:textSize="16sp" />

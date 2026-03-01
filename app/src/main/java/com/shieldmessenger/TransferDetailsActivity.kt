@@ -7,7 +7,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.shieldmessenger.utils.ThemedToast
 
-class TransferDetailsActivity : AppCompatActivity() {
+class TransferDetailsActivity : BaseActivity() {
 
     companion object {
         const val EXTRA_RECIPIENT_NAME = "RECIPIENT_NAME"

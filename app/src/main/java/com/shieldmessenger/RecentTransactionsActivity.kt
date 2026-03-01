@@ -19,7 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class RecentTransactionsActivity : AppCompatActivity() {
+class RecentTransactionsActivity : BaseActivity() {
 
     private lateinit var transactionsList: RecyclerView
     private lateinit var loadingState: View

@@ -32,7 +32,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.security.SecureRandom
 
-class WalletIdentityActivity : AppCompatActivity() {
+class WalletIdentityActivity : BaseActivity() {
 
     private lateinit var profilePhotoAvatar: com.shieldmessenger.views.AvatarView
 

@@ -19,7 +19,7 @@ import com.shieldmessenger.utils.ThemedToast
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
-class QRScannerActivity : AppCompatActivity() {
+class QRScannerActivity : BaseActivity() {
     private lateinit var cameraExecutor: ExecutorService
     private var imageAnalyzer: ImageAnalysis? = null
 

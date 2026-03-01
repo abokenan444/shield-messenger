@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Shield Messenger</string>
+
+    <string name="about">Sobre</string>
+    <string name="accept">Aceitar</string>
+    <string name="add_friend">Adicionar amigo</string>
+    <string name="address">Endereço</string>
+    <string name="all">Tudo</string>
+    <string name="amount">Valor</string>
+    <string name="anonymous">Anônimo</string>
+    <string name="available">Disponível</string>
+    <string name="biometric_unlock">Desbloqueio biométrico</string>
+    <string name="block">Bloquear</string>
+    <string name="call">Chamada</string>
+    <string name="call_ended">Chamada encerrada</string>
+    <string name="cancel">Cancelar</string>
+    <string name="change_password">Alterar senha</string>
+    <string name="chats">Conversas</string>
+    <string name="close">Fechar</string>
+    <string name="confirm">CONFIRMAR</string>
+    <string name="contacts">Contatos</string>
+    <string name="continue_text">Continuar</string>
+    <string name="create_account">Criar conta</string>
+    <string name="delete">Excluir</string>
+    <string name="done">Concluído</string>
+    <string name="download">Baixar</string>
+    <string name="file">Arquivo</string>
+    <string name="free">Grátis</string>
+    <string name="gallery">Galeria</string>
+    <string name="group">Grupo</string>
+    <string name="incoming_call">Chamada recebida</string>
+    <string name="language">Idioma</string>
+    <string name="loading">Carregando...</string>
+    <string name="message">Mensagem</string>
+    <string name="messages">Mensagens</string>
+    <string name="mute">Silenciar</string>
+    <string name="name">Nome</string>
+    <string name="network">Rede</string>
+    <string name="never">Nunca</string>
+    <string name="next">Próximo</string>
+    <string name="notifications">Notificações</string>
+    <string name="pending">Pendente</string>
+    <string name="privacy">Privacidade</string>
+    <string name="profile">Perfil</string>
+    <string name="save">Salvar</string>
+    <string name="send">Enviar</string>
+    <string name="sent">Enviado</string>
+    <string name="settings">Configurações</string>
+    <string name="share">Compartilhar</string>
+    <string name="sign_in">Entrar</string>
+    <string name="today">Hoje</string>
+    <string name="wallet">Carteira</string>
+</resources>

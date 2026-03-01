@@ -38,7 +38,7 @@
             android:id="@+id/membersTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Members"
+            android:text="@string/members"
             android:fontFamily="@font/space_grotesk_bold"
             android:textSize="20sp"
             android:textColor="#CCCCCC"
@@ -100,7 +100,7 @@
             android:layout_marginStart="12dp"
             android:layout_marginEnd="12dp"
             android:background="@android:color/transparent"
-            android:hint="Search Members.."
+            android:hint="@string/hint_search_members"
             android:textColorHint="@color/text_gray"
             android:textColor="?attr/colorOnSurface"
             android:textSize="16sp"
@@ -158,132 +158,132 @@
             <TextView
                 android:id="@+id/indexA"
                 style="@style/AlphabetIndexLetter"
-                android:text="A" />
+                android:text="@string/a" />
 
             <TextView
                 android:id="@+id/indexB"
                 style="@style/AlphabetIndexLetter"
-                android:text="B" />
+                android:text="@string/b" />
 
             <TextView
                 android:id="@+id/indexC"
                 style="@style/AlphabetIndexLetter"
-                android:text="C" />
+                android:text="@string/c" />
 
             <TextView
                 android:id="@+id/indexD"
                 style="@style/AlphabetIndexLetter"
-                android:text="D" />
+                android:text="@string/d" />
 
             <TextView
                 android:id="@+id/indexE"
                 style="@style/AlphabetIndexLetter"
-                android:text="E" />
+                android:text="@string/e" />
 
             <TextView
                 android:id="@+id/indexF"
                 style="@style/AlphabetIndexLetter"
-                android:text="F" />
+                android:text="@string/f" />
 
             <TextView
                 android:id="@+id/indexG"
                 style="@style/AlphabetIndexLetter"
-                android:text="G" />
+                android:text="@string/g" />
 
             <TextView
                 android:id="@+id/indexH"
                 style="@style/AlphabetIndexLetter"
-                android:text="H" />
+                android:text="@string/h" />
 
             <TextView
                 android:id="@+id/indexI"
                 style="@style/AlphabetIndexLetter"
-                android:text="I" />
+                android:text="@string/i" />
 
             <TextView
                 android:id="@+id/indexJ"
                 style="@style/AlphabetIndexLetter"
-                android:text="J" />
+                android:text="@string/j" />
 
             <TextView
                 android:id="@+id/indexK"
                 style="@style/AlphabetIndexLetter"
-                android:text="K" />
+                android:text="@string/k" />
 
             <TextView
                 android:id="@+id/indexL"
                 style="@style/AlphabetIndexLetter"
-                android:text="L" />
+                android:text="@string/l" />
 
             <TextView
                 android:id="@+id/indexM"
                 style="@style/AlphabetIndexLetter"
-                android:text="M" />
+                android:text="@string/m" />
 
             <TextView
                 android:id="@+id/indexN"
                 style="@style/AlphabetIndexLetter"
-                android:text="N" />
+                android:text="@string/n" />
 
             <TextView
                 android:id="@+id/indexO"
                 style="@style/AlphabetIndexLetter"
-                android:text="O" />
+                android:text="@string/o" />
 
             <TextView
                 android:id="@+id/indexP"
                 style="@style/AlphabetIndexLetter"
-                android:text="P" />
+                android:text="@string/p" />
 
             <TextView
                 android:id="@+id/indexQ"
                 style="@style/AlphabetIndexLetter"
-                android:text="Q" />
+                android:text="@string/q" />
 
             <TextView
                 android:id="@+id/indexR"
                 style="@style/AlphabetIndexLetter"
-                android:text="R" />
+                android:text="@string/r" />
 
             <TextView
                 android:id="@+id/indexS"
                 style="@style/AlphabetIndexLetter"
-                android:text="S" />
+                android:text="@string/s" />
 
             <TextView
                 android:id="@+id/indexT"
                 style="@style/AlphabetIndexLetter"
-                android:text="T" />
+                android:text="@string/t" />
 
             <TextView
                 android:id="@+id/indexU"
                 style="@style/AlphabetIndexLetter"
-                android:text="U" />
+                android:text="@string/u" />
 
             <TextView
                 android:id="@+id/indexV"
                 style="@style/AlphabetIndexLetter"
-                android:text="V" />
+                android:text="@string/v" />
 
             <TextView
                 android:id="@+id/indexW"
                 style="@style/AlphabetIndexLetter"
-                android:text="W" />
+                android:text="@string/w" />
 
             <TextView
                 android:id="@+id/indexX"
                 style="@style/AlphabetIndexLetter"
-                android:text="X" />
+                android:text="@string/x" />
 
             <TextView
                 android:id="@+id/indexY"
                 style="@style/AlphabetIndexLetter"
-                android:text="Y" />
+                android:text="@string/y" />
 
             <TextView
                 android:id="@+id/indexZ"
                 style="@style/AlphabetIndexLetter"
-                android:text="Z" />
+                android:text="@string/z" />
 
         </LinearLayout>
 

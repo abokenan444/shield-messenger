@@ -11,7 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.shieldmessenger.services.TorService
 import com.shieldmessenger.utils.ThemedToast
 
-class BridgeActivity : AppCompatActivity() {
+class BridgeActivity : BaseActivity() {
 
     private lateinit var bridgeRadioGroup: RadioGroup
     private lateinit var customBridgeInput: EditText

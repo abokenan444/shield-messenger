@@ -31,7 +31,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Total Balance"
+                android:text="@string/total_balance"
                 android:textSize="10sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:textAllCaps="true"
@@ -55,7 +55,7 @@
                         android:id="@+id/balanceAmount"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="0.0008 SOL"
+                        android:text="@string/n_00008_sol_2"
                         android:textSize="20sp"
                         android:textStyle="bold"
                         android:textColor="?attr/colorOnSurface"
@@ -66,7 +66,7 @@
                         android:id="@+id/balanceUSD"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="$0.18 USD"
+                        android:text="@string/n_018_usd"
                         android:textSize="12sp"
                         android:textColor="?attr/colorOnSurfaceVariant" />
 
@@ -126,7 +126,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Receive"
+                android:text="@string/receive"
                 android:textSize="15sp"
                 android:textStyle="bold"
                 android:textColor="?attr/colorOnSurface" />
@@ -159,7 +159,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Send"
+                android:text="@string/send"
                 android:textSize="15sp"
                 android:textStyle="bold"
                 android:textColor="?attr/colorOnSurface" />

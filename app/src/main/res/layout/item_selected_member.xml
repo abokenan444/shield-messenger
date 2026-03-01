@@ -23,7 +23,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:gravity="center"
-                android:text="A"
+                android:text="@string/a"
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="22sp"
                 android:fontFamily="@font/poppins_bold" />
@@ -52,7 +52,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
-        android:text="Name"
+        android:text="@string/name"
         android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="12sp"
         android:maxLines="1"

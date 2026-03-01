@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Shield Messenger</string>
+
+    <string name="about">概要</string>
+    <string name="accept">承認</string>
+    <string name="add_friend">友達を追加</string>
+    <string name="address">アドレス</string>
+    <string name="all">すべて</string>
+    <string name="amount">金額</string>
+    <string name="anonymous">匿名</string>
+    <string name="available">利用可能</string>
+    <string name="biometric_unlock">生体認証ロック解除</string>
+    <string name="block">ブロック</string>
+    <string name="call">通話</string>
+    <string name="call_ended">通話終了</string>
+    <string name="cancel">キャンセル</string>
+    <string name="change_password">パスワード変更</string>
+    <string name="chats">チャット</string>
+    <string name="close">閉じる</string>
+    <string name="confirm">確認</string>
+    <string name="contacts">連絡先</string>
+    <string name="continue_text">続行</string>
+    <string name="create_account">アカウント作成</string>
+    <string name="decline">拒否</string>
+    <string name="delete">削除</string>
+    <string name="done">完了</string>
+    <string name="download">ダウンロード</string>
+    <string name="file">ファイル</string>
+    <string name="free">無料</string>
+    <string name="gallery">ギャラリー</string>
+    <string name="group">グループ</string>
+    <string name="incoming_call">着信</string>
+    <string name="language">言語</string>
+    <string name="loading">読み込み中...</string>
+    <string name="message">メッセージ</string>
+    <string name="messages">メッセージ</string>
+    <string name="mute">ミュート</string>
+    <string name="name">名前</string>
+    <string name="network">ネットワーク</string>
+    <string name="never">なし</string>
+    <string name="next">次へ</string>
+    <string name="notifications">通知</string>
+    <string name="pending">保留中</string>
+    <string name="privacy">プライバシー</string>
+    <string name="profile">プロフィール</string>
+    <string name="save">保存</string>
+    <string name="send">送信</string>
+    <string name="sent">送信済み</string>
+    <string name="settings">設定</string>
+    <string name="share">共有</string>
+    <string name="sign_in">ログイン</string>
+    <string name="today">今日</string>
+    <string name="wallet">ウォレット</string>
+</resources>

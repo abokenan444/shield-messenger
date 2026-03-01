@@ -22,7 +22,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Confirm Transaction"
+        android:text="@string/confirm_transaction"
         android:textSize="22sp"
         android:textColor="?attr/colorOnSurface"
         android:fontFamily="@font/space_grotesk_bold"
@@ -42,7 +42,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="@font/space_grotesk_bold"
-            android:text="0.5 SOL"
+            android:text="@string/n_05_sol"
             android:textColor="#C0C0C0"
             android:textSize="42sp"
             android:gravity="center" />
@@ -52,7 +52,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="@font/poppins_regular"
-            android:text="≈ $75.00 USD"
+            android:text="@string/n_7500_usd"
             android:textColor="#666666"
             android:textSize="16sp"
             android:gravity="center"
@@ -81,7 +81,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:fontFamily="@font/poppins_regular"
-                android:text="To Address"
+                android:text="@string/to_address"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:textSize="14sp" />
 
@@ -90,7 +90,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_medium"
-                android:text="ADm9P.....2eoLX5"
+                android:text="@string/adm9p2eolx5"
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="14sp" />
         </LinearLayout>
@@ -107,7 +107,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:fontFamily="@font/poppins_regular"
-                android:text="From Wallet"
+                android:text="@string/from_wallet"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:textSize="14sp" />
 
@@ -116,7 +116,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_medium"
-                android:text="Wallet 1"
+                android:text="@string/wallet_1"
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="14sp" />
         </LinearLayout>
@@ -133,7 +133,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:fontFamily="@font/poppins_regular"
-                android:text="Network"
+                android:text="@string/network"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:textSize="14sp" />
 
@@ -142,7 +142,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_medium"
-                android:text="Solana"
+                android:text="@string/solana"
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="14sp" />
         </LinearLayout>
@@ -159,7 +159,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:fontFamily="@font/poppins_regular"
-                android:text="Payment Type"
+                android:text="@string/payment_type"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:textSize="14sp" />
 
@@ -168,7 +168,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_medium"
-                android:text="Private"
+                android:text="@string/private_text"
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="14sp" />
         </LinearLayout>
@@ -184,7 +184,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:fontFamily="@font/poppins_regular"
-                android:text="Network Fee"
+                android:text="@string/network_fee"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:textSize="14sp" />
 
@@ -193,7 +193,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/poppins_medium"
-                android:text="~0.000005 SOL"
+                android:text="@string/n_0000005_sol_2"
                 android:textColor="?attr/colorOnSurface"
                 android:textSize="14sp" />
         </LinearLayout>
@@ -204,7 +204,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="This transaction cannot be reversed. Please verify all details before sending."
+        android:text="@string/this_transaction_cannot_be_reversed_plea"
         android:textSize="12sp"
         android:textColor="#666666"
         android:fontFamily="@font/poppins_regular"
@@ -218,7 +218,7 @@
         android:layout_height="56dp"
         android:background="@drawable/wallet_action_button_bg"
         android:fontFamily="@font/poppins_semibold"
-        android:text="Send"
+        android:text="@string/send"
         android:textAllCaps="false"
         android:textColor="?attr/colorOnSurface"
         android:textSize="16sp"
@@ -231,7 +231,7 @@
         android:layout_height="56dp"
         android:background="@android:color/transparent"
         android:fontFamily="@font/poppins_medium"
-        android:text="Cancel"
+        android:text="@string/cancel"
         android:textAllCaps="false"
         android:textColor="?attr/colorOnSurfaceVariant"
         android:textSize="16sp" />

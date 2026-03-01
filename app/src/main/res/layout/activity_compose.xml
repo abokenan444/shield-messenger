@@ -44,7 +44,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Compose"
+            android:text="@string/compose"
             android:textSize="22sp"
             android:textColor="#CCCCCC"
             android:fontFamily="@font/space_grotesk_bold"
@@ -91,7 +91,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:background="@android:color/transparent"
-            android:hint="Search..."
+            android:hint="@string/hint_search"
             android:textColorHint="#666666"
             android:textColor="?attr/colorOnSurface"
             android:textSize="15sp"
@@ -126,32 +126,32 @@
         app:layout_constraintTop_toBottomOf="@id/searchContainer"
         app:layout_constraintBottom_toTopOf="@id/bottomNav">
 
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="A" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="B" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="C" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="D" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="E" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="F" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="G" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="H" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="I" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="J" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="K" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="L" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="M" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="N" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="O" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="P" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Q" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="R" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="S" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="T" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="U" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="V" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="W" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="X" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Y" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Z" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/a" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/b" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/c" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/d" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/e" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/f" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/g" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/h" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/i" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/j" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/k" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/l" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/m" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/n" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/o" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/p" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/q" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/r" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/s" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/t" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/u" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/v" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/w" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/x" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/y" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/z" android:textSize="10sp" android:textColor="?attr/colorOnSurfaceVariant" android:fontFamily="@font/space_grotesk_bold" android:padding="2dp" android:clickable="true" android:focusable="true" />
 
     </LinearLayout>
 
@@ -169,7 +169,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="No Contacts"
+            android:text="@string/no_contacts"
             android:textSize="18sp"
             android:textColor="#CCCCCC"
             android:fontFamily="@font/space_grotesk_bold"
@@ -179,7 +179,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Add friends to start messaging"
+            android:text="@string/add_friends_to_start_messaging"
             android:textSize="14sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/poppins_regular" />

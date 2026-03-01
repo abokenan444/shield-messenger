@@ -39,7 +39,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Mute"
+                    android:text="@string/mute"
                     android:textColor="#FFFFFF"
                     android:textSize="11sp"
                     android:fontFamily="@font/poppins_medium" />
@@ -74,7 +74,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Delete"
+                    android:text="@string/delete"
                     android:textColor="#FFFFFF"
                     android:textSize="11sp"
                     android:fontFamily="@font/poppins_medium" />
@@ -109,7 +109,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Pin"
+                    android:text="@string/pin"
                     android:textColor="#FFFFFF"
                     android:textSize="11sp"
                     android:fontFamily="@font/poppins_medium" />
@@ -198,7 +198,7 @@
                         android:id="@+id/chatTime"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="1m ago"
+                        android:text="@string/n_1m_ago"
                         android:textSize="13sp"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:fontFamily="@font/poppins_regular" />
@@ -223,7 +223,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="What's good? How are you."
+                android:text="@string/whats_good_how_are_you"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:fontFamily="@font/poppins_regular"
@@ -241,7 +241,7 @@
             android:background="@drawable/primary_button_bg"
             android:paddingStart="12dp"
             android:paddingEnd="12dp"
-            android:text="Download"
+            android:text="@string/download"
             android:textSize="12sp"
             android:textStyle="bold"
             android:textColor="?attr/colorOnSurface"
@@ -256,7 +256,7 @@
             android:layout_marginStart="8dp"
             android:background="@drawable/unread_badge_bg"
             android:gravity="center"
-            android:text="2"
+            android:text="@string/hint_2"
             android:textSize="12sp"
             android:textStyle="bold"
             android:textColor="?attr/colorOnSurface"

@@ -11,7 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
 import com.shieldmessenger.utils.ThemedToast
 
-class DuressPinActivity : AppCompatActivity() {
+class DuressPinActivity : BaseActivity() {
 
     private lateinit var wipePhoneSwitch: SwitchCompat
 

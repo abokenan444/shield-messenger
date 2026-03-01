@@ -145,7 +145,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Call"
+                        android:text="@string/call"
                         android:textSize="11sp"
                         android:textColor="#8C8C8C"
                         android:fontFamily="@font/poppins_medium"
@@ -182,7 +182,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Message"
+                        android:text="@string/message"
                         android:textSize="11sp"
                         android:textColor="#8C8C8C"
                         android:fontFamily="@font/poppins_medium"
@@ -219,7 +219,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Delete"
+                        android:text="@string/delete"
                         android:textSize="11sp"
                         android:textColor="#8C8C8C"
                         android:fontFamily="@font/poppins_medium"
@@ -257,7 +257,7 @@
                         android:id="@+id/blockLabel"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Block"
+                        android:text="@string/block"
                         android:textSize="11sp"
                         android:textColor="#8C8C8C"
                         android:fontFamily="@font/poppins_medium"

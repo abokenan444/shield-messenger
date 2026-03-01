@@ -14,7 +14,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Create New Identity?"
+        android:text="@string/create_new_identity"
         android:textSize="24sp"
         android:textColor="?attr/colorOnSurface"
         android:fontFamily="@font/space_grotesk_bold"
@@ -25,7 +25,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="This will generate a completely new identity for your account."
+        android:text="@string/this_will_generate_a_completely_new_iden"
         android:textSize="15sp"
         android:textColor="?attr/colorOnSurfaceVariant"
         android:fontFamily="@font/poppins_regular"
@@ -52,7 +52,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="New Identity Includes:"
+                android:text="@string/new_identity_includes"
                 android:textSize="14sp"
                 android:textColor="?attr/colorOnSurface"
                 android:fontFamily="@font/poppins_semibold"
@@ -68,7 +68,7 @@
                 <TextView
                     android:layout_width="24dp"
                     android:layout_height="wrap_content"
-                    android:text="•"
+                    android:text="@string/str_495"
                     android:textSize="16sp"
                     android:textColor="?attr/colorOnSurface"
                     android:fontFamily="@font/poppins_medium" />
@@ -77,7 +77,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="New Contact Card (CID/PIN)"
+                    android:text="@string/new_contact_card_cidpin"
                     android:textSize="14sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_regular" />
@@ -93,7 +93,7 @@
                 <TextView
                     android:layout_width="24dp"
                     android:layout_height="wrap_content"
-                    android:text="•"
+                    android:text="@string/str_495"
                     android:textSize="16sp"
                     android:textColor="?attr/colorOnSurface"
                     android:fontFamily="@font/poppins_medium" />
@@ -102,7 +102,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="New Tor Onion Address"
+                    android:text="@string/new_tor_onion_address"
                     android:textSize="14sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_regular" />
@@ -118,7 +118,7 @@
                 <TextView
                     android:layout_width="24dp"
                     android:layout_height="wrap_content"
-                    android:text="•"
+                    android:text="@string/str_495"
                     android:textSize="16sp"
                     android:textColor="?attr/colorOnSurface"
                     android:fontFamily="@font/poppins_medium" />
@@ -127,7 +127,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="You will need to send new friend requests to your contacts"
+                    android:text="@string/you_will_need_to_send_new_friend_request"
                     android:textSize="14sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_regular" />
@@ -142,7 +142,7 @@
                 <TextView
                     android:layout_width="24dp"
                     android:layout_height="wrap_content"
-                    android:text="•"
+                    android:text="@string/str_495"
                     android:textSize="16sp"
                     android:textColor="?attr/colorOnSurface"
                     android:fontFamily="@font/poppins_medium" />
@@ -151,7 +151,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Your crypto wallet will remain untouched"
+                    android:text="@string/your_crypto_wallet_will_remain_untouched"
                     android:textSize="14sp"
                     android:textColor="#CCCCCC"
                     android:fontFamily="@font/poppins_regular" />
@@ -173,7 +173,7 @@
             android:layout_height="56dp"
             android:background="@drawable/swap_button_bg"
             android:fontFamily="@font/poppins_semibold"
-            android:text="CREATE NEW IDENTITY"
+            android:text="@string/create_new_identity_2"
             android:textAllCaps="true"
             android:textColor="?attr/colorOnSurface"
             android:textSize="16sp"
@@ -186,7 +186,7 @@
             android:layout_height="56dp"
             android:background="@drawable/wallet_dropdown_bg"
             android:fontFamily="@font/poppins_semibold"
-            android:text="CANCEL"
+            android:text="@string/cancel_2"
             android:textAllCaps="true"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:textSize="16sp" />

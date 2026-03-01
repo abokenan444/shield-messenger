@@ -43,7 +43,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Advance Security"
+            android:text="@string/advance_security"
             android:textSize="24sp"
             android:textColor="?attr/colorOnSurfaceVariant"
             android:fontFamily="@font/space_grotesk_bold"
@@ -75,7 +75,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="App Security"
+                android:text="@string/app_security"
                 android:textSize="13sp"
                 android:fontFamily="@font/poppins_medium"
                 android:textColor="#666666"
@@ -104,7 +104,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Auto-Lock Timer"
+                        android:text="@string/autolock_timer"
                         android:textSize="16sp"
                         android:fontFamily="@font/poppins_medium"
                         android:textColor="#5C5C5C" />
@@ -113,7 +113,7 @@
                         android:id="@+id/autoLockStatus"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="5 minutes"
+                        android:text="@string/n_5_minutes"
                         android:textSize="13sp"
                         android:textColor="#666666"
                         android:fontFamily="@font/poppins_regular" />
@@ -123,7 +123,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="›"
+                    android:text="@string/str_288"
                     android:textSize="24sp"
                     android:textColor="?attr/colorOnSurfaceVariant" />
 
@@ -133,7 +133,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Call Privacy"
+                android:text="@string/call_privacy"
                 android:textSize="13sp"
                 android:fontFamily="@font/poppins_medium"
                 android:textColor="#666666"
@@ -160,7 +160,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Answer calls when app closed"
+                        android:text="@string/answer_calls_when_app_closed"
                         android:textSize="16sp"
                         android:fontFamily="@font/poppins_medium"
                         android:textColor="#5C5C5C" />
@@ -168,7 +168,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Show missed call log if disabled"
+                        android:text="@string/show_missed_call_log_if_disabled"
                         android:textSize="13sp"
                         android:textColor="#666666"
                         android:fontFamily="@font/poppins_regular" />
@@ -189,7 +189,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Message Privacy"
+                android:text="@string/message_privacy"
                 android:textSize="13sp"
                 android:fontFamily="@font/poppins_medium"
                 android:textColor="#666666"
@@ -216,7 +216,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Device Protection"
+                        android:text="@string/device_protection"
                         android:textSize="16sp"
                         android:fontFamily="@font/poppins_medium"
                         android:textColor="#5C5C5C" />
@@ -224,7 +224,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Require manual approval to download messages"
+                        android:text="@string/require_manual_approval_to_download_mess"
                         android:textSize="13sp"
                         android:textColor="#666666"
                         android:fontFamily="@font/poppins_regular" />
@@ -245,7 +245,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Friend Request Security"
+                android:text="@string/friend_request_security"
                 android:textSize="13sp"
                 android:fontFamily="@font/poppins_medium"
                 android:textColor="#666666"
@@ -266,7 +266,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="PIN Rotation"
+                    android:text="@string/pin_rotation"
                     android:textSize="16sp"
                     android:fontFamily="@font/poppins_medium"
                     android:textColor="#5C5C5C" />
@@ -294,7 +294,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Max PIN Uses"
+                    android:text="@string/max_pin_uses"
                     android:textSize="16sp"
                     android:fontFamily="@font/poppins_medium"
                     android:textColor="#5C5C5C" />
@@ -327,7 +327,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Manual Entry (Legacy)"
+                        android:text="@string/manual_entry_legacy"
                         android:textSize="16sp"
                         android:fontFamily="@font/poppins_medium"
                         android:textColor="#5C5C5C" />
@@ -335,7 +335,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Show address &amp; PIN fields in Add Friend"
+                        android:text="@string/show_address_amp_pin_fields_in_add_frien"
                         android:textSize="13sp"
                         android:textColor="#666666"
                         android:fontFamily="@font/poppins_regular" />
