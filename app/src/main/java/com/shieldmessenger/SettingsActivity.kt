@@ -46,6 +46,7 @@ class SettingsActivity : BaseActivity() {
         setupAutoWipeToggle()
         setupBiometricToggle()
         setupTorModeToggle()
+        setupPrivacyToggles()
     }
 
     private fun setupClickListeners() {
@@ -72,6 +73,16 @@ class SettingsActivity : BaseActivity() {
         // About
         findViewById<View>(R.id.aboutItem).setOnClickListener {
             startActivity(Intent(this, AboutActivity::class.java))
+        }
+
+        // Subscription
+        findViewById<View>(R.id.subscriptionItem).setOnClickListener {
+            startActivity(Intent(this, SubscriptionActivity::class.java))
+        }
+
+        // Two-Factor Auth
+        findViewById<View>(R.id.twoFactorItem).setOnClickListener {
+            startActivity(Intent(this, TotpSetupActivity::class.java))
         }
 
         // Wipe Account
@@ -298,6 +309,26 @@ class SettingsActivity : BaseActivity() {
         } catch (e: Exception) {
             Log.e("SettingsActivity", "Failed to stop Tor VPN", e)
             ThemedToast.show(this, "Failed to stop Tor Mode: ${e.message}")
+        }
+    }
+
+    private fun setupPrivacyToggles() {
+        val prefs = getSharedPreferences("privacy_prefs", MODE_PRIVATE)
+
+        // Read receipts toggle
+        val readReceiptSwitch = findViewById<SwitchCompat>(R.id.readReceiptSwitch)
+        readReceiptSwitch.isChecked = prefs.getBoolean("read_receipts_enabled", true)
+        readReceiptSwitch.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("read_receipts_enabled", isChecked).apply()
+            ThemedToast.show(this, if (isChecked) "Read receipts enabled" else "Read receipts disabled")
+        }
+
+        // Last seen toggle
+        val lastSeenSwitch = findViewById<SwitchCompat>(R.id.lastSeenSwitch)
+        lastSeenSwitch.isChecked = prefs.getBoolean("last_seen_enabled", true)
+        lastSeenSwitch.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("last_seen_enabled", isChecked).apply()
+            ThemedToast.show(this, if (isChecked) "Last seen visible" else "Last seen hidden")
         }
     }
 

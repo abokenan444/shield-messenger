@@ -339,6 +339,7 @@ data class Message(
         const val MESSAGE_TYPE_PAYMENT_SENT = "PAYMENT_SENT"
         const val MESSAGE_TYPE_PAYMENT_ACCEPTED = "PAYMENT_ACCEPTED"
         const val MESSAGE_TYPE_PROFILE_UPDATE = "PROFILE_UPDATE"
+        const val MESSAGE_TYPE_FILE = "FILE"
 
         // Payment status constants
         const val PAYMENT_STATUS_PENDING = "pending"

@@ -143,6 +143,8 @@ class MessageAdapter(
         private const val VIEW_TYPE_PAYMENT_RECEIVED = 11
         private const val VIEW_TYPE_STICKER_SENT = 12
         private const val VIEW_TYPE_STICKER_RECEIVED = 13
+        private const val VIEW_TYPE_FILE_SENT = 14
+        private const val VIEW_TYPE_FILE_RECEIVED = 15
 
         // Cached prices for display (updated by ChatActivity)
         var cachedSolPrice: Double = 0.0
@@ -418,6 +420,23 @@ class MessageAdapter(
     }
 
     // Payment received (they paid me)
+    class FileSentMessageViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val timestampHeader: TextView = view.findViewById(R.id.timestampHeader)
+        val messageBubble: View = view.findViewById(R.id.messageBubble)
+        val fileIcon: ImageView = view.findViewById(R.id.fileIcon)
+        val fileName: TextView = view.findViewById(R.id.fileName)
+        val fileSize: TextView = view.findViewById(R.id.fileSize)
+        val messageStatus: ImageView = view.findViewById(R.id.messageStatus)
+    }
+
+    class FileReceivedMessageViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+        val timestampHeader: TextView = view.findViewById(R.id.timestampHeader)
+        val messageBubble: View = view.findViewById(R.id.messageBubble)
+        val fileIcon: ImageView = view.findViewById(R.id.fileIcon)
+        val fileName: TextView = view.findViewById(R.id.fileName)
+        val fileSize: TextView = view.findViewById(R.id.fileSize)
+    }
+
     class PaymentReceivedViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val timestampHeader: TextView = view.findViewById(R.id.timestampHeader)
         val messageBubble: CardView = view.findViewById(R.id.messageBubble)
@@ -452,6 +471,8 @@ class MessageAdapter(
                     message.messageType == Message.MESSAGE_TYPE_IMAGE && !message.isSentByMe -> VIEW_TYPE_IMAGE_RECEIVED
                     message.messageType == Message.MESSAGE_TYPE_STICKER && message.isSentByMe -> VIEW_TYPE_STICKER_SENT
                     message.messageType == Message.MESSAGE_TYPE_STICKER && !message.isSentByMe -> VIEW_TYPE_STICKER_RECEIVED
+                    message.messageType == Message.MESSAGE_TYPE_FILE && message.isSentByMe -> VIEW_TYPE_FILE_SENT
+                    message.messageType == Message.MESSAGE_TYPE_FILE && !message.isSentByMe -> VIEW_TYPE_FILE_RECEIVED
                     message.messageType == Message.MESSAGE_TYPE_PAYMENT_REQUEST && message.isSentByMe -> VIEW_TYPE_PAYMENT_REQUEST_SENT
                     message.messageType == Message.MESSAGE_TYPE_PAYMENT_REQUEST && !message.isSentByMe -> VIEW_TYPE_PAYMENT_REQUEST_RECEIVED
                     message.messageType == Message.MESSAGE_TYPE_PAYMENT_SENT && message.isSentByMe -> VIEW_TYPE_PAYMENT_SENT
@@ -530,6 +551,16 @@ class MessageAdapter(
                     .inflate(R.layout.item_message_payment_received, parent, false)
                 PaymentReceivedViewHolder(view)
             }
+            VIEW_TYPE_FILE_SENT -> {
+                val view = LayoutInflater.from(parent.context)
+                    .inflate(R.layout.item_message_file_sent, parent, false)
+                FileSentMessageViewHolder(view)
+            }
+            VIEW_TYPE_FILE_RECEIVED -> {
+                val view = LayoutInflater.from(parent.context)
+                    .inflate(R.layout.item_message_file_received, parent, false)
+                FileReceivedMessageViewHolder(view)
+            }
             else -> {
                 val view = LayoutInflater.from(parent.context)
                     .inflate(R.layout.item_message_received, parent, false)
@@ -590,6 +621,14 @@ class MessageAdapter(
             is PaymentReceivedViewHolder -> {
                 val message = (item as ChatListItem.MessageItem).message
                 bindPaymentReceived(holder, message, position)
+            }
+            is FileSentMessageViewHolder -> {
+                val message = (item as ChatListItem.MessageItem).message
+                bindFileSentMessage(holder, message, position)
+            }
+            is FileReceivedMessageViewHolder -> {
+                val message = (item as ChatListItem.MessageItem).message
+                bindFileReceivedMessage(holder, message, position)
             }
             is PendingMessageViewHolder -> {
                 bindPendingMessage(holder, position)
@@ -1618,6 +1657,50 @@ class MessageAdapter(
     private fun hideTimestamp(position: Int) {
         currentSwipeRevealedPosition = -1
         notifyItemChanged(position)
+    }
+
+    private fun bindFileSentMessage(holder: FileSentMessageViewHolder, message: Message, position: Int) {
+        holder.messageStatus.setImageResource(getStatusIcon(message))
+
+        if (shouldShowTimestampHeader(position)) {
+            holder.timestampHeader.visibility = View.VISIBLE
+            holder.timestampHeader.text = formatDateHeaderWithTime(message.timestamp)
+        } else {
+            holder.timestampHeader.visibility = View.GONE
+        }
+
+        // Parse filename and size from encryptedContent (format: "filename|size")
+        val parts = (message.encryptedContent ?: "").split("|")
+        holder.fileName.text = if (parts.isNotEmpty()) parts[0] else "File"
+        holder.fileSize.text = if (parts.size > 1) parts[1] else ""
+
+        // Open file on click
+        holder.messageBubble.setOnClickListener {
+            val filePath = message.attachmentData
+            if (!filePath.isNullOrEmpty()) {
+                onImageClick?.invoke(filePath)
+            }
+        }
+    }
+
+    private fun bindFileReceivedMessage(holder: FileReceivedMessageViewHolder, message: Message, position: Int) {
+        if (shouldShowTimestampHeader(position)) {
+            holder.timestampHeader.visibility = View.VISIBLE
+            holder.timestampHeader.text = formatDateHeaderWithTime(message.timestamp)
+        } else {
+            holder.timestampHeader.visibility = View.GONE
+        }
+
+        val parts = (message.encryptedContent ?: "").split("|")
+        holder.fileName.text = if (parts.isNotEmpty()) parts[0] else "File"
+        holder.fileSize.text = if (parts.size > 1) parts[1] else ""
+
+        holder.messageBubble.setOnClickListener {
+            val filePath = message.attachmentData
+            if (!filePath.isNullOrEmpty()) {
+                onImageClick?.invoke(filePath)
+            }
+        }
     }
 
     private fun shouldShowTimestampHeader(position: Int): Boolean {

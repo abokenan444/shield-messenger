@@ -313,6 +313,18 @@ dependencies {
     // Voice Calling - Opus codec for audio compression
     // Using native Rust implementation via RustBridge (libopus built from source)
 
+    // Google Play Billing for subscriptions
+    implementation("com.android.billingclient:billing-ktx:7.1.1")
+
+    // ZXing core for QR code generation (TOTP setup)
+    implementation("com.google.zxing:core:3.5.3")
+
+    // CameraX for video calling camera capture
+    implementation("androidx.camera:camera-core:1.4.1")
+    implementation("androidx.camera:camera-camera2:1.4.1")
+    implementation("androidx.camera:camera-lifecycle:1.4.1")
+    implementation("androidx.camera:camera-view:1.4.1")
+
     // Coroutines for async voice call handling (if not already included via core-ktx)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 

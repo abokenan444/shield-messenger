@@ -236,11 +236,16 @@ class LockActivity : AppCompatActivity() {
 
                 Log.i("LockActivity", "Password verified, unlocking app")
 
-                // Offer biometric enrollment first, then unlock app
-                // If biometric dialog is shown, unlockApp() is called after user responds
-                // If no dialog shown, unlockApp() is called immediately
-                offerBiometricEnrollment(keyManager) {
-                    unlockApp()
+                // Check if 2FA/TOTP is enabled — require code before proceeding
+                if (com.shieldmessenger.utils.TotpHelper.isEnabled(this)) {
+                    showTotpDialog(keyManager)
+                } else {
+                    // Offer biometric enrollment first, then unlock app
+                    // If biometric dialog is shown, unlockApp() is called after user responds
+                    // If no dialog shown, unlockApp() is called immediately
+                    offerBiometricEnrollment(keyManager) {
+                        unlockApp()
+                    }
                 }
             } else {
                 // Password incorrect
@@ -252,6 +257,45 @@ class LockActivity : AppCompatActivity() {
             }
         }
 
+    }
+
+    private fun showTotpDialog(keyManager: KeyManager) {
+        val dialogView = layoutInflater.inflate(android.R.layout.simple_list_item_1, null)
+        // Build a simple dialog with an EditText for the TOTP code
+        val input = EditText(this).apply {
+            hint = "6-digit code"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            filters = arrayOf(android.text.InputFilter.LengthFilter(6))
+            textSize = 22f
+            gravity = android.view.Gravity.CENTER
+            setPadding(48, 32, 48, 32)
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Two-Factor Authentication")
+            .setMessage("Enter the code from your authenticator app")
+            .setView(input)
+            .setPositiveButton("Verify") { _, _ ->
+                val code = input.text.toString().trim()
+                val secret = com.shieldmessenger.utils.TotpHelper.getSecret(this)
+                if (secret != null && com.shieldmessenger.utils.TotpHelper.verifyCode(secret, code)) {
+                    Log.i("LockActivity", "TOTP verified successfully")
+                    offerBiometricEnrollment(keyManager) {
+                        unlockApp()
+                    }
+                } else {
+                    Log.w("LockActivity", "Invalid TOTP code")
+                    hasAuthenticated = false
+                    ThemedToast.show(this, "Invalid code. Please try again.")
+                    findViewById<EditText>(R.id.passwordInput).text.clear()
+                }
+            }
+            .setNegativeButton("Cancel") { _, _ ->
+                hasAuthenticated = false
+                findViewById<EditText>(R.id.passwordInput).text.clear()
+            }
+            .setCancelable(false)
+            .show()
     }
 
     private fun setupForgotPasswordText() {

@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface">
+
+    <!-- Header -->
+    <LinearLayout
+        android:id="@+id/header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="16dp"
+        android:fitsSystemWindows="true"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <FrameLayout
+            android:id="@+id/backButton"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:background="@drawable/top_icon_bg"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_back_arrow"
+                android:contentDescription="Back" />
+
+        </FrameLayout>
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Two-Factor Auth"
+            android:textSize="24sp"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:fontFamily="@font/space_grotesk_bold"
+            android:gravity="center" />
+
+        <View
+            android:layout_width="42dp"
+            android:layout_height="42dp" />
+
+    </LinearLayout>
+
+    <!-- Content -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:fillViewport="true"
+        android:scrollbars="none"
+        app:layout_constraintTop_toBottomOf="@id/header"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="32dp"
+            android:gravity="center_horizontal">
+
+            <!-- Setup View (shown when 2FA not enabled) -->
+            <LinearLayout
+                android:id="@+id/setupSection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Add an extra layer of security to your account. Scan the QR code below with an authenticator app (Google Authenticator, Authy, etc.)."
+                    android:textSize="14sp"
+                    android:textColor="#AAAAAA"
+                    android:fontFamily="@font/poppins_medium"
+                    android:lineSpacingExtra="4dp"
+                    android:layout_marginBottom="24dp" />
+
+                <!-- QR Code Image -->
+                <ImageView
+                    android:id="@+id/qrCodeImage"
+                    android:layout_width="200dp"
+                    android:layout_height="200dp"
+                    android:layout_marginBottom="16dp"
+                    android:background="@drawable/settings_box_bg"
+                    android:padding="8dp"
+                    android:contentDescription="TOTP QR Code" />
+
+                <!-- Manual Secret Key -->
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Or enter this key manually:"
+                    android:textSize="12sp"
+                    android:textColor="#888888"
+                    android:fontFamily="@font/poppins_medium"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/secretKeyText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textSize="14sp"
+                    android:textColor="#4CAF50"
+                    android:fontFamily="@font/space_grotesk_bold"
+                    android:textIsSelectable="true"
+                    android:layout_marginBottom="24dp" />
+
+                <!-- Verification Code Input -->
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Enter the 6-digit code from your authenticator app to verify:"
+                    android:textSize="14sp"
+                    android:textColor="#AAAAAA"
+                    android:fontFamily="@font/poppins_medium"
+                    android:layout_marginBottom="12dp" />
+
+                <EditText
+                    android:id="@+id/totpCodeInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:background="@drawable/settings_box_bg"
+                    android:hint="000000"
+                    android:textColorHint="#555555"
+                    android:textColor="#FFFFFF"
+                    android:textSize="24sp"
+                    android:fontFamily="@font/space_grotesk_bold"
+                    android:gravity="center"
+                    android:inputType="number"
+                    android:maxLength="6"
+                    android:layout_marginBottom="16dp" />
+
+                <TextView
+                    android:id="@+id/verifyButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:text="Enable 2FA"
+                    android:textSize="16sp"
+                    android:textColor="#000000"
+                    android:fontFamily="@font/poppins_medium"
+                    android:background="@drawable/badge_bg"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+            </LinearLayout>
+
+            <!-- Enabled View (shown when 2FA is active) -->
+            <LinearLayout
+                android:id="@+id/enabledSection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center_horizontal"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="64dp"
+                    android:layout_height="64dp"
+                    android:src="@drawable/ic_advanced_security"
+                    android:layout_marginBottom="16dp"
+                    android:layout_marginTop="32dp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Two-Factor Authentication is Enabled"
+                    android:textSize="18sp"
+                    android:textColor="#4CAF50"
+                    android:fontFamily="@font/space_grotesk_bold"
+                    android:layout_marginBottom="12dp"
+                    android:gravity="center" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Your account is protected with an additional TOTP code. You will be asked for the code every time you log in."
+                    android:textSize="14sp"
+                    android:textColor="#AAAAAA"
+                    android:fontFamily="@font/poppins_medium"
+                    android:lineSpacingExtra="4dp"
+                    android:gravity="center"
+                    android:layout_marginBottom="32dp" />
+
+                <TextView
+                    android:id="@+id/disableButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:gravity="center"
+                    android:text="Disable 2FA"
+                    android:textSize="16sp"
+                    android:textColor="#FF5555"
+                    android:fontFamily="@font/poppins_medium"
+                    android:background="@drawable/settings_box_bg"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </ScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

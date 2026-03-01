@@ -170,6 +170,14 @@ class ChatActivity : BaseActivity() {
         uri?.let { handleSelectedImage(it) }
     }
 
+    // File picker launcher
+    private val fileLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        isWaitingForMediaResult = false
+        uri?.let { handleSelectedFile(it) }
+    }
+
     private val cameraLauncher = registerForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { success: Boolean ->
@@ -733,6 +741,11 @@ class ChatActivity : BaseActivity() {
             startActivity(intent)
         }
 
+        // Video call button - starts video call with full signaling
+        findViewById<View>(R.id.videoCallButton).setOnClickListener {
+            startVideoCall()
+        }
+
         // Attachment panel (inline — replaces keyboard like media panel)
         attachmentPanel = findViewById(R.id.attachmentPanel)
         setupAttachmentPanel()
@@ -885,7 +898,7 @@ class ChatActivity : BaseActivity() {
         // File action
         attachmentPanel.findViewById<View>(R.id.actionFile).setOnClickListener {
             hideAttachmentPanel()
-            ThemedToast.show(this, "File sharing coming soon")
+            openFilePicker()
         }
 
         // SecurePay action
@@ -1189,6 +1202,98 @@ class ChatActivity : BaseActivity() {
             .apply()
 
         galleryLauncher.launch("image/*")
+    }
+
+    private fun openFilePicker() {
+        isWaitingForCameraGallery = true
+        getSharedPreferences("app_lifecycle", MODE_PRIVATE)
+            .edit()
+            .putBoolean("waiting_for_camera_gallery", true)
+            .apply()
+        fileLauncher.launch("*/*")
+    }
+
+    private fun handleSelectedFile(uri: Uri) {
+        lifecycleScope.launch {
+            try {
+                val fileData = withContext(Dispatchers.IO) {
+                    contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                }
+
+                if (fileData == null) {
+                    ThemedToast.show(this@ChatActivity, "Failed to read file")
+                    return@launch
+                }
+
+                // Max 2MB for files over Tor
+                val fileSizeKB = fileData.size / 1024
+                if (fileSizeKB > 2048) {
+                    ThemedToast.show(this@ChatActivity, "File too large (${fileSizeKB}KB). Max 2MB.")
+                    return@launch
+                }
+
+                // Get filename from URI
+                val fileName = getFileNameFromUri(uri) ?: "file"
+                val fileSizeStr = formatFileSize(fileData.size.toLong())
+
+                sendFileMessage(fileData, fileName, fileSizeStr)
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to handle file", e)
+                ThemedToast.show(this@ChatActivity, "Failed to send file: ${e.message}")
+            }
+        }
+    }
+
+    private fun getFileNameFromUri(uri: Uri): String? {
+        var name: String? = null
+        if (uri.scheme == "content") {
+            val cursor = contentResolver.query(uri, null, null, null, null)
+            cursor?.use {
+                if (it.moveToFirst()) {
+                    val idx = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    if (idx >= 0) name = it.getString(idx)
+                }
+            }
+        }
+        return name ?: uri.lastPathSegment
+    }
+
+    private fun formatFileSize(bytes: Long): String {
+        return when {
+            bytes < 1024 -> "$bytes B"
+            bytes < 1024 * 1024 -> "${bytes / 1024} KB"
+            else -> String.format("%.1f MB", bytes / (1024.0 * 1024.0))
+        }
+    }
+
+    private fun sendFileMessage(fileData: ByteArray, fileName: String, fileSizeStr: String) {
+        lifecycleScope.launch {
+            try {
+                val fileBase64 = Base64.encodeToString(fileData, Base64.NO_WRAP)
+
+                val result = messageService.sendFileMessage(
+                    contactId = contactId,
+                    fileBase64 = fileBase64,
+                    fileName = fileName,
+                    fileSizeStr = fileSizeStr,
+                    onMessageSaved = { savedMessage ->
+                        runOnUiThread {
+                            lifecycleScope.launch { loadMessages() }
+                        }
+                    }
+                )
+
+                if (result.isSuccess) {
+                    Log.i(TAG, "File message sent successfully")
+                } else {
+                    ThemedToast.show(this@ChatActivity, "Failed to send file")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send file message", e)
+                ThemedToast.show(this@ChatActivity, "Failed to send file: ${e.message}")
+            }
+        }
     }
 
     private fun handleSelectedImage(uri: Uri) {
@@ -1864,7 +1969,13 @@ class ChatActivity : BaseActivity() {
             return
         }
 
-        Log.d(TAG, "Sending message: $messageText (self-destruct=$enableSelfDestruct, read-receipt=$enableReadReceipt)")
+        // Check privacy preference for read receipts
+        val actualReadReceipt = if (enableReadReceipt) {
+            getSharedPreferences("privacy_prefs", MODE_PRIVATE)
+                .getBoolean("read_receipts_enabled", true)
+        } else false
+
+        Log.d(TAG, "Sending message: $messageText (self-destruct=$enableSelfDestruct, read-receipt=$actualReadReceipt)")
 
         // Clear input synchronously on main thread before any async work
         messageInput.text.clear()
@@ -1897,7 +2008,7 @@ class ChatActivity : BaseActivity() {
                     contactId = contactId,
                     plaintext = messageText,
                     selfDestructDurationMs = if (enableSelfDestruct) 24 * 60 * 60 * 1000L else null,
-                    enableReadReceipt = enableReadReceipt,
+                    enableReadReceipt = actualReadReceipt,
                     onMessageSaved = { savedMessage ->
                         // Message saved to DB - update UI immediately to show PENDING message
                         Log.d(TAG, "Message saved to DB, updating UI immediately")
@@ -2639,6 +2750,176 @@ class ChatActivity : BaseActivity() {
 
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to start voice call", e)
+                ThemedToast.show(this@ChatActivity, "Failed to start call: ${e.message}")
+                isInitiatingCall = false
+            }
+        }
+    }
+
+    /**
+     * Start video call with this contact (same signaling as voice call, launches VideoCallActivity)
+     */
+    private fun startVideoCall() {
+        if (isInitiatingCall) {
+            Log.w(TAG, "Call initiation already in progress - ignoring duplicate request")
+            return
+        }
+        isInitiatingCall = true
+
+        lifecycleScope.launch {
+            try {
+                // Check permissions
+                val neededPermissions = mutableListOf<String>()
+                if (ContextCompat.checkSelfPermission(this@ChatActivity, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                    neededPermissions.add(Manifest.permission.RECORD_AUDIO)
+                }
+                if (ContextCompat.checkSelfPermission(this@ChatActivity, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                    neededPermissions.add(Manifest.permission.CAMERA)
+                }
+                if (neededPermissions.isNotEmpty()) {
+                    ActivityCompat.requestPermissions(this@ChatActivity, neededPermissions.toTypedArray(), PERMISSION_REQUEST_CODE)
+                    isInitiatingCall = false
+                    return@launch
+                }
+
+                val keyManager = KeyManager.getInstance(this@ChatActivity)
+                val dbPassphrase = keyManager.getDatabasePassphrase()
+                val db = ShieldMessengerDatabase.getInstance(this@ChatActivity, dbPassphrase)
+                val contact = withContext(Dispatchers.IO) { db.contactDao().getContactById(contactId) }
+
+                if (contact == null) {
+                    ThemedToast.show(this@ChatActivity, "Contact not found")
+                    isInitiatingCall = false
+                    return@launch
+                }
+
+                if (contact.voiceOnion.isNullOrEmpty()) {
+                    ThemedToast.show(this@ChatActivity, "Contact has no voice address")
+                    isInitiatingCall = false
+                    return@launch
+                }
+
+                if (contact.messagingOnion == null) {
+                    ThemedToast.show(this@ChatActivity, "Contact has no messaging address")
+                    isInitiatingCall = false
+                    return@launch
+                }
+
+                val callId = UUID.randomUUID().toString()
+                val crypto = VoiceCallCrypto()
+                val ephemeralKeypair = crypto.generateEphemeralKeypair()
+
+                // Launch VideoCallActivity immediately (shows "Calling..." screen)
+                val intent = Intent(this@ChatActivity, VideoCallActivity::class.java)
+                intent.putExtra(VideoCallActivity.EXTRA_CONTACT_ID, contactId)
+                intent.putExtra(VideoCallActivity.EXTRA_CONTACT_NAME, contactName)
+                intent.putExtra(VideoCallActivity.EXTRA_CALL_ID, callId)
+                intent.putExtra(VideoCallActivity.EXTRA_IS_OUTGOING, true)
+                intent.putExtra(VideoCallActivity.EXTRA_OUR_EPHEMERAL_SECRET_KEY, ephemeralKeypair.secretKey.asBytes)
+                startActivity(intent)
+
+                val torManager = com.shieldmessenger.crypto.TorManager.getInstance(this@ChatActivity)
+                val myVoiceOnion = torManager.getVoiceOnionAddress() ?: ""
+                val ourX25519PublicKey = keyManager.getEncryptionPublicKey()
+
+                Log.i(TAG, "VIDEO_CALL_OFFER_SEND attempt=1 call_id=$callId")
+                val success = withContext(Dispatchers.IO) {
+                    CallSignaling.sendCallOffer(
+                        recipientX25519PublicKey = contact.x25519PublicKeyBytes,
+                        recipientOnion = contact.voiceOnion!!,
+                        callId = callId,
+                        ephemeralPublicKey = ephemeralKeypair.publicKey.asBytes,
+                        voiceOnion = myVoiceOnion,
+                        ourX25519PublicKey = ourX25519PublicKey,
+                        numCircuits = 1
+                    )
+                }
+
+                if (!success) {
+                    ThemedToast.show(this@ChatActivity, "Failed to send call offer")
+                    isInitiatingCall = false
+                    return@launch
+                }
+
+                val callManager = VoiceCallManager.getInstance(this@ChatActivity)
+
+                val timeoutJob = lifecycleScope.launch {
+                    while (isActive) {
+                        delay(1000)
+                        callManager.checkPendingCallTimeouts()
+                    }
+                }
+
+                val offerRetryInterval = 2000L
+                val callSetupDeadline = 25000L
+                val setupStartTime = System.currentTimeMillis()
+                var offerAttemptNum = 1
+
+                val offerRetryJob = lifecycleScope.launch {
+                    while (isActive) {
+                        delay(offerRetryInterval)
+                        val elapsed = System.currentTimeMillis() - setupStartTime
+                        if (elapsed >= callSetupDeadline) break
+                        offerAttemptNum++
+                        Log.i(TAG, "VIDEO_CALL_OFFER_SEND attempt=$offerAttemptNum call_id=$callId")
+                        withContext(Dispatchers.IO) {
+                            CallSignaling.sendCallOffer(
+                                recipientX25519PublicKey = contact.x25519PublicKeyBytes,
+                                recipientOnion = contact.voiceOnion!!,
+                                callId = callId,
+                                ephemeralPublicKey = ephemeralKeypair.publicKey.asBytes,
+                                voiceOnion = myVoiceOnion,
+                                ourX25519PublicKey = ourX25519PublicKey,
+                                numCircuits = 1
+                            )
+                        }
+                    }
+                }
+
+                callManager.registerPendingOutgoingCall(
+                    callId = callId,
+                    contactOnion = contact.voiceOnion!!,
+                    contactEd25519PublicKey = contact.ed25519PublicKeyBytes,
+                    contactName = contactName,
+                    ourEphemeralPublicKey = ephemeralKeypair.publicKey.asBytes,
+                    onAnswered = { theirEphemeralKey ->
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            timeoutJob.cancel()
+                            offerRetryJob.cancel()
+                            VideoCallActivity.onCallAnswered(callId, theirEphemeralKey)
+                            isInitiatingCall = false
+                        }
+                    },
+                    onRejected = { reason ->
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            timeoutJob.cancel()
+                            offerRetryJob.cancel()
+                            VideoCallActivity.onCallRejected(callId, reason)
+                            isInitiatingCall = false
+                        }
+                    },
+                    onBusy = {
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            timeoutJob.cancel()
+                            offerRetryJob.cancel()
+                            VideoCallActivity.onCallBusy(callId)
+                            isInitiatingCall = false
+                        }
+                    },
+                    onTimeout = {
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            timeoutJob.cancel()
+                            offerRetryJob.cancel()
+                            VideoCallActivity.onCallTimeout(callId)
+                            isInitiatingCall = false
+                        }
+                    }
+                )
+
+                Log.i(TAG, "Video call initiated to $contactName with call ID: $callId")
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to start video call", e)
                 ThemedToast.show(this@ChatActivity, "Failed to start call: ${e.message}")
                 isInitiatingCall = false
             }

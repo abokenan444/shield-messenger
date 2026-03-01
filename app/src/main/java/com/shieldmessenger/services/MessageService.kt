@@ -693,6 +693,129 @@ class MessageService(private val context: Context) {
     }
 
     /**
+     * Send a file message — encrypted file bytes sent via Tor.
+     * Wire type 0x0F (FILE).
+     */
+    suspend fun sendFileMessage(
+        contactId: Long,
+        fileBase64: String,
+        fileName: String,
+        fileSizeStr: String,
+        onMessageSaved: ((Message) -> Unit)? = null
+    ): Result<Message> = withContext(Dispatchers.IO) {
+        try {
+            Log.d(TAG, "Sending file message: $fileName ($fileSizeStr) to contact ID: $contactId")
+
+            val dbPassphrase = keyManager.getDatabasePassphrase()
+            val database = ShieldMessengerDatabase.getInstance(context, dbPassphrase)
+            val contact = database.contactDao().getContactById(contactId)
+                ?: return@withContext Result.failure(Exception("Contact not found"))
+
+            val ourPublicKey = keyManager.getSigningPublicKey()
+            val ourPrivateKey = keyManager.getSigningKeyBytes()
+            val ourPublicKeyBase64 = android.util.Base64.encodeToString(ourPublicKey, android.util.Base64.NO_WRAP)
+
+            val messageNonce = generateMessageNonce()
+            val messageId = generateDeterministicMessageId(
+                plaintext = fileBase64,
+                senderEd25519Base64 = ourPublicKeyBase64,
+                recipientEd25519Base64 = contact.publicKeyBase64,
+                messageNonce = messageNonce
+            )
+
+            val fileBytes = Base64.decode(fileBase64, Base64.NO_WRAP)
+            val keyChain = KeyChainManager.getKeyChain(context, contactId)
+                ?: throw Exception("Key chain not found for contact ${contact.displayName}")
+
+            // FILE format: [0x0F][fileBytes...]
+            val plaintextWithType = byteArrayOf(0x0F) + fileBytes
+            val plaintextForEncryption = String(plaintextWithType, Charsets.ISO_8859_1)
+
+            val result = RustBridge.encryptMessageWithEvolution(
+                plaintextForEncryption,
+                keyChain.sendChainKeyBytes,
+                keyChain.sendCounter
+            )
+            val encryptedBytes = result.ciphertext
+            val evolvedKeyBase64 = android.util.Base64.encodeToString(result.evolvedChainKey, android.util.Base64.NO_WRAP)
+            val newSendCounter = keyChain.sendCounter + 1
+            val encryptedBase64 = Base64.encodeToString(encryptedBytes, Base64.NO_WRAP)
+            val nonce = encryptedBytes.sliceArray(9 until 33)
+            val nonceBase64 = Base64.encodeToString(nonce, Base64.NO_WRAP)
+
+            val messageData = (messageId + System.currentTimeMillis()).toByteArray()
+            val signature = RustBridge.signData(messageData, ourPrivateKey)
+            val signatureBase64 = Base64.encodeToString(signature, Base64.NO_WRAP)
+
+            val currentTime = System.currentTimeMillis()
+            val pingId = generatePingId()
+
+            // Save file encrypted at rest
+            val fileDir = java.io.File(context.filesDir, "file_messages")
+            fileDir.mkdirs()
+            val ext = fileName.substringAfterLast(".", "bin")
+            val storedFile = java.io.File(fileDir, "$messageId.$ext.enc")
+            val encryptedFileBytes = keyManager.encryptImageFile(fileBytes)
+            storedFile.writeBytes(encryptedFileBytes)
+
+            val message = Message(
+                contactId = contactId,
+                messageId = messageId,
+                encryptedContent = "$fileName|$fileSizeStr",
+                messageType = Message.MESSAGE_TYPE_FILE,
+                attachmentType = "file",
+                attachmentData = storedFile.absolutePath,
+                isSentByMe = true,
+                timestamp = currentTime,
+                status = Message.STATUS_PING_SENT,
+                signatureBase64 = signatureBase64,
+                nonceBase64 = nonceBase64,
+                messageNonce = messageNonce,
+                requiresReadReceipt = false,
+                pingId = pingId,
+                pingTimestamp = currentTime,
+                encryptedPayload = encryptedBase64,
+                retryCount = 0,
+                lastRetryTimestamp = currentTime
+            )
+
+            val savedMessageId = database.withTransaction {
+                database.contactKeyChainDao().updateSendChainKey(
+                    contactId = contactId,
+                    newSendChainKeyBase64 = evolvedKeyBase64,
+                    newSendCounter = newSendCounter,
+                    timestamp = System.currentTimeMillis()
+                )
+                database.messageDao().insertMessage(message)
+            }
+            val savedMessage = message.copy(id = savedMessageId)
+
+            onMessageSaved?.invoke(savedMessage)
+
+            val intent = android.content.Intent("com.shieldmessenger.NEW_PING")
+            intent.setPackage(context.packageName)
+            intent.putExtra("CONTACT_ID", contactId)
+            context.sendBroadcast(intent)
+
+            try {
+                val sendResult = sendPingForMessage(savedMessage)
+                if (sendResult.isSuccess) {
+                    Log.i(TAG, "File Ping sent successfully")
+                } else {
+                    Log.w(TAG, "File Ping send failed: ${sendResult.exceptionOrNull()?.message}")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "File immediate Ping failed, retry worker will handle: ${e.message}")
+            }
+
+            Result.success(savedMessage)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send file message", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Send a sticker message — asset path is sent as the payload so receiver
      * can look up the same bundled Lottie animation. Wire type 0x0E.
      */
