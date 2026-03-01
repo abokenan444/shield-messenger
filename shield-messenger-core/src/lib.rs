@@ -31,6 +31,7 @@ pub mod audio;
 pub mod ffi;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod network;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod nlx402;
 
 // ── Re-export main types (backward-compatible) ─────────────────────────────
@@ -41,6 +42,7 @@ pub use crypto::{
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use network::{PingPongManager, PingToken, PongToken, TorManager};
+#[cfg(not(target_arch = "wasm32"))]
 pub use nlx402::{
     create_quote, extract_quote_hash_from_memo, verify_payment, verify_payment_simple,
     PaymentQuote, VerificationResult,

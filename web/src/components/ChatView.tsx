@@ -5,6 +5,7 @@ import { useContactStore } from '../lib/store/contactStore';
 import { useTranslation } from '../lib/i18n';
 import { ShieldIcon } from './icons/ShieldIcon';
 import { IdentityKeyChangeBanner } from './IdentityKeyChangeBanner';
+import { sendMessage as protocolSendMessage, onMessage } from '../lib/protocolClient';
 
 interface ChatViewProps {
   roomId: string;
@@ -37,59 +38,37 @@ export function ChatView({ roomId }: ChatViewProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Load mock messages
+  // Listen for incoming messages from the protocol layer
   useEffect(() => {
-    const { setMessages } = useChatStore.getState();
-    if (messages.length === 0) {
-      const mockMessages: Message[] = [
-        {
-          id: '1',
-          roomId,
-          senderId: 'sl_other',
-          senderName: room?.name || 'مستخدم',
-          content: 'مرحباً! 👋',
-          timestamp: Date.now() - 600000,
-          type: 'text',
-          encrypted: true,
-          status: 'read',
-        },
-        {
-          id: '2',
-          roomId,
-          senderId: userId || 'sl_me',
-          senderName: 'أنا',
-          content: 'أهلاً! كيف حالك؟',
-          timestamp: Date.now() - 300000,
-          type: 'text',
-          encrypted: true,
-          status: 'read',
-        },
-        {
-          id: '3',
-          roomId,
-          senderId: 'sl_other',
-          senderName: room?.name || 'مستخدم',
-          content: 'بخير الحمد لله. هل جربت التشفير الجديد؟ 🔐',
-          timestamp: Date.now() - 120000,
-          type: 'text',
-          encrypted: true,
-          status: 'delivered',
-        },
-      ];
-      setMessages(roomId, mockMessages);
-    }
-  }, [roomId, userId, room?.name, messages.length]);
+    const unsubscribe = onMessage((conversationId, msg) => {
+      const incomingMessage: Message = {
+        id: msg.id,
+        roomId: conversationId,
+        senderId: msg.senderId,
+        senderName: msg.senderId,
+        content: msg.content,
+        timestamp: msg.timestamp,
+        type: 'text',
+        encrypted: true,
+        status: 'delivered',
+      };
+      addMessage(conversationId, incomingMessage);
+    });
+    return unsubscribe;
+  }, [addMessage]);
 
   const handleSend = (e: FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
+
+    const content = input.trim();
 
     const message: Message = {
       id: crypto.randomUUID(),
       roomId,
       senderId: userId || 'sl_me',
       senderName: 'أنا',
-      content: input.trim(),
+      content,
       timestamp: Date.now(),
       type: 'text',
       encrypted: true,
@@ -99,14 +78,22 @@ export function ChatView({ roomId }: ChatViewProps) {
     addMessage(roomId, message);
     setInput('');
 
-    // Simulate delivery
-    setTimeout(() => {
-      const { messages: currentMessages, setMessages } = useChatStore.getState();
-      const updated = (currentMessages[roomId] || []).map((m) =>
-        m.id === message.id ? { ...m, status: 'sent' as const } : m,
-      );
-      setMessages(roomId, updated);
-    }, 500);
+    // Send via protocol client (E2E encrypted)
+    protocolSendMessage(roomId, content)
+      .then(() => {
+        const { messages: currentMessages, setMessages } = useChatStore.getState();
+        const updated = (currentMessages[roomId] || []).map((m) =>
+          m.id === message.id ? { ...m, status: 'sent' as const } : m,
+        );
+        setMessages(roomId, updated);
+      })
+      .catch(() => {
+        const { messages: currentMessages, setMessages } = useChatStore.getState();
+        const updated = (currentMessages[roomId] || []).map((m) =>
+          m.id === message.id ? { ...m, status: 'failed' as const } : m,
+        );
+        setMessages(roomId, updated);
+      });
   };
 
   const formatTime = (ts: number) => {

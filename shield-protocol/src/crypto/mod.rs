@@ -11,6 +11,7 @@ pub mod pqc;
 pub mod ratchet;
 pub mod replay_cache;
 pub mod signing;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod zkproofs;
 
 pub use constant_time::{eq_24, eq_32, eq_64, eq_slices};
@@ -40,4 +41,5 @@ pub use pqc::{
 };
 pub use ratchet::{PQDoubleRatchet, RatchetHeader, RatchetState};
 pub use signing::{generate_keypair, sign_data, verify_signature};
+#[cfg(not(target_arch = "wasm32"))]
 pub use zkproofs::{generate_range_proof, verify_range_proof};
