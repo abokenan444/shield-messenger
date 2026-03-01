@@ -52,12 +52,9 @@ class WelcomeActivity : AppCompatActivity() {
         // WindowManager.LayoutParams.FLAG_SECURE
         // )
 
-        // Make status bar white with dark icons
+        // Make status bar black to match app theme
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            @Suppress("DEPRECATION")
-            window.statusBarColor = Color.WHITE
-            @Suppress("DEPRECATION")
-            window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+            window.statusBarColor = Color.BLACK
         }
 
         setContentView(R.layout.activity_welcome)

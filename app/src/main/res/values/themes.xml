@@ -129,9 +129,9 @@
         <item name="android:gravity">center</item>
     </style>
 
-    <!-- Theme for WelcomeActivity - disables starting window preview to prevent cached screenshot flash -->
+    <!-- Theme for WelcomeActivity - same as base with explicit black window background -->
     <style name="Theme.ShieldMessenger.NoStartingWindow" parent="Theme.ShieldMessenger">
-        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowBackground">#000000</item>
     </style>
 
     <!-- Switch Theme -->
