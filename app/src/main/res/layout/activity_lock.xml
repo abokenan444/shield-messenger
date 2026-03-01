@@ -11,7 +11,7 @@
         android:id="@+id/logoImage"
         android:layout_width="140dp"
         android:layout_height="141dp"
-        android:src="@drawable/secure_logo_new"
+        android:src="@drawable/ic_shield_messenger_logo"
         android:layout_marginTop="120dp"
         android:contentDescription="Shield Messenger Logo"
         app:layout_constraintTop_toTopOf="parent"

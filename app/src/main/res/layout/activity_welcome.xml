@@ -33,7 +33,7 @@
         android:id="@+id/logoImage"
         android:layout_width="200dp"
         android:layout_height="200dp"
-        android:src="@drawable/secure_logo_new"
+        android:src="@drawable/ic_shield_messenger_logo"
         android:contentDescription="Shield Messenger Logo"
         android:layout_marginTop="180dp"
         app:layout_constraintTop_toTopOf="parent"
@@ -73,12 +73,12 @@
         app:layout_constraintEnd_toEndOf="parent"
         android:clickable="false" />
 
-    <!-- SECURE LEGION Text at Bottom -->
+    <!-- SHIELD MESSENGER Text at Bottom -->
     <TextView
         android:id="@+id/appNameText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="SECURE LEGION"
+        android:text="SHIELD MESSENGER"
         android:fontFamily="@font/space_grotesk_bold"
         android:textSize="20sp"
         android:textColor="?attr/colorOnSurfaceVariant"

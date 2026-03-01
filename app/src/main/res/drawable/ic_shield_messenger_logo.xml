@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+
+    <!-- Hexagonal Shield Background with Gradient -->
+    <path
+        android:pathData="M50,5 L10,25 V55 C10,75 50,95 50,95 C50,95 90,75 90,55 V25 L50,5 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="50"
+                android:startY="5"
+                android:endX="50"
+                android:endY="95"
+                android:type="linear">
+                <item android:offset="0" android:color="#00FF41" /> <!-- Neon Green -->
+                <item android:offset="1" android:color="#008F11" /> <!-- Dark Matrix Green -->
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Inner Shield (Border Effect) -->
+    <path
+        android:pathData="M50,12 L18,28 V52 C18,68 50,85 50,85 C50,85 82,68 82,52 V28 L50,12 Z"
+        android:fillColor="#000000" /> <!-- Black Core -->
+
+    <!-- Neon Glow Border -->
+    <path
+        android:pathData="M50,15 L22,30 V50 C22,64 50,78 50,78 C50,78 78,64 78,50 V30 L50,15 Z"
+        android:strokeWidth="1.5"
+        android:strokeColor="#00FF41" />
+
+    <!-- Symbol $M (The Core Identity) -->
+    <group
+        android:translateX="32"
+        android:translateY="35">
+        
+        <!-- Letter M -->
+        <path
+            android:fillColor="#00FF41"
+            android:pathData="M2,25 V5 H10 L18,18 L26,5 H34 V25 H28 V12 L18,22 L8,12 V25 Z" />
+            
+        <!-- Dollar Sign Vertical Bar (S) -->
+        <path
+            android:fillColor="#00FF41"
+            android:pathData="M16,2 V28 H20 V2 Z" />
+            
+        <!-- Dollar Sign Curve (Top) -->
+        <path
+            android:fillColor="#00FF41"
+            android:pathData="M10,8 C10,5 26,5 26,8"
+            android:strokeWidth="2"
+            android:strokeColor="#00FF41" />
+            
+        <!-- Dollar Sign Curve (Bottom) -->
+        <path
+            android:fillColor="#00FF41"
+            android:pathData="M10,22 C10,25 26,25 26,22"
+            android:strokeWidth="2"
+            android:strokeColor="#00FF41" />
+    </group>
+
+    <!-- Bottom Checkmark (Verified/Safe) -->
+    <path
+        android:pathData="M40,70 L48,78 L65,60"
+        android:strokeWidth="4"
+        android:strokeColor="#00FF41"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+</vector>
