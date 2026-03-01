@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const ImportWalletScreen: React.FC<{navigation: any}> = ({navigation}) => {
   const [seedPhrase, setSeedPhrase] = useState('');
@@ -24,17 +25,17 @@ const ImportWalletScreen: React.FC<{navigation: any}> = ({navigation}) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Import Wallet</Text>
+        <Text style={styles.title}>{t('import_wallet')}</Text>
         <View style={{width: 60}} />
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.sectionTitle}>Monero 25-Word Seed</Text>
+        <Text style={styles.sectionTitle}>{t('monero_25_word_seed')}</Text>
         <TextInput
           style={styles.seedInput}
-          placeholder="Enter your 25-word mnemonic seed..."
+          placeholder={t('enter_25_word_seed')}
           placeholderTextColor={Colors.textTertiary}
           value={seedPhrase}
           onChangeText={setSeedPhrase}
@@ -45,10 +46,10 @@ const ImportWalletScreen: React.FC<{navigation: any}> = ({navigation}) => {
         />
         <Text style={[styles.wordCount, validSeed && styles.wordCountValid]}>{wordCount}/25 words</Text>
 
-        <Text style={styles.sectionTitle}>Restore Height (optional)</Text>
+        <Text style={styles.sectionTitle}>{t('restore_height_optional')}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Block height (speeds up sync)"
+          placeholder={t('block_height_hint')}
           placeholderTextColor={Colors.textTertiary}
           value={restoreHeight}
           onChangeText={setRestoreHeight}
@@ -62,16 +63,16 @@ const ImportWalletScreen: React.FC<{navigation: any}> = ({navigation}) => {
           {importing ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator color={Colors.textOnPrimary} />
-              <Text style={styles.importBtnText}> Syncing blockchain...</Text>
+              <Text style={styles.importBtnText}> {t('syncing_blockchain')}</Text>
             </View>
           ) : (
-            <Text style={styles.importBtnText}>Import Wallet</Text>
+            <Text style={styles.importBtnText}>{t('import_wallet')}</Text>
           )}
         </TouchableOpacity>
 
         <View style={styles.warningCard}>
-          <Text style={styles.warningTitle}>⚠️ Security</Text>
-          <Text style={styles.warningText}>Your seed phrase will be encrypted and stored locally. Never share it with anyone.</Text>
+          <Text style={styles.warningTitle}>⚠️ {t('security')}</Text>
+          <Text style={styles.warningText}>{t('seed_encrypted_locally')}</Text>
         </View>
       </View>
     </View>

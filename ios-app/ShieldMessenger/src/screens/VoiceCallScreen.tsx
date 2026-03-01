@@ -7,6 +7,7 @@ import {
   Animated,
 } from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 interface VoiceCallScreenProps {
   route: any;
@@ -68,10 +69,10 @@ const VoiceCallScreen: React.FC<VoiceCallScreenProps> = ({route, navigation}) =>
 
   const getStatusText = (): string => {
     switch (callState) {
-      case 'connecting': return 'Establishing Tor circuit...';
-      case 'ringing': return 'Ringing...';
+      case 'connecting': return t('establishing_circuit');
+      case 'ringing': return t('ringing');
       case 'active': return formatDuration(duration);
-      case 'ended': return 'Call ended';
+      case 'ended': return t('call_ended');
     }
   };
 
@@ -80,7 +81,7 @@ const VoiceCallScreen: React.FC<VoiceCallScreenProps> = ({route, navigation}) =>
       {/* Encryption indicator */}
       <View style={styles.encryptionBar}>
         <Text style={styles.encryptionText}>
-          🔒 End-to-end encrypted via Tor
+          🔒 {t('encrypted_e2e_tor')}
         </Text>
       </View>
 
@@ -111,17 +112,17 @@ const VoiceCallScreen: React.FC<VoiceCallScreenProps> = ({route, navigation}) =>
           <TouchableOpacity
             style={[styles.controlButton, isMuted && styles.controlButtonActive]}
             onPress={() => setIsMuted(!isMuted)}
-            accessibilityLabel={isMuted ? 'Unmute' : 'Mute'}>
+            accessibilityLabel={isMuted ? t('unmute') : t('mute')}>
             <Text style={styles.controlIcon}>{isMuted ? '🔇' : '🔊'}</Text>
-            <Text style={styles.controlLabel}>{isMuted ? 'Unmute' : 'Mute'}</Text>
+            <Text style={styles.controlLabel}>{isMuted ? t('unmute') : t('mute')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.controlButton, isSpeaker && styles.controlButtonActive]}
             onPress={() => setIsSpeaker(!isSpeaker)}
-            accessibilityLabel={isSpeaker ? 'Earpiece' : 'Speaker'}>
+            accessibilityLabel={isSpeaker ? t('earpiece') : t('speaker')}>
             <Text style={styles.controlIcon}>{isSpeaker ? '📢' : '🔈'}</Text>
-            <Text style={styles.controlLabel}>{isSpeaker ? 'Earpiece' : 'Speaker'}</Text>
+            <Text style={styles.controlLabel}>{isSpeaker ? t('earpiece') : t('speaker')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -129,7 +130,7 @@ const VoiceCallScreen: React.FC<VoiceCallScreenProps> = ({route, navigation}) =>
         <TouchableOpacity
           style={styles.endCallButton}
           onPress={endCall}
-          accessibilityLabel="End call"
+          accessibilityLabel={t('end_call')}
           accessibilityRole="button">
           <Text style={styles.endCallIcon}>📞</Text>
         </TouchableOpacity>

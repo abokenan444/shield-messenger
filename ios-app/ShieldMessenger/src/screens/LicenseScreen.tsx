@@ -1,6 +1,7 @@
 import React from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, ScrollView} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const licenses = [
   {name: 'ml-kem', version: '0.2.1', license: 'MIT/Apache-2.0', desc: 'Post-quantum key encapsulation mechanism'},
@@ -22,13 +23,13 @@ const LicenseScreen: React.FC<{navigation: any}> = ({navigation}) => {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Licenses</Text>
+        <Text style={styles.title}>{t('licenses')}</Text>
         <View style={{width: 60}} />
       </View>
 
-      <Text style={styles.subtitle}>Shield Messenger uses the following open source components</Text>
+      <Text style={styles.subtitle}>{t('licenses_subtitle')}</Text>
 
       {licenses.map(lib => (
         <View key={lib.name} style={styles.licenseCard}>
@@ -42,8 +43,7 @@ const LicenseScreen: React.FC<{navigation: any}> = ({navigation}) => {
       ))}
 
       <Text style={styles.footer}>
-        Shield Messenger itself is licensed under GPL-3.0.{'\n'}
-        Full license texts available in the source repository.
+        {t('license_footer')}
       </Text>
     </ScrollView>
   );

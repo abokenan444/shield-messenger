@@ -10,29 +10,23 @@ import {
   Platform,
   Alert,
   Vibration,
-  AccessibilityInfo,
 } from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
+import RustBridge from '../native/RustBridge';
+import * as Keychain from 'react-native-keychain';
 
 interface LockScreenProps {
   onUnlock: () => void;
 }
 
-/**
- * Lock Screen — PIN/Password entry with biometric fallback.
- *
- * Security features:
- * - Rate limiting after failed attempts
- * - Screen content hidden from task switcher (iOS)
- * - No password visible in accessibility announcements
- * - Constant-time comparison (delegated to Rust core)
- */
 const LockScreen: React.FC<LockScreenProps> = ({onUnlock}) => {
   const [password, setPassword] = useState('');
   const [attempts, setAttempts] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
   const [lockTimer, setLockTimer] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
+  const [isFirstLaunch, setIsFirstLaunch] = useState(false);
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -42,7 +36,33 @@ const LockScreen: React.FC<LockScreenProps> = ({onUnlock}) => {
       duration: 600,
       useNativeDriver: true,
     }).start();
+    // Check if password hash exists in Keychain
+    checkFirstLaunch();
+    // Auto-trigger biometric on launch
+    triggerBiometricOnMount();
   }, [fadeAnim]);
+
+  const checkFirstLaunch = async () => {
+    try {
+      const credentials = await Keychain.getGenericPassword({service: 'shield_password_hash'});
+      if (!credentials) {
+        setIsFirstLaunch(true);
+      }
+    } catch {
+      setIsFirstLaunch(true);
+    }
+  };
+
+  const triggerBiometricOnMount = async () => {
+    try {
+      const credentials = await Keychain.getGenericPassword({service: 'shield_password_hash'});
+      if (credentials) {
+        handleBiometric();
+      }
+    } catch {
+      // Biometric not available, user will enter password
+    }
+  };
 
   // Lockout timer
   useEffect(() => {
@@ -65,42 +85,81 @@ const LockScreen: React.FC<LockScreenProps> = ({onUnlock}) => {
     ]).start();
   }, [shakeAnim]);
 
-  const handleUnlock = useCallback(() => {
+  const handleUnlock = useCallback(async () => {
     if (isLocked) return;
     if (password.length < 4) {
       shakeAnimation();
       return;
     }
 
-    // TODO: Delegate to Rust core via NativeModule
-    // For now, accept any password >= 6 chars for development
-    const isValid = password.length >= 6;
-
-    if (isValid) {
-      setAttempts(0);
-      onUnlock();
-    } else {
-      const newAttempts = attempts + 1;
-      setAttempts(newAttempts);
-      shakeAnimation();
-
-      if (newAttempts >= 5) {
-        setIsLocked(true);
-        const lockDuration = Math.min(30 * Math.pow(2, newAttempts - 5), 3600);
-        setLockTimer(lockDuration);
-        Alert.alert(
-          'Too Many Attempts',
-          `Please wait ${lockDuration} seconds before trying again.`,
-        );
+    try {
+      if (isFirstLaunch) {
+        // First launch: hash password and store in Keychain
+        const hash = await RustBridge.hashPassword(password);
+        await Keychain.setGenericPassword('shield_user', hash, {
+          service: 'shield_password_hash',
+          accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+        });
+        // Also store password in biometric-protected entry
+        await Keychain.setGenericPassword('shield_user', password, {
+          service: 'shield_biometric',
+          accessControl: Keychain.ACCESS_CONTROL.BIOMETRY_ANY,
+          accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+        });
+        setIsFirstLaunch(false);
+        setAttempts(0);
+        onUnlock();
+      } else {
+        // Verify password against stored hash via Rust core
+        const credentials = await Keychain.getGenericPassword({service: 'shield_password_hash'});
+        if (credentials) {
+          const isValid = await RustBridge.verifyPassword(password, credentials.password);
+          if (isValid) {
+            setAttempts(0);
+            onUnlock();
+          } else {
+            handleFailedAttempt();
+          }
+        } else {
+          handleFailedAttempt();
+        }
       }
+    } catch {
+      handleFailedAttempt();
     }
     setPassword('');
-  }, [password, attempts, isLocked, onUnlock, shakeAnimation]);
+  }, [password, attempts, isLocked, isFirstLaunch, onUnlock, shakeAnimation]);
+
+  const handleFailedAttempt = () => {
+    const newAttempts = attempts + 1;
+    setAttempts(newAttempts);
+    shakeAnimation();
+    if (newAttempts >= 5) {
+      setIsLocked(true);
+      const lockDuration = Math.min(30 * Math.pow(2, newAttempts - 5), 3600);
+      setLockTimer(lockDuration);
+      Alert.alert(t('too_many_attempts'), t('wait_seconds').replace('%s', String(lockDuration)));
+    }
+  };
 
   const handleBiometric = useCallback(async () => {
-    // TODO: Integrate with react-native-keychain for biometric auth
-    AccessibilityInfo.announceForAccessibility('Biometric authentication requested');
-  }, []);
+    try {
+      const credentials = await Keychain.getGenericPassword({
+        service: 'shield_biometric',
+        authenticationPrompt: {
+          title: t('use_biometric'),
+          subtitle: t('app_name'),
+          cancel: t('cancel'),
+        },
+      });
+      if (credentials) {
+        setAttempts(0);
+        onUnlock();
+      }
+    } catch {
+      // Biometric failed or cancelled — user can enter password
+    }
+  }, [onUnlock]);
 
   return (
     <KeyboardAvoidingView
@@ -112,14 +171,14 @@ const LockScreen: React.FC<LockScreenProps> = ({onUnlock}) => {
           <View style={styles.logoCircle}>
             <Text style={styles.logoText}>🛡️</Text>
           </View>
-          <Text style={styles.appName}>Shield Messenger</Text>
-          <Text style={styles.tagline}>End-to-End Encrypted over Tor</Text>
+          <Text style={styles.appName}>{t('app_name')}</Text>
+          <Text style={styles.tagline}>{t('tagline_lock')}</Text>
         </View>
 
         {/* Tor Status Indicator */}
         <View style={styles.torStatus}>
           <View style={[styles.torDot, {backgroundColor: Colors.torConnecting}]} />
-          <Text style={styles.torStatusText}>Connecting to Tor...</Text>
+          <Text style={styles.torStatusText}>{t('connecting_to_tor')}</Text>
         </View>
 
         {/* Password Input */}
@@ -127,7 +186,7 @@ const LockScreen: React.FC<LockScreenProps> = ({onUnlock}) => {
           style={[styles.inputContainer, {transform: [{translateX: shakeAnim}]}]}>
           <TextInput
             style={styles.passwordInput}
-            placeholder="Enter password"
+            placeholder={t('enter_password')}
             placeholderTextColor={Colors.textTertiary}
             secureTextEntry={!showPassword}
             value={password}
@@ -137,13 +196,12 @@ const LockScreen: React.FC<LockScreenProps> = ({onUnlock}) => {
             autoCorrect={false}
             autoCapitalize="none"
             editable={!isLocked}
-            accessibilityLabel="Password input"
-            accessibilityHint="Enter your password to unlock Shield Messenger"
+            accessibilityLabel={t('enter_password')}
           />
           <TouchableOpacity
             style={styles.showPasswordButton}
             onPress={() => setShowPassword(!showPassword)}
-            accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}>
+            accessibilityLabel={showPassword ? t('hide_password') : t('show_password')}>
             <Text style={styles.showPasswordText}>
               {showPassword ? '🙈' : '👁️'}
             </Text>
@@ -153,14 +211,14 @@ const LockScreen: React.FC<LockScreenProps> = ({onUnlock}) => {
         {/* Lockout Warning */}
         {isLocked && (
           <Text style={styles.lockoutText}>
-            Locked for {lockTimer}s — too many failed attempts
+            {t('locked_for').replace('%s', String(lockTimer))}
           </Text>
         )}
 
         {/* Attempt Counter */}
         {attempts > 0 && !isLocked && (
           <Text style={styles.attemptText}>
-            {5 - attempts} attempts remaining
+            {t('attempts_remaining').replace('%s', String(5 - attempts))}
           </Text>
         )}
 
@@ -169,18 +227,18 @@ const LockScreen: React.FC<LockScreenProps> = ({onUnlock}) => {
           style={[styles.unlockButton, isLocked && styles.unlockButtonDisabled]}
           onPress={handleUnlock}
           disabled={isLocked}
-          accessibilityLabel="Unlock"
+          accessibilityLabel={t('unlock')}
           accessibilityRole="button">
-          <Text style={styles.unlockButtonText}>Unlock</Text>
+          <Text style={styles.unlockButtonText}>{t('unlock')}</Text>
         </TouchableOpacity>
 
         {/* Biometric Button */}
         <TouchableOpacity
           style={styles.biometricButton}
           onPress={handleBiometric}
-          accessibilityLabel="Unlock with Face ID or Touch ID"
+          accessibilityLabel={t('use_biometric')}
           accessibilityRole="button">
-          <Text style={styles.biometricText}>Use Face ID / Touch ID</Text>
+          <Text style={styles.biometricText}>{t('use_biometric')}</Text>
         </TouchableOpacity>
       </Animated.View>
     </KeyboardAvoidingView>

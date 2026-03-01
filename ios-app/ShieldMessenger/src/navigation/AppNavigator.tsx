@@ -4,6 +4,7 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {View, Text, StyleSheet} from 'react-native';
 import {Colors, FontSize} from '../theme/colors';
+import {t} from '../i18n';
 
 // Screens
 import LockScreen from '../screens/LockScreen';
@@ -58,6 +59,12 @@ import TransactionDetailScreen from '../screens/TransactionDetailScreen';
 import CreateWalletScreen from '../screens/CreateWalletScreen';
 import ImportWalletScreen from '../screens/ImportWalletScreen';
 import WalletSettingsScreen from '../screens/WalletSettingsScreen';
+// New screens matching Android
+import VideoCallScreen from '../screens/VideoCallScreen';
+import SubscriptionScreen from '../screens/SubscriptionScreen';
+import TotpSetupScreen from '../screens/TotpSetupScreen';
+import SwapScreen from '../screens/SwapScreen';
+import LanguageScreen from '../screens/LanguageScreen';
 
 // ─── Type Definitions ───
 
@@ -104,6 +111,11 @@ export type RootStackParamList = {
   WalletSettings: undefined;
   Privacy: undefined;
   License: undefined;
+  VideoCall: {contactId: string; contactName: string};
+  Subscription: undefined;
+  TotpSetup: undefined;
+  Swap: undefined;
+  Language: undefined;
 };
 
 export type MainTabParamList = {
@@ -144,9 +156,9 @@ const MainTabs = () => (
       tabBarLabelStyle: styles.tabLabel,
       tabBarIcon: ({focused}) => <TabIcon name={route.name} focused={focused} />,
     })}>
-    <Tab.Screen name="Chats" component={ChatListScreen} options={{tabBarLabel: 'Chats'}} />
-    <Tab.Screen name="Contacts" component={ContactsScreen} options={{tabBarLabel: 'Contacts'}} />
-    <Tab.Screen name="Settings" component={SettingsScreen} options={{tabBarLabel: 'Settings'}} />
+    <Tab.Screen name="Chats" component={ChatListScreen} options={{tabBarLabel: t('chats')}} />
+    <Tab.Screen name="Contacts" component={ContactsScreen} options={{tabBarLabel: t('contacts')}} />
+    <Tab.Screen name="Settings" component={SettingsScreen} options={{tabBarLabel: t('settings')}} />
   </Tab.Navigator>
 );
 
@@ -235,6 +247,12 @@ const AppNavigator = () => {
             <Stack.Screen name="CreateWallet" component={CreateWalletScreen} />
             <Stack.Screen name="ImportWallet" component={ImportWalletScreen} />
             <Stack.Screen name="WalletSettings" component={WalletSettingsScreen} />
+            {/* New screens matching Android */}
+            <Stack.Screen name="VideoCall" component={VideoCallScreen} />
+            <Stack.Screen name="Subscription" component={SubscriptionScreen} />
+            <Stack.Screen name="TotpSetup" component={TotpSetupScreen} />
+            <Stack.Screen name="Swap" component={SwapScreen} />
+            <Stack.Screen name="Language" component={LanguageScreen} />
           </>
         )}
       </Stack.Navigator>

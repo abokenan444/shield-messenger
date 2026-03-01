@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 interface Contact {
   id: string;
@@ -25,16 +26,16 @@ const NewCallScreen: React.FC<{navigation: any}> = ({navigation}) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>New Call</Text>
+        <Text style={styles.title}>{t('new_call')}</Text>
         <View style={{width: 60}} />
       </View>
 
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search contacts..."
+          placeholder={t('search_contacts')}
           placeholderTextColor={Colors.textTertiary}
           value={search}
           onChangeText={setSearch}
@@ -64,7 +65,7 @@ const NewCallScreen: React.FC<{navigation: any}> = ({navigation}) => {
       />
 
       <View style={styles.footer}>
-        <Text style={styles.footerText}>🔐 All calls are end-to-end encrypted via Tor</Text>
+        <Text style={styles.footerText}>🔐 {t('all_calls_encrypted')}</Text>
       </View>
     </View>
   );

@@ -9,6 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 interface AddFriendScreenProps {
   navigation: any;
@@ -25,7 +26,7 @@ const AddFriendScreen: React.FC<AddFriendScreenProps> = ({navigation}) => {
 
   const sendFriendRequest = async () => {
     if (!isValidOnion(onionAddress)) {
-      Alert.alert('Invalid Address', 'Please enter a valid .onion address.');
+      Alert.alert(t('invalid_address'), t('invalid_onion_address'));
       return;
     }
 
@@ -33,7 +34,7 @@ const AddFriendScreen: React.FC<AddFriendScreenProps> = ({navigation}) => {
     try {
       // TODO: Send via Rust core → Tor → Friend Request Server
       await new Promise<void>(resolve => setTimeout(resolve, 2000));
-      Alert.alert('Request Sent', `Friend request sent to ${nickname || 'contact'}.`, [
+      Alert.alert(t('request_sent'), t('request_sent_to').replace('%s', nickname || 'contact'), [
         {text: 'OK', onPress: () => navigation.goBack()},
       ]);
     } catch (error) {
@@ -48,9 +49,9 @@ const AddFriendScreen: React.FC<AddFriendScreenProps> = ({navigation}) => {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>{'‹ Back'}</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add Friend</Text>
+        <Text style={styles.headerTitle}>{t('add_friend')}</Text>
         <View style={{width: 50}} />
       </View>
 
@@ -61,9 +62,9 @@ const AddFriendScreen: React.FC<AddFriendScreenProps> = ({navigation}) => {
         accessibilityLabel="Scan QR code to add friend">
         <Text style={styles.qrIcon}>📷</Text>
         <View style={styles.qrContent}>
-          <Text style={styles.qrTitle}>Scan QR Code</Text>
+          <Text style={styles.qrTitle}>{t('scan_qr')}</Text>
           <Text style={styles.qrSubtitle}>
-            Scan your friend's QR code to add them instantly
+            {t('scan_friend_qr')}
           </Text>
         </View>
         <Text style={styles.chevron}>{'›'}</Text>
@@ -72,13 +73,13 @@ const AddFriendScreen: React.FC<AddFriendScreenProps> = ({navigation}) => {
       {/* Divider */}
       <View style={styles.dividerRow}>
         <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>or enter manually</Text>
+        <Text style={styles.dividerText}>{t('or_enter_manually')}</Text>
         <View style={styles.dividerLine} />
       </View>
 
       {/* Manual Entry */}
       <View style={styles.formSection}>
-        <Text style={styles.label}>Onion Address</Text>
+        <Text style={styles.label}>{t('onion_address')}</Text>
         <TextInput
           style={styles.input}
           placeholder="abc123...xyz.onion"
@@ -90,10 +91,10 @@ const AddFriendScreen: React.FC<AddFriendScreenProps> = ({navigation}) => {
           accessibilityLabel="Enter onion address"
         />
 
-        <Text style={styles.label}>Nickname (optional)</Text>
+        <Text style={styles.label}>{t('nickname_optional')}</Text>
         <TextInput
           style={styles.input}
-          placeholder="How you want to remember them"
+          placeholder={t('remember_them')}
           placeholderTextColor={Colors.textTertiary}
           value={nickname}
           onChangeText={setNickname}
@@ -106,20 +107,20 @@ const AddFriendScreen: React.FC<AddFriendScreenProps> = ({navigation}) => {
           disabled={isSending}
           accessibilityLabel="Send friend request">
           <Text style={styles.sendButtonText}>
-            {isSending ? 'Sending via Tor...' : 'Send Friend Request'}
+            {isSending ? t('sending_via_tor') : t('send_friend_request')}
           </Text>
         </TouchableOpacity>
       </View>
 
       {/* Your Address */}
       <View style={styles.yourAddressSection}>
-        <Text style={styles.yourAddressTitle}>Your Address</Text>
+        <Text style={styles.yourAddressTitle}>{t('your_address')}</Text>
         <Text style={styles.yourAddress}>mock1234567890abcdef.onion</Text>
         <TouchableOpacity
           style={styles.shareButton}
           onPress={() => navigation.navigate('QRCode')}
           accessibilityLabel="Share your QR code">
-          <Text style={styles.shareButtonText}>Show My QR Code</Text>
+          <Text style={styles.shareButtonText}>{t('show_my_qr')}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, FlatList, TouchableOpacity, StyleSheet, Switch, Alert} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 interface Member {
   id: string;
@@ -27,7 +28,7 @@ const GroupProfileScreen: React.FC<{route: any; navigation: any}> = ({route, nav
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -37,12 +38,12 @@ const GroupProfileScreen: React.FC<{route: any; navigation: any}> = ({route, nav
         </View>
         <Text style={styles.groupName}>{groupName}</Text>
         <Text style={styles.groupMeta}>{members.length} members · Created Jan 2025</Text>
-        <Text style={styles.e2eeLabel}>🔐 End-to-End Encrypted (Sender Keys)</Text>
+        <Text style={styles.e2eeLabel}>🔐 {t('encrypted_sender_keys')}</Text>
       </View>
 
       <View style={styles.section}>
         <View style={styles.optionRow}>
-          <Text style={styles.optionLabel}>Disappearing Messages</Text>
+          <Text style={styles.optionLabel}>{t('disappearing_messages')}</Text>
           <Switch
             value={disappearing}
             onValueChange={setDisappearing}
@@ -51,16 +52,16 @@ const GroupProfileScreen: React.FC<{route: any; navigation: any}> = ({route, nav
           />
         </View>
         <TouchableOpacity style={styles.optionRow}>
-          <Text style={styles.optionLabel}>Shared Media</Text>
+          <Text style={styles.optionLabel}>{t('shared_media')}</Text>
           <Text style={styles.optionValue}>23 items ›</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.optionRow}>
-          <Text style={styles.optionLabel}>Search in Group</Text>
+          <Text style={styles.optionLabel}>{t('search_in_group')}</Text>
           <Text style={styles.optionValue}>›</Text>
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.sectionTitle}>Members ({members.length})</Text>
+      <Text style={styles.sectionTitle}>{t('group_members')} ({members.length})</Text>
       <FlatList
         data={members}
         keyExtractor={item => item.id}
@@ -70,11 +71,11 @@ const GroupProfileScreen: React.FC<{route: any; navigation: any}> = ({route, nav
               <Text style={styles.memberAvatarText}>{item.name[0]}</Text>
             </View>
             <View style={styles.memberInfo}>
-              <Text style={styles.memberName}>{item.name} {item.id === 'me' ? '(You)' : ''}</Text>
+              <Text style={styles.memberName}>{item.name} {item.id === 'me' ? t('member_you') : ''}</Text>
               <Text style={styles.memberAddress}>{item.onionAddress}</Text>
             </View>
             <View style={styles.memberMeta}>
-              {item.role === 'admin' && <Text style={styles.adminBadge}>Admin</Text>}
+              {item.role === 'admin' && <Text style={styles.adminBadge}>{t('admin')}</Text>}
               <Text style={styles.trustBadge}>L{item.trustLevel}</Text>
             </View>
           </TouchableOpacity>
@@ -82,8 +83,8 @@ const GroupProfileScreen: React.FC<{route: any; navigation: any}> = ({route, nav
       />
 
       <View style={styles.dangerSection}>
-        <TouchableOpacity style={styles.dangerRow} onPress={() => Alert.alert('Leave Group', 'Are you sure?')}>
-          <Text style={styles.dangerText}>Leave Group</Text>
+        <TouchableOpacity style={styles.dangerRow} onPress={() => Alert.alert(t('leave_group'), t('are_you_sure'))}>
+          <Text style={styles.dangerText}>{t('leave_group')}</Text>
         </TouchableOpacity>
       </View>
     </View>

@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const CreateAccountScreen: React.FC<{navigation: any}> = ({navigation}) => {
   const [displayName, setDisplayName] = useState('');
@@ -26,18 +27,18 @@ const CreateAccountScreen: React.FC<{navigation: any}> = ({navigation}) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => step === 'password' ? setStep('name') : navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.stepText}>Step {step === 'name' ? '1' : '2'} of 2</Text>
+        <Text style={styles.stepText}>{t('step_of').replace('%s', step === 'name' ? '1' : '2').replace('%s', '2')}</Text>
       </View>
 
       {step === 'name' ? (
         <View style={styles.content}>
-          <Text style={styles.title}>Choose a Display Name</Text>
-          <Text style={styles.subtitle}>This is how others will see you. It's not linked to any real identity.</Text>
+          <Text style={styles.title}>{t('choose_display_name')}</Text>
+          <Text style={styles.subtitle}>{t('display_name_hint')}</Text>
           <TextInput
             style={styles.input}
-            placeholder="Display name"
+            placeholder={t('display_name')}
             placeholderTextColor={Colors.textTertiary}
             value={displayName}
             onChangeText={setDisplayName}
@@ -48,16 +49,16 @@ const CreateAccountScreen: React.FC<{navigation: any}> = ({navigation}) => {
             style={[styles.nextBtn, !displayName.trim() && styles.btnDisabled]}
             disabled={!displayName.trim()}
             onPress={() => setStep('password')}>
-            <Text style={styles.nextBtnText}>Next</Text>
+            <Text style={styles.nextBtnText}>{t('next')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
         <View style={styles.content}>
-          <Text style={styles.title}>Set Your Password</Text>
-          <Text style={styles.subtitle}>Your password encrypts your local database with Argon2id. Minimum 12 characters.</Text>
+          <Text style={styles.title}>{t('set_your_password')}</Text>
+          <Text style={styles.subtitle}>{t('password_encrypts_db')}</Text>
           <TextInput
             style={styles.input}
-            placeholder="Password (min 12 chars)"
+            placeholder={t('password_min_chars')}
             placeholderTextColor={Colors.textTertiary}
             value={password}
             onChangeText={setPassword}
@@ -66,14 +67,14 @@ const CreateAccountScreen: React.FC<{navigation: any}> = ({navigation}) => {
           />
           <TextInput
             style={[styles.input, !passwordsMatch && confirmPassword.length > 0 && styles.inputError]}
-            placeholder="Confirm password"
+            placeholder={t('confirm_password_input')}
             placeholderTextColor={Colors.textTertiary}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
           />
           {!passwordsMatch && confirmPassword.length > 0 && (
-            <Text style={styles.errorText}>Passwords don't match</Text>
+            <Text style={styles.errorText}>{t('passwords_dont_match')}</Text>
           )}
 
           <View style={styles.strengthRow}>
@@ -90,11 +91,11 @@ const CreateAccountScreen: React.FC<{navigation: any}> = ({navigation}) => {
             {creating ? (
               <ActivityIndicator color={Colors.textOnPrimary} />
             ) : (
-              <Text style={styles.nextBtnText}>Create Account</Text>
+              <Text style={styles.nextBtnText}>{t('create_account')}</Text>
             )}
           </TouchableOpacity>
 
-          <Text style={styles.warning}>⚠️ There is no password recovery. Write it down securely.</Text>
+          <Text style={styles.warning}>⚠️ {t('no_password_recovery')}</Text>
         </View>
       )}
     </View>

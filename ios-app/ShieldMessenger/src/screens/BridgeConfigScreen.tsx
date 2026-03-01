@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, TextInput, TouchableOpacity, StyleSheet, Switch, ScrollView} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const BridgeConfigScreen: React.FC<{navigation: any}> = ({navigation}) => {
   const [useBridges, setUseBridges] = useState(false);
@@ -8,27 +9,27 @@ const BridgeConfigScreen: React.FC<{navigation: any}> = ({navigation}) => {
   const [customBridge, setCustomBridge] = useState('');
 
   const bridgeTypes = [
-    {id: 'obfs4' as const, name: 'obfs4', desc: 'Recommended. Disguises traffic as random noise'},
-    {id: 'meek' as const, name: 'meek-azure', desc: 'Routes through Microsoft CDN. Slow but hard to block'},
-    {id: 'snowflake' as const, name: 'Snowflake', desc: 'Uses WebRTC peers as bridges'},
-    {id: 'custom' as const, name: 'Custom Bridge', desc: 'Enter your own bridge address'},
+    {id: 'obfs4' as const, name: 'obfs4', desc: t('obfs4_desc')},
+    {id: 'meek' as const, name: 'meek-azure', desc: t('meek_desc')},
+    {id: 'snowflake' as const, name: 'Snowflake', desc: t('snowflake_desc')},
+    {id: 'custom' as const, name: t('custom_bridge'), desc: t('custom_bridge_desc')},
   ];
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Bridges</Text>
+        <Text style={styles.title}>{t('bridges')}</Text>
         <View style={{width: 60}} />
       </View>
 
       <View style={styles.section}>
         <View style={styles.toggleRow}>
           <View>
-            <Text style={styles.toggleLabel}>Use Bridges</Text>
-            <Text style={styles.toggleDesc}>Enable if Tor is blocked in your region</Text>
+            <Text style={styles.toggleLabel}>{t('use_bridges')}</Text>
+            <Text style={styles.toggleDesc}>{t('use_bridges_desc')}</Text>
           </View>
           <Switch value={useBridges} onValueChange={setUseBridges} trackColor={{false: Colors.border, true: Colors.primary}} thumbColor={Colors.textPrimary} />
         </View>
@@ -37,7 +38,7 @@ const BridgeConfigScreen: React.FC<{navigation: any}> = ({navigation}) => {
       {useBridges && (
         <>
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Bridge Type</Text>
+            <Text style={styles.sectionTitle}>{t('bridge_type')}</Text>
             {bridgeTypes.map(bt => (
               <TouchableOpacity key={bt.id} style={styles.typeRow} onPress={() => setBridgeType(bt.id)}>
                 <View style={styles.typeInfo}>
@@ -53,7 +54,7 @@ const BridgeConfigScreen: React.FC<{navigation: any}> = ({navigation}) => {
 
           {bridgeType === 'custom' && (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Custom Bridge Address</Text>
+              <Text style={styles.sectionTitle}>{t('custom_bridge_address')}</Text>
               <TextInput
                 style={styles.bridgeInput}
                 placeholder="obfs4 IP:PORT FINGERPRINT cert=... iat-mode=..."
@@ -68,9 +69,9 @@ const BridgeConfigScreen: React.FC<{navigation: any}> = ({navigation}) => {
           )}
 
           <View style={styles.infoCard}>
-            <Text style={styles.infoTitle}>ℹ️ About Bridges</Text>
+            <Text style={styles.infoTitle}>ℹ️ {t('about_bridges')}</Text>
             <Text style={styles.infoText}>
-              Tor bridges are unlisted relays that help you connect to Tor when direct connections are blocked. Use bridges if you're in a censored region.
+              {t('about_bridges_desc')}
             </Text>
           </View>
         </>

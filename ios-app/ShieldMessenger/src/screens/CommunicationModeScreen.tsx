@@ -1,28 +1,29 @@
 import React, {useState} from 'react';
 import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const CommunicationModeScreen: React.FC<{navigation: any}> = ({navigation}) => {
   const [mode, setMode] = useState<'tor' | 'direct' | 'hybrid'>('tor');
 
   const options = [
     {
-      id: 'tor' as const, name: 'Tor Only', icon: '🧅',
-      desc: 'All traffic routed through Tor onion services. Maximum privacy but may be slower.',
-      pros: ['Maximum anonymity', 'IP hidden', 'Censorship resistant'],
-      cons: ['Higher latency', 'Requires Tor bootstrap'],
+      id: 'tor' as const, name: t('tor_only'), icon: '🧅',
+      desc: t('tor_only_desc'),
+      pros: [t('maximum_anonymity'), t('ip_hidden'), t('censorship_resistant')],
+      cons: [t('higher_latency'), t('requires_tor_bootstrap')],
     },
     {
-      id: 'direct' as const, name: 'Direct (P2P)', icon: '🔗',
-      desc: 'Direct peer-to-peer connection. Fastest but reveals IP addresses.',
-      pros: ['Low latency', 'Fast file transfer', 'Instant connection'],
-      cons: ['IP exposed to contacts', 'Not censorship resistant'],
+      id: 'direct' as const, name: t('direct_p2p'), icon: '🔗',
+      desc: t('direct_p2p_desc'),
+      pros: [t('low_latency'), t('fast_file_transfer'), t('instant_connection')],
+      cons: [t('ip_exposed'), t('not_censorship_resistant')],
     },
     {
-      id: 'hybrid' as const, name: 'Hybrid', icon: '⚡',
-      desc: 'Use Tor for initial handshake, then negotiate direct connection when safe.',
-      pros: ['Good balance', 'Falls back to Tor', 'Adaptive performance'],
-      cons: ['Some metadata exposure', 'More complex'],
+      id: 'hybrid' as const, name: t('hybrid'), icon: '⚡',
+      desc: t('hybrid_desc'),
+      pros: [t('good_balance'), t('falls_back_to_tor'), t('adaptive_performance')],
+      cons: [t('some_metadata_exposure'), t('more_complex')],
     },
   ];
 
@@ -30,9 +31,9 @@ const CommunicationModeScreen: React.FC<{navigation: any}> = ({navigation}) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Network Mode</Text>
+        <Text style={styles.title}>{t('network_mode')}</Text>
         <View style={{width: 60}} />
       </View>
 

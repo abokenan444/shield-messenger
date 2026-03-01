@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, FlatList, TouchableOpacity, StyleSheet} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 interface CallRecord {
   id: string;
@@ -37,16 +38,16 @@ const CallHistoryScreen: React.FC<{navigation: any}> = ({navigation}) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Call History</Text>
+        <Text style={styles.title}>{t('call_history')}</Text>
         <View style={{width: 60}} />
       </View>
 
       <View style={styles.filterRow}>
         {(['all', 'missed'] as const).map(f => (
           <TouchableOpacity key={f} style={[styles.filterBtn, filter === f && styles.filterActive]} onPress={() => setFilter(f)}>
-            <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>{f === 'all' ? 'All' : 'Missed'}</Text>
+            <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>{f === 'all' ? t('all') : t('missed')}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -69,7 +70,7 @@ const CallHistoryScreen: React.FC<{navigation: any}> = ({navigation}) => {
             </View>
           </TouchableOpacity>
         )}
-        ListEmptyComponent={<Text style={styles.empty}>No {filter} calls</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>{t('no_filter_calls').replace('%s', filter)}</Text>}
       />
     </View>
   );

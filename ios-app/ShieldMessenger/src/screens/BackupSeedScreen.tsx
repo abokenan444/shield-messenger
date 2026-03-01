@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const BackupSeedScreen: React.FC<{navigation: any}> = ({navigation}) => {
   const [revealed, setRevealed] = useState(false);
@@ -17,9 +18,9 @@ const BackupSeedScreen: React.FC<{navigation: any}> = ({navigation}) => {
 
   const handleReveal = () => {
     Alert.alert(
-      'Security Warning',
-      'Make sure no one can see your screen. Never screenshot or copy your seed phrase digitally.',
-      [{text: 'Cancel'}, {text: 'I Understand', onPress: () => setRevealed(true)}],
+      t('security_warning'),
+      t('seed_reveal_warning'),
+      [{text: t('cancel')}, {text: t('i_understand'), onPress: () => setRevealed(true)}],
     );
   };
 
@@ -27,21 +28,21 @@ const BackupSeedScreen: React.FC<{navigation: any}> = ({navigation}) => {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Backup Seed</Text>
+        <Text style={styles.title}>{t('backup_seed')}</Text>
         <View style={{width: 60}} />
       </View>
 
       <View style={styles.content}>
         <Text style={styles.instruction}>
-          Write down these 24 words in order on paper. Store it in a safe place. This is the ONLY way to recover your account.
+          {t('seed_instruction')}
         </Text>
 
         {!revealed ? (
           <TouchableOpacity style={styles.revealBtn} onPress={handleReveal}>
             <Text style={styles.revealIcon}>👁️</Text>
-            <Text style={styles.revealText}>Tap to Reveal Seed Phrase</Text>
+            <Text style={styles.revealText}>{t('tap_to_reveal')}</Text>
           </TouchableOpacity>
         ) : (
           <View style={styles.seedGrid}>
@@ -55,17 +56,17 @@ const BackupSeedScreen: React.FC<{navigation: any}> = ({navigation}) => {
         )}
 
         <View style={styles.warningCard}>
-          <Text style={styles.warningTitle}>⚠️ Critical Security Rules</Text>
-          <Text style={styles.warningItem}>• Never share your seed phrase with anyone</Text>
-          <Text style={styles.warningItem}>• Never enter it on any website</Text>
-          <Text style={styles.warningItem}>• Never take a screenshot or photo</Text>
-          <Text style={styles.warningItem}>• Write it on paper and store offline</Text>
-          <Text style={styles.warningItem}>• Consider using a metal seed plate</Text>
+          <Text style={styles.warningTitle}>⚠️ {t('critical_security_rules')}</Text>
+          <Text style={styles.warningItem}>• {t('never_share_seed')}</Text>
+          <Text style={styles.warningItem}>• {t('never_enter_website')}</Text>
+          <Text style={styles.warningItem}>• {t('never_screenshot')}</Text>
+          <Text style={styles.warningItem}>• {t('write_on_paper')}</Text>
+          <Text style={styles.warningItem}>• {t('consider_metal_plate')}</Text>
         </View>
 
         {revealed && (
           <TouchableOpacity style={styles.doneBtn} onPress={() => navigation.goBack()}>
-            <Text style={styles.doneBtnText}>I've Written It Down</Text>
+            <Text style={styles.doneBtnText}>{t('ive_written_it_down')}</Text>
           </TouchableOpacity>
         )}
       </View>

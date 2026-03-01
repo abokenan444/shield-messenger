@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, TextInput, TouchableOpacity, StyleSheet, Alert} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const ChangePasswordScreen: React.FC<{navigation: any}> = ({navigation}) => {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -13,8 +14,8 @@ const ChangePasswordScreen: React.FC<{navigation: any}> = ({navigation}) => {
   const handleChange = () => {
     if (!currentPassword || !passwordValid || !passwordsMatch) return;
     // TODO: Verify current password against Argon2id hash, re-encrypt SQLCipher DB with new key
-    Alert.alert('Password Changed', 'Your password has been updated and the database re-encrypted.', [
-      {text: 'OK', onPress: () => navigation.goBack()},
+    Alert.alert(t('password_changed'), t('password_changed_msg'), [
+      {text: t('ok'), onPress: () => navigation.goBack()},
     ]);
   };
 
@@ -22,16 +23,16 @@ const ChangePasswordScreen: React.FC<{navigation: any}> = ({navigation}) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Change Password</Text>
+        <Text style={styles.title}>{t('change_password')}</Text>
         <View style={{width: 60}} />
       </View>
 
       <View style={styles.content}>
         <TextInput
           style={styles.input}
-          placeholder="Current password"
+          placeholder={t('current_password')}
           placeholderTextColor={Colors.textTertiary}
           value={currentPassword}
           onChangeText={setCurrentPassword}
@@ -43,7 +44,7 @@ const ChangePasswordScreen: React.FC<{navigation: any}> = ({navigation}) => {
 
         <TextInput
           style={styles.input}
-          placeholder="New password (min 12 chars)"
+          placeholder={t('new_password_min')}
           placeholderTextColor={Colors.textTertiary}
           value={newPassword}
           onChangeText={setNewPassword}
@@ -51,7 +52,7 @@ const ChangePasswordScreen: React.FC<{navigation: any}> = ({navigation}) => {
         />
         <TextInput
           style={[styles.input, !passwordsMatch && confirmPassword.length > 0 && styles.inputError]}
-          placeholder="Confirm new password"
+          placeholder={t('confirm_password')}
           placeholderTextColor={Colors.textTertiary}
           value={confirmPassword}
           onChangeText={setConfirmPassword}
@@ -59,7 +60,7 @@ const ChangePasswordScreen: React.FC<{navigation: any}> = ({navigation}) => {
         />
 
         {!passwordsMatch && confirmPassword.length > 0 && (
-          <Text style={styles.errorText}>Passwords don't match</Text>
+          <Text style={styles.errorText}>{t('passwords_dont_match')}</Text>
         )}
 
         <View style={styles.strengthRow}>
@@ -73,12 +74,12 @@ const ChangePasswordScreen: React.FC<{navigation: any}> = ({navigation}) => {
           style={[styles.changeBtn, (!currentPassword || !passwordValid || !passwordsMatch) && styles.btnDisabled]}
           disabled={!currentPassword || !passwordValid || !passwordsMatch}
           onPress={handleChange}>
-          <Text style={styles.changeBtnText}>Change Password</Text>
+          <Text style={styles.changeBtnText}>{t('change_password')}</Text>
         </TouchableOpacity>
 
         <View style={styles.infoCard}>
           <Text style={styles.infoText}>
-            🔐 Your password is used to derive an Argon2id key that encrypts your local SQLCipher database. Changing your password will re-encrypt all data.
+            🔐 {t('password_argon2id')}
           </Text>
         </View>
       </View>

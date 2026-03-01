@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, FlatList, TouchableOpacity, StyleSheet} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 interface Transaction {
   id: string;
@@ -32,9 +33,9 @@ const TransactionsScreen: React.FC<{navigation: any}> = ({navigation}) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Transactions</Text>
+        <Text style={styles.title}>{t('transactions')}</Text>
         <View style={{width: 60}} />
       </View>
 
@@ -55,7 +56,7 @@ const TransactionsScreen: React.FC<{navigation: any}> = ({navigation}) => {
               <Text style={styles.txIconText}>{item.type === 'received' ? '↓' : '↑'}</Text>
             </View>
             <View style={styles.txInfo}>
-              <Text style={styles.txType}>{item.type === 'received' ? 'Received' : 'Sent'}</Text>
+              <Text style={styles.txType}>{item.type === 'received' ? t('received') : t('sent')}</Text>
               <Text style={styles.txAddress}>{item.address}</Text>
             </View>
             <View style={styles.txRight}>
@@ -66,7 +67,7 @@ const TransactionsScreen: React.FC<{navigation: any}> = ({navigation}) => {
             </View>
           </TouchableOpacity>
         )}
-        ListEmptyComponent={<Text style={styles.empty}>No transactions yet</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>{t('no_transactions_yet')}</Text>}
       />
     </View>
   );

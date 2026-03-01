@@ -1,6 +1,7 @@
 import React from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, ScrollView} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const TransactionDetailScreen: React.FC<{route: any; navigation: any}> = ({route, navigation}) => {
   const tx = route.params?.tx || {
@@ -14,9 +15,9 @@ const TransactionDetailScreen: React.FC<{route: any; navigation: any}> = ({route
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Transaction</Text>
+        <Text style={styles.title}>{t('transaction')}</Text>
         <View style={{width: 60}} />
       </View>
 
@@ -28,42 +29,42 @@ const TransactionDetailScreen: React.FC<{route: any; navigation: any}> = ({route
           {tx.type === 'received' ? '+' : '-'}{tx.amount.toFixed(4)} XMR
         </Text>
         <Text style={styles.status}>
-          {tx.confirmations >= 10 ? '✓ Confirmed' : `⏳ ${tx.confirmations} confirmations`}
+          {tx.confirmations >= 10 ? `✓ ${t('confirmed')}` : `⏳ ${tx.confirmations} ${t('confirmations')}`}
         </Text>
       </View>
 
       <View style={styles.details}>
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Type</Text>
-          <Text style={styles.detailValue}>{tx.type === 'received' ? 'Received' : 'Sent'}</Text>
+          <Text style={styles.detailLabel}>{t('type')}</Text>
+          <Text style={styles.detailValue}>{tx.type === 'received' ? t('received') : t('sent')}</Text>
         </View>
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Date</Text>
+          <Text style={styles.detailLabel}>{t('date')}</Text>
           <Text style={styles.detailValue}>{formatDate(tx.timestamp)}</Text>
         </View>
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Address</Text>
+          <Text style={styles.detailLabel}>{t('address')}</Text>
           <Text style={[styles.detailValue, styles.mono]}>{tx.address}</Text>
         </View>
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Confirmations</Text>
+          <Text style={styles.detailLabel}>{t('confirmations')}</Text>
           <Text style={styles.detailValue}>{tx.confirmations}</Text>
         </View>
         {tx.fee && (
           <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Network Fee</Text>
+            <Text style={styles.detailLabel}>{t('network_fee')}</Text>
             <Text style={styles.detailValue}>{tx.fee} XMR</Text>
           </View>
         )}
         <View style={styles.detailRow}>
-          <Text style={styles.detailLabel}>Transaction ID</Text>
+          <Text style={styles.detailLabel}>{t('transaction_id')}</Text>
           <Text style={[styles.detailValue, styles.mono]}>{tx.id}</Text>
         </View>
       </View>
 
       <View style={styles.infoCard}>
         <Text style={styles.infoText}>
-          🔐 Monero transactions use RingCT and stealth addresses. The actual amounts and addresses are hidden on the blockchain.
+          🔐 {t('monero_ringct_info')}
         </Text>
       </View>
     </ScrollView>

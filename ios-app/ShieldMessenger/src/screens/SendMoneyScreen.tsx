@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, TextInput, TouchableOpacity, StyleSheet, Alert} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const SendMoneyScreen: React.FC<{route: any; navigation: any}> = ({route, navigation}) => {
   const [address, setAddress] = useState(route.params?.address || '');
@@ -15,9 +16,9 @@ const SendMoneyScreen: React.FC<{route: any; navigation: any}> = ({route, naviga
 
   const handleSend = () => {
     Alert.alert(
-      'Confirm Transaction',
-      `Send ${amount} XMR to ${address.substring(0, 12)}...?\nFee: ${fee} XMR`,
-      [{text: 'Cancel'}, {text: 'Send', onPress: () => navigation.goBack()}],
+      t('confirm_transaction'),
+      `${t('send')} ${amount} XMR ${t('to')} ${address.substring(0, 12)}...?\n${t('fee')}: ${fee} XMR`,
+      [{text: t('cancel')}, {text: t('send'), onPress: () => navigation.goBack()}],
     );
   };
 
@@ -25,22 +26,22 @@ const SendMoneyScreen: React.FC<{route: any; navigation: any}> = ({route, naviga
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Send XMR</Text>
+        <Text style={styles.title}>{t('send_xmr')}</Text>
         <View style={{width: 60}} />
       </View>
 
       <View style={styles.content}>
         <View style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>Available Balance</Text>
+          <Text style={styles.balanceLabel}>{t('available_balance')}</Text>
           <Text style={styles.balanceValue}>{balance.toFixed(4)} XMR</Text>
         </View>
 
-        <Text style={styles.inputLabel}>Recipient Address</Text>
+        <Text style={styles.inputLabel}>{t('recipient_address')}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Monero address or .onion"
+          placeholder={t('monero_address_or_onion')}
           placeholderTextColor={Colors.textTertiary}
           value={address}
           onChangeText={setAddress}
@@ -48,7 +49,7 @@ const SendMoneyScreen: React.FC<{route: any; navigation: any}> = ({route, naviga
           autoCorrect={false}
         />
 
-        <Text style={styles.inputLabel}>Amount (XMR)</Text>
+        <Text style={styles.inputLabel}>{t('amount_xmr')}</Text>
         <View style={styles.amountRow}>
           <TextInput
             style={[styles.input, {flex: 1}]}
@@ -63,21 +64,21 @@ const SendMoneyScreen: React.FC<{route: any; navigation: any}> = ({route, naviga
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.inputLabel}>Note (optional, encrypted)</Text>
+        <Text style={styles.inputLabel}>{t('note_optional')}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Payment note"
+          placeholder={t('payment_note')}
           placeholderTextColor={Colors.textTertiary}
           value={note}
           onChangeText={setNote}
         />
 
         <View style={styles.feeRow}>
-          <Text style={styles.feeLabel}>Network fee</Text>
+          <Text style={styles.feeLabel}>{t('network_fee')}</Text>
           <Text style={styles.feeValue}>{fee} XMR</Text>
         </View>
         <View style={styles.feeRow}>
-          <Text style={styles.feeLabel}>Total</Text>
+          <Text style={styles.feeLabel}>{t('total')}</Text>
           <Text style={styles.totalValue}>{total.toFixed(4)} XMR</Text>
         </View>
 
@@ -85,11 +86,11 @@ const SendMoneyScreen: React.FC<{route: any; navigation: any}> = ({route, naviga
           style={[styles.sendBtn, !canSend && styles.btnDisabled]}
           disabled={!canSend}
           onPress={handleSend}>
-          <Text style={styles.sendBtnText}>Send</Text>
+          <Text style={styles.sendBtnText}>{t('send')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.scanBtn} onPress={() => navigation.navigate('QRScanner')}>
-          <Text style={styles.scanBtnText}>📷 Scan QR Code</Text>
+          <Text style={styles.scanBtnText}>📷 {t('scan_qr_code')}</Text>
         </TouchableOpacity>
       </View>
     </View>

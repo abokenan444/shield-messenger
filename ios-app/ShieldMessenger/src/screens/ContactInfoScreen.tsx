@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, Switch} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const ContactInfoScreen: React.FC<{route: any; navigation: any}> = ({route, navigation}) => {
   const {contactId} = route.params || {contactId: '1'};
@@ -21,7 +22,7 @@ const ContactInfoScreen: React.FC<{route: any; navigation: any}> = ({route, navi
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -33,11 +34,11 @@ const ContactInfoScreen: React.FC<{route: any; navigation: any}> = ({route, navi
         <Text style={styles.address}>{contact.onionAddress}</Text>
         <View style={styles.badges}>
           <View style={[styles.badge, styles.trustBadge]}>
-            <Text style={styles.badgeText}>Trust L{contact.trustLevel}</Text>
+            <Text style={styles.badgeText}>{t('trust')} L{contact.trustLevel}</Text>
           </View>
           {contact.verified && (
             <View style={[styles.badge, styles.verifiedBadge]}>
-              <Text style={styles.badgeText}>✓ QR Verified</Text>
+              <Text style={styles.badgeText}>✓ {t('qr_verified')}</Text>
             </View>
           )}
         </View>
@@ -46,28 +47,28 @@ const ContactInfoScreen: React.FC<{route: any; navigation: any}> = ({route, navi
       <View style={styles.actionRow}>
         <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Chat', {contactId, contactName: contact.name})}>
           <Text style={styles.actionIcon}>💬</Text>
-          <Text style={styles.actionLabel}>Message</Text>
+          <Text style={styles.actionLabel}>{t('message')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('VoiceCall', {contactId, contactName: contact.name})}>
           <Text style={styles.actionIcon}>📞</Text>
-          <Text style={styles.actionLabel}>Call</Text>
+          <Text style={styles.actionLabel}>{t('call')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('QRCode')}>
           <Text style={styles.actionIcon}>📱</Text>
-          <Text style={styles.actionLabel}>Verify</Text>
+          <Text style={styles.actionLabel}>{t('verify')}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Safety Number</Text>
+        <Text style={styles.sectionTitle}>{t('safety_number')}</Text>
         <TouchableOpacity style={styles.safetyRow}>
           <Text style={styles.safetyNumber}>{contact.safetyNumber}</Text>
-          <Text style={styles.compareBtn}>Compare ›</Text>
+          <Text style={styles.compareBtn}>{t('compare')} ›</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Shared Groups</Text>
+        <Text style={styles.sectionTitle}>{t('shared_groups')}</Text>
         {contact.sharedGroups.map(g => (
           <View key={g} style={styles.groupRow}>
             <Text style={styles.groupIcon}>👥</Text>
@@ -78,11 +79,11 @@ const ContactInfoScreen: React.FC<{route: any; navigation: any}> = ({route, navi
 
       <View style={styles.section}>
         <View style={styles.optionRow}>
-          <Text style={styles.optionLabel}>Block Contact</Text>
+          <Text style={styles.optionLabel}>{t('block_contact')}</Text>
           <Switch value={blocked} onValueChange={setBlocked} trackColor={{false: Colors.border, true: Colors.error}} thumbColor={Colors.textPrimary} />
         </View>
-        <TouchableOpacity style={styles.optionRow} onPress={() => Alert.alert('Delete Contact', 'This will remove all messages. Continue?', [{text: 'Cancel'}, {text: 'Delete', style: 'destructive'}])}>
-          <Text style={styles.dangerText}>Delete Contact</Text>
+        <TouchableOpacity style={styles.optionRow} onPress={() => Alert.alert(t('delete_contact'), t('delete_contact_confirm'), [{text: t('cancel')}, {text: t('delete'), style: 'destructive'}])}>
+          <Text style={styles.dangerText}>{t('delete_contact')}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

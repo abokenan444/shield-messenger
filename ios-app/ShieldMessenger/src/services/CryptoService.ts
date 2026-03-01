@@ -3,30 +3,57 @@
  *
  * All actual crypto is delegated to the Rust core via RustBridge.
  * This service provides a clean async API for the UI layer.
+ * Identity keypairs are persisted in iOS Keychain.
  */
 
 import RustBridge, {Keypair, EncryptedMessage, SafetyNumber} from '../native/RustBridge';
+import * as Keychain from 'react-native-keychain';
+
+const IDENTITY_SERVICE = 'shield_identity_keypair';
+const X25519_SERVICE = 'shield_x25519_keypair';
 
 class CryptoService {
   private identityKeypair: Keypair | null = null;
   private x25519Keypair: Keypair | null = null;
 
   /**
-   * Initialize crypto subsystem and generate identity if needed.
+   * Initialize crypto subsystem and load or generate identity.
    */
   async initialize(): Promise<void> {
     await RustBridge.init();
+    await this.getIdentityKeypair();
     console.log('[CryptoService] Initialized');
   }
 
   /**
    * Generate or retrieve the user's Ed25519 identity keypair.
+   * Persisted in iOS Keychain.
    */
   async getIdentityKeypair(): Promise<Keypair> {
-    if (!this.identityKeypair) {
-      // TODO: Load from secure storage (Keychain) first
-      this.identityKeypair = await RustBridge.generateIdentityKeypair();
+    if (this.identityKeypair) {
+      return this.identityKeypair;
     }
+    // Try loading from Keychain
+    try {
+      const stored = await Keychain.getGenericPassword({service: IDENTITY_SERVICE});
+      if (stored) {
+        const parsed = JSON.parse(stored.password);
+        this.identityKeypair = parsed as Keypair;
+        return this.identityKeypair;
+      }
+    } catch {
+      // Not found, generate new
+    }
+    // Generate new keypair and persist
+    this.identityKeypair = await RustBridge.generateIdentityKeypair();
+    await Keychain.setGenericPassword(
+      'identity',
+      JSON.stringify(this.identityKeypair),
+      {
+        service: IDENTITY_SERVICE,
+        accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+      },
+    );
     return this.identityKeypair;
   }
 

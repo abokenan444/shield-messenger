@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 interface Contact {
   id: string;
@@ -83,7 +84,7 @@ const ContactsScreen: React.FC<ContactsScreenProps> = ({navigation}) => {
       </View>
 
       <Text style={styles.statusText}>
-        {item.isOnline ? 'Online' : formatLastSeen(item.lastSeen)}
+        {item.isOnline ? t('online') : formatLastSeen(item.lastSeen)}
       </Text>
     </TouchableOpacity>
   );
@@ -91,11 +92,11 @@ const ContactsScreen: React.FC<ContactsScreenProps> = ({navigation}) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Contacts</Text>
+        <Text style={styles.headerTitle}>{t('contacts')}</Text>
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => navigation.navigate('AddFriend')}
-          accessibilityLabel="Add new contact">
+          accessibilityLabel={t('add_new_contact')}>
           <Text style={styles.addButtonText}>+</Text>
         </TouchableOpacity>
       </View>
@@ -105,7 +106,7 @@ const ContactsScreen: React.FC<ContactsScreenProps> = ({navigation}) => {
         style={styles.pendingRow}
         onPress={() => navigation.navigate('FriendRequests')}>
         <Text style={styles.pendingIcon}>📩</Text>
-        <Text style={styles.pendingText}>Friend Requests</Text>
+        <Text style={styles.pendingText}>{t('friend_requests')}</Text>
         <View style={styles.pendingBadge}>
           <Text style={styles.pendingBadgeText}>2</Text>
         </View>
@@ -114,7 +115,7 @@ const ContactsScreen: React.FC<ContactsScreenProps> = ({navigation}) => {
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search contacts..."
+          placeholder={t('search_contacts')}
           placeholderTextColor={Colors.textTertiary}
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -128,7 +129,7 @@ const ContactsScreen: React.FC<ContactsScreenProps> = ({navigation}) => {
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No contacts found</Text>
+            <Text style={styles.emptyText}>{t('no_contacts_found')}</Text>
           </View>
         }
       />

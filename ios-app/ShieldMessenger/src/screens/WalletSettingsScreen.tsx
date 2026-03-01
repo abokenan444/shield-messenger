@@ -1,60 +1,61 @@
 import React from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const WalletSettingsScreen: React.FC<{navigation: any}> = ({navigation}) => {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Wallet Settings</Text>
+        <Text style={styles.title}>{t('wallet_settings')}</Text>
         <View style={{width: 60}} />
       </View>
 
-      <Text style={styles.sectionTitle}>Display</Text>
+      <Text style={styles.sectionTitle}>{t('display')}</Text>
       <TouchableOpacity style={styles.row}>
-        <Text style={styles.rowLabel}>Display Currency</Text>
+        <Text style={styles.rowLabel}>{t('display_currency')}</Text>
         <Text style={styles.rowValue}>XMR ›</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.row}>
-        <Text style={styles.rowLabel}>Decimal Places</Text>
+        <Text style={styles.rowLabel}>{t('decimal_places')}</Text>
         <Text style={styles.rowValue}>4 ›</Text>
       </TouchableOpacity>
 
-      <Text style={styles.sectionTitle}>Network</Text>
+      <Text style={styles.sectionTitle}>{t('network')}</Text>
       <TouchableOpacity style={styles.row}>
-        <Text style={styles.rowLabel}>Node</Text>
+        <Text style={styles.rowLabel}>{t('node')}</Text>
         <Text style={styles.rowValue}>Local (Tor) ›</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.row}>
-        <Text style={styles.rowLabel}>Network</Text>
+        <Text style={styles.rowLabel}>{t('network')}</Text>
         <Text style={styles.rowValue}>Mainnet ›</Text>
       </TouchableOpacity>
 
-      <Text style={styles.sectionTitle}>Security</Text>
+      <Text style={styles.sectionTitle}>{t('security')}</Text>
       <TouchableOpacity style={styles.row} onPress={() => navigation.navigate('BackupSeed')}>
-        <Text style={styles.rowLabel}>View Seed Phrase</Text>
+        <Text style={styles.rowLabel}>{t('view_seed_phrase')}</Text>
         <Text style={styles.rowValue}>›</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.row}>
-        <Text style={styles.rowLabel}>View Keys</Text>
+        <Text style={styles.rowLabel}>{t('view_keys')}</Text>
         <Text style={styles.rowValue}>›</Text>
       </TouchableOpacity>
 
-      <Text style={styles.sectionTitle}>Advanced</Text>
+      <Text style={styles.sectionTitle}>{t('advanced')}</Text>
       <TouchableOpacity style={styles.row}>
-        <Text style={styles.rowLabel}>Rescan Blockchain</Text>
+        <Text style={styles.rowLabel}>{t('rescan_blockchain')}</Text>
         <Text style={styles.rowValue}>›</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.row}>
-        <Text style={styles.rowLabel}>Export Key Images</Text>
+        <Text style={styles.rowLabel}>{t('export_key_images')}</Text>
         <Text style={styles.rowValue}>›</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.dangerRow} onPress={() => Alert.alert('Remove Wallet', 'This will delete the wallet from this device. Make sure you have your seed phrase backed up.', [{text: 'Cancel'}, {text: 'Remove', style: 'destructive'}])}>
-        <Text style={styles.dangerText}>Remove Wallet</Text>
+      <TouchableOpacity style={styles.dangerRow} onPress={() => Alert.alert(t('remove_wallet'), t('remove_wallet_warning'), [{text: t('cancel')}, {text: t('remove'), style: 'destructive'}])}>
+        <Text style={styles.dangerText}>{t('remove_wallet')}</Text>
       </TouchableOpacity>
     </ScrollView>
   );

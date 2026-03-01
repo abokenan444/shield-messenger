@@ -1,6 +1,7 @@
 import React, {useState, useRef} from 'react';
 import {View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 interface GroupMessage {
   id: string;
@@ -51,7 +52,7 @@ const GroupChatScreen: React.FC<{route: any; navigation: any}> = ({route, naviga
         </TouchableOpacity>
         <TouchableOpacity style={styles.headerInfo} onPress={() => navigation.navigate('GroupProfile', {groupId, groupName})}>
           <Text style={styles.headerTitle}>{groupName}</Text>
-          <Text style={styles.headerSubtitle}>{memberCount} members · E2EE</Text>
+          <Text style={styles.headerSubtitle}>{t('members_e2ee').replace('%s', String(memberCount))}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.navigate('VoiceCall', {contactId: groupId, contactName: groupName})}>
           <Text style={styles.callIcon}>📞</Text>
@@ -76,7 +77,7 @@ const GroupChatScreen: React.FC<{route: any; navigation: any}> = ({route, naviga
       <View style={styles.inputBar}>
         <TextInput
           style={styles.input}
-          placeholder="Message group..."
+          placeholder={t('message_group')}
           placeholderTextColor={Colors.textTertiary}
           value={inputText}
           onChangeText={setInputText}

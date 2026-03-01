@@ -1,6 +1,7 @@
 import React from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, Share} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const ReceiveScreen: React.FC<{navigation: any}> = ({navigation}) => {
   const address = '47sghzufGhJJDv9WkreiS4ENoGD3tNN36d2dKJzVhEWFPT...'; // Demo Monero address
@@ -17,9 +18,9 @@ const ReceiveScreen: React.FC<{navigation: any}> = ({navigation}) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Receive XMR</Text>
+        <Text style={styles.title}>{t('receive_xmr')}</Text>
         <View style={{width: 60}} />
       </View>
 
@@ -30,23 +31,23 @@ const ReceiveScreen: React.FC<{navigation: any}> = ({navigation}) => {
           </View>
         </View>
 
-        <Text style={styles.addressLabel}>Your Monero Address</Text>
+        <Text style={styles.addressLabel}>{t('your_monero_address')}</Text>
         <View style={styles.addressCard}>
           <Text style={styles.addressText}>{address}</Text>
         </View>
 
         <View style={styles.actions}>
           <TouchableOpacity style={styles.copyBtn} onPress={handleCopy}>
-            <Text style={styles.copyBtnText}>📋 Copy Address</Text>
+            <Text style={styles.copyBtnText}>📋 {t('copy_address')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.shareBtn} onPress={handleShare}>
-            <Text style={styles.shareBtnText}>📤 Share</Text>
+            <Text style={styles.shareBtnText}>📤 {t('share')}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.infoCard}>
           <Text style={styles.infoText}>
-            🔐 Monero uses stealth addresses — each transaction creates a unique one-time address, preserving your privacy.
+            🔐 {t('monero_stealth_info')}
           </Text>
         </View>
       </View>

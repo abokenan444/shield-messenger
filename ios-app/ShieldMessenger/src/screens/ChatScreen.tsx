@@ -11,6 +11,7 @@ import {
   Animated,
 } from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 interface Message {
   id: string;
@@ -127,7 +128,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({route, navigation}) => {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
-          accessibilityLabel="Go back">
+          accessibilityLabel={t('go_back')}>
           <Text style={styles.backButtonText}>{'‹'}</Text>
         </TouchableOpacity>
 
@@ -142,7 +143,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({route, navigation}) => {
           </View>
           <View>
             <Text style={styles.headerName}>{contactName}</Text>
-            <Text style={styles.headerStatus}>Online via Tor</Text>
+            <Text style={styles.headerStatus}>{t('online_via_tor')}</Text>
           </View>
         </TouchableOpacity>
 
@@ -150,12 +151,12 @@ const ChatScreen: React.FC<ChatScreenProps> = ({route, navigation}) => {
           <TouchableOpacity
             style={styles.headerAction}
             onPress={() => navigation.navigate('VoiceCall', {contactId, contactName})}
-            accessibilityLabel="Start voice call">
+            accessibilityLabel={t('start_voice_call')}>
             <Text style={styles.headerActionText}>📞</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerAction}
-            accessibilityLabel="More options">
+            accessibilityLabel={t('more_options')}>
             <Text style={styles.headerActionText}>⋮</Text>
           </TouchableOpacity>
         </View>
@@ -164,7 +165,7 @@ const ChatScreen: React.FC<ChatScreenProps> = ({route, navigation}) => {
       {/* Encryption Banner */}
       <View style={styles.encryptionBanner}>
         <Text style={styles.encryptionText}>
-          🔒 Messages are end-to-end encrypted with PQ Double Ratchet
+          🔒 {t('encrypted_pq_ratchet')}
         </Text>
       </View>
 
@@ -192,32 +193,32 @@ const ChatScreen: React.FC<ChatScreenProps> = ({route, navigation}) => {
       <View style={styles.inputBar}>
         <TouchableOpacity
           style={styles.attachButton}
-          accessibilityLabel="Attach file">
+          accessibilityLabel={t('attach_file')}>
           <Text style={styles.attachButtonText}>+</Text>
         </TouchableOpacity>
 
         <TextInput
           style={styles.textInput}
-          placeholder="Message"
+          placeholder={t('message')}
           placeholderTextColor={Colors.textTertiary}
           value={inputText}
           onChangeText={setInputText}
           multiline
           maxLength={4096}
-          accessibilityLabel="Type a message"
+          accessibilityLabel={t('message_placeholder')}
         />
 
         {inputText.trim().length > 0 ? (
           <TouchableOpacity
             style={styles.sendButton}
             onPress={sendMessage}
-            accessibilityLabel="Send message">
+            accessibilityLabel={t('send_message')}>
             <Text style={styles.sendButtonText}>➤</Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
             style={styles.voiceButton}
-            accessibilityLabel="Record voice message">
+            accessibilityLabel={t('record_voice')}>
             <Text style={styles.voiceButtonText}>🎤</Text>
           </TouchableOpacity>
         )}

@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const RestoreAccountScreen: React.FC<{navigation: any}> = ({navigation}) => {
   const [seedPhrase, setSeedPhrase] = useState('');
@@ -24,15 +25,15 @@ const RestoreAccountScreen: React.FC<{navigation: any}> = ({navigation}) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Restore Account</Text>
+        <Text style={styles.title}>{t('restore_account')}</Text>
         <View style={{width: 60}} />
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.sectionTitle}>Enter Your 24-Word Seed Phrase</Text>
-        <Text style={styles.subtitle}>Enter the words separated by spaces</Text>
+        <Text style={styles.sectionTitle}>{t('enter_seed_phrase')}</Text>
+        <Text style={styles.subtitle}>{t('enter_seed_words')}</Text>
 
         <TextInput
           style={styles.seedInput}
@@ -46,13 +47,13 @@ const RestoreAccountScreen: React.FC<{navigation: any}> = ({navigation}) => {
           autoCorrect={false}
         />
         <Text style={[styles.wordCount, validSeed && styles.wordCountValid]}>
-          {wordCount}/24 words
+          {t('words_count').replace('%s', String(wordCount))}
         </Text>
 
-        <Text style={[styles.sectionTitle, {marginTop: Spacing.xl}]}>Set New Password</Text>
+        <Text style={[styles.sectionTitle, {marginTop: Spacing.xl}]}>{t('set_new_password')}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Password (min 12 chars)"
+          placeholder={t('password_min_chars')}
           placeholderTextColor={Colors.textTertiary}
           value={password}
           onChangeText={setPassword}
@@ -66,15 +67,15 @@ const RestoreAccountScreen: React.FC<{navigation: any}> = ({navigation}) => {
           {restoring ? (
             <View style={styles.restoringRow}>
               <ActivityIndicator color={Colors.textOnPrimary} />
-              <Text style={styles.restoreBtnText}> Restoring...</Text>
+              <Text style={styles.restoreBtnText}> {t('restoring')}</Text>
             </View>
           ) : (
-            <Text style={styles.restoreBtnText}>Restore Account</Text>
+            <Text style={styles.restoreBtnText}>{t('restore_account')}</Text>
           )}
         </TouchableOpacity>
 
         <View style={styles.warningCard}>
-          <Text style={styles.warningTitle}>⚠️ Security Notice</Text>
+          <Text style={styles.warningTitle}>⚠️ {t('security_notice')}</Text>
           <Text style={styles.warningText}>
             Never enter your seed phrase on any website or share it with anyone. Shield Messenger will never ask for it outside of this restore flow.
           </Text>

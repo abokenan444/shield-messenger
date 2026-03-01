@@ -1,6 +1,7 @@
 import React, {useState, useEffect} from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, Vibration} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const IncomingCallScreen: React.FC<{route: any; navigation: any}> = ({route, navigation}) => {
   const {contactName, contactId, isVideo} = route.params || {contactName: 'Khalid', contactId: 'u1', isVideo: false};
@@ -29,19 +30,19 @@ const IncomingCallScreen: React.FC<{route: any; navigation: any}> = ({route, nav
           <Text style={styles.avatarText}>{contactName[0]}</Text>
         </View>
         <Text style={styles.callerName}>{contactName}</Text>
-        <Text style={styles.callType}>{isVideo ? 'Incoming Video Call' : 'Incoming Voice Call'}</Text>
-        <Text style={styles.e2ee}>🔐 End-to-End Encrypted</Text>
-        <Text style={styles.statusText}>{callState === 'ringing' ? 'Ringing...' : 'Connecting...'}</Text>
+        <Text style={styles.callType}>{isVideo ? t('incoming_video_call') : t('incoming_voice_call')}</Text>
+        <Text style={styles.e2ee}>🔐 {t('encrypted_e2e')}</Text>
+        <Text style={styles.statusText}>{callState === 'ringing' ? t('ringing') : t('connecting')}</Text>
       </View>
 
       <View style={styles.actions}>
         <TouchableOpacity style={styles.declineBtn} onPress={handleDecline}>
           <Text style={styles.btnEmoji}>📵</Text>
-          <Text style={styles.btnLabel}>Decline</Text>
+          <Text style={styles.btnLabel}>{t('decline')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.acceptBtn} onPress={handleAccept}>
           <Text style={styles.btnEmoji}>📞</Text>
-          <Text style={styles.btnLabel}>Accept</Text>
+          <Text style={styles.btnLabel}>{t('accept')}</Text>
         </TouchableOpacity>
       </View>
     </View>

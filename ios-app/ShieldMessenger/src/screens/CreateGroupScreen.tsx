@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, TextInput, FlatList, TouchableOpacity, StyleSheet, Switch, Image} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 interface Contact {
   id: string;
@@ -41,9 +42,9 @@ const CreateGroupScreen: React.FC<{navigation: any}> = ({navigation}) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.backButton}>✕</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>New Group</Text>
+        <Text style={styles.title}>{t('create_group')}</Text>
         <TouchableOpacity onPress={handleCreate} disabled={!groupName.trim() || selectedCount < 1}>
-          <Text style={[styles.createButton, (!groupName.trim() || selectedCount < 1) && styles.disabled]}>Create</Text>
+          <Text style={[styles.createButton, (!groupName.trim() || selectedCount < 1) && styles.disabled]}>{t('confirm')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -53,7 +54,7 @@ const CreateGroupScreen: React.FC<{navigation: any}> = ({navigation}) => {
         </View>
         <TextInput
           style={styles.nameInput}
-          placeholder="Group name"
+          placeholder={t('group_name')}
           placeholderTextColor={Colors.textTertiary}
           value={groupName}
           onChangeText={setGroupName}
@@ -62,7 +63,7 @@ const CreateGroupScreen: React.FC<{navigation: any}> = ({navigation}) => {
       </View>
 
       <View style={styles.optionRow}>
-        <Text style={styles.optionLabel}>Disappearing Messages</Text>
+        <Text style={styles.optionLabel}>{t('disappearing_messages')}</Text>
         <Switch
           value={disappearingMessages}
           onValueChange={setDisappearingMessages}
@@ -71,7 +72,7 @@ const CreateGroupScreen: React.FC<{navigation: any}> = ({navigation}) => {
         />
       </View>
 
-      <Text style={styles.sectionTitle}>Add Members ({selectedCount} selected)</Text>
+      <Text style={styles.sectionTitle}>{t('add_members')} ({selectedCount} {t('selected_count').replace('%s', '')})</Text>
 
       <FlatList
         data={contacts}
@@ -93,7 +94,7 @@ const CreateGroupScreen: React.FC<{navigation: any}> = ({navigation}) => {
       />
 
       <View style={styles.encryptionBanner}>
-        <Text style={styles.encryptionText}>🔐 Group uses Sender Keys + PQ Double Ratchet</Text>
+        <Text style={styles.encryptionText}>🔐 {t('group_pq_ratchet')}</Text>
       </View>
     </View>
   );

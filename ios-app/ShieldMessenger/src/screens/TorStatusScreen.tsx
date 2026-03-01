@@ -1,6 +1,7 @@
 import React, {useState, useEffect} from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, ScrollView} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const TorStatusScreen: React.FC<{navigation: any}> = ({navigation}) => {
   const [status, setStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connected');
@@ -24,79 +25,79 @@ const TorStatusScreen: React.FC<{navigation: any}> = ({navigation}) => {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Tor Network</Text>
+        <Text style={styles.title}>{t('tor_network')}</Text>
         <View style={{width: 60}} />
       </View>
 
       <View style={styles.statusCard}>
         <View style={[styles.statusDot, {backgroundColor: statusColor}]} />
         <Text style={[styles.statusText, {color: statusColor}]}>
-          {status === 'connected' ? 'Connected' : status === 'connecting' ? 'Connecting...' : 'Disconnected'}
+          {status === 'connected' ? t('connected') : status === 'connecting' ? t('connecting') : t('disconnected')}
         </Text>
-        <Text style={styles.uptime}>Uptime: {torInfo.uptime}</Text>
+        <Text style={styles.uptime}>{t('uptime')}: {torInfo.uptime}</Text>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Current Circuit</Text>
+        <Text style={styles.sectionTitle}>{t('current_circuit')}</Text>
         <View style={styles.circuitPath}>
           <View style={styles.circuitNode}>
-            <Text style={styles.nodeLabel}>Guard</Text>
+            <Text style={styles.nodeLabel}>{t('guard')}</Text>
             <Text style={styles.nodeValue}>{torInfo.guardNode}</Text>
           </View>
           <Text style={styles.circuitArrow}>→</Text>
           <View style={styles.circuitNode}>
-            <Text style={styles.nodeLabel}>Middle</Text>
+            <Text style={styles.nodeLabel}>{t('middle')}</Text>
             <Text style={styles.nodeValue}>{torInfo.middleNode}</Text>
           </View>
           <Text style={styles.circuitArrow}>→</Text>
           <View style={styles.circuitNode}>
-            <Text style={styles.nodeLabel}>Exit</Text>
+            <Text style={styles.nodeLabel}>{t('exit')}</Text>
             <Text style={styles.nodeValue}>{torInfo.exitNode}</Text>
           </View>
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Hidden Service</Text>
+        <Text style={styles.sectionTitle}>{t('hidden_service')}</Text>
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Address</Text>
+          <Text style={styles.infoLabel}>{t('address')}</Text>
           <Text style={styles.infoValue}>{torInfo.hiddenService}</Text>
         </View>
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Status</Text>
-          <Text style={[styles.infoValue, {color: Colors.success}]}>Published</Text>
+          <Text style={styles.infoLabel}>{t('status')}</Text>
+          <Text style={[styles.infoValue, {color: Colors.success}]}>{t('published')}</Text>
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Statistics</Text>
+        <Text style={styles.sectionTitle}>{t('statistics')}</Text>
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Active Circuits</Text>
+          <Text style={styles.infoLabel}>{t('active_circuits')}</Text>
           <Text style={styles.infoValue}>{torInfo.circuitCount}</Text>
         </View>
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Bandwidth</Text>
+          <Text style={styles.infoLabel}>{t('bandwidth')}</Text>
           <Text style={styles.infoValue}>{torInfo.bandwidth}</Text>
         </View>
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Tor Version</Text>
+          <Text style={styles.infoLabel}>{t('tor_version')}</Text>
           <Text style={styles.infoValue}>{torInfo.version}</Text>
         </View>
         <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Bootstrap</Text>
+          <Text style={styles.infoLabel}>{t('bootstrap')}</Text>
           <Text style={styles.infoValue}>{torInfo.bootstrapProgress}%</Text>
         </View>
       </View>
 
       <View style={styles.actions}>
         <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('BridgeConfig')}>
-          <Text style={styles.actionText}>Configure Bridges</Text>
+          <Text style={styles.actionText}>{t('configure_bridges')}</Text>
           <Text style={styles.actionArrow}>›</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.actionBtn}>
-          <Text style={styles.actionText}>Request New Circuit</Text>
+          <Text style={styles.actionText}>{t('request_new_circuit')}</Text>
           <Text style={styles.actionArrow}>›</Text>
         </TouchableOpacity>
       </View>

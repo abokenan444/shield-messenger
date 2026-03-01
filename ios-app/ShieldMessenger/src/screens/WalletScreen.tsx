@@ -8,6 +8,7 @@ import {
   FlatList,
 } from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 interface Transaction {
   id: string;
@@ -55,30 +56,30 @@ const WalletScreen: React.FC<WalletScreenProps> = ({navigation}) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>{'‹ Back'}</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Wallet</Text>
+        <Text style={styles.headerTitle}>{t('wallet')}</Text>
         <View style={{width: 50}} />
       </View>
 
       {/* Balance Card */}
       <View style={styles.balanceCard}>
-        <Text style={styles.balanceLabel}>Shielded Balance</Text>
+        <Text style={styles.balanceLabel}>{t('shielded_balance')}</Text>
         <Text style={styles.balanceAmount}>0.13 ZEC</Text>
         <Text style={styles.balanceFiat}>≈ $4.52 USD</Text>
         <View style={styles.balanceActions}>
           <TouchableOpacity style={styles.balanceButton} accessibilityLabel="Send Zcash">
-            <Text style={styles.balanceButtonText}>Send</Text>
+            <Text style={styles.balanceButtonText}>{t('send_money')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.balanceButton, styles.balanceButtonOutline]} accessibilityLabel="Receive Zcash">
-            <Text style={[styles.balanceButtonText, styles.balanceButtonOutlineText]}>Receive</Text>
+          <TouchableOpacity style={[styles.balanceButton, styles.balanceButtonOutline]} accessibilityLabel={t('receive_money')}>
+            <Text style={[styles.balanceButtonText, styles.balanceButtonOutlineText]}>{t('receive_money')}</Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.shieldedNote}>🔒 All transactions use shielded (Sapling) addresses</Text>
+        <Text style={styles.shieldedNote}>🔒 {t('all_shielded')}</Text>
       </View>
 
       {/* Transactions */}
-      <Text style={styles.sectionTitle}>Recent Transactions</Text>
+      <Text style={styles.sectionTitle}>{t('recent_transactions')}</Text>
       <FlatList
         data={transactions}
         renderItem={renderTransaction}
@@ -86,7 +87,7 @@ const WalletScreen: React.FC<WalletScreenProps> = ({navigation}) => {
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         contentContainerStyle={styles.txList}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>No transactions yet</Text>
+          <Text style={styles.emptyText}>{t('no_transactions')}</Text>
         }
       />
     </View>

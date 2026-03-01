@@ -1,25 +1,26 @@
 import React, {useState} from 'react';
 import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const SecurityModeScreen: React.FC<{navigation: any}> = ({navigation}) => {
   const [mode, setMode] = useState<'standard' | 'high' | 'maximum'>('standard');
 
   const modes = [
     {
-      id: 'standard' as const, name: 'Standard', icon: '🟢',
-      features: ['E2EE messaging', 'Tor routing', 'SQLCipher encryption', 'Auto-lock (5 min)'],
-      desc: 'For everyday private communication',
+      id: 'standard' as const, name: t('standard'), icon: '🟢',
+      features: [t('e2ee_messaging'), t('tor_routing'), t('sqlcipher_encryption'), t('auto_lock_5min')],
+      desc: t('standard_desc'),
     },
     {
-      id: 'high' as const, name: 'High Security', icon: '🟡',
-      features: ['All Standard features', 'Disappearing messages (default)', 'No link previews', 'Screenshot blocking', 'Auto-lock (30 sec)'],
-      desc: 'For sensitive communications',
+      id: 'high' as const, name: t('high_security'), icon: '🟡',
+      features: [t('all_standard_features'), t('disappearing_messages_default'), t('no_link_previews'), t('screenshot_blocking'), t('auto_lock_30sec')],
+      desc: t('high_security_desc'),
     },
     {
-      id: 'maximum' as const, name: 'Maximum Security', icon: '🔴',
-      features: ['All High features', 'Duress PIN enabled', 'No notifications', 'Tor bridges required', 'Auto-lock (immediate)', 'No media storage'],
-      desc: 'For high-risk situations',
+      id: 'maximum' as const, name: t('maximum_security'), icon: '🔴',
+      features: [t('all_high_features'), t('duress_pin_enabled'), t('no_notifications'), t('tor_bridges_required'), t('auto_lock_immediate'), t('no_media_storage')],
+      desc: t('maximum_security_desc'),
     },
   ];
 
@@ -27,13 +28,13 @@ const SecurityModeScreen: React.FC<{navigation: any}> = ({navigation}) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Security Mode</Text>
+        <Text style={styles.title}>{t('security_mode')}</Text>
         <View style={{width: 60}} />
       </View>
 
-      <Text style={styles.subtitle}>Choose the security level that fits your threat model</Text>
+      <Text style={styles.subtitle}>{t('choose_security_level')}</Text>
 
       {modes.map(m => (
         <TouchableOpacity key={m.id} style={[styles.modeCard, mode === m.id && styles.modeCardActive]} onPress={() => setMode(m.id)}>

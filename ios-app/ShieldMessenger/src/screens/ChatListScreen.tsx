@@ -9,6 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 interface Conversation {
   id: string;
@@ -146,12 +147,12 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({navigation}) => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Chats</Text>
+        <Text style={styles.headerTitle}>{t('chats')}</Text>
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => navigation.navigate('AddFriend')}
-            accessibilityLabel="Add new contact">
+            accessibilityLabel={t('add_new_contact')}>
             <Text style={styles.headerButtonText}>+</Text>
           </TouchableOpacity>
         </View>
@@ -160,18 +161,18 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({navigation}) => {
       {/* Tor Status Bar */}
       <View style={styles.torBar}>
         <View style={[styles.torDot, {backgroundColor: Colors.torConnected}]} />
-        <Text style={styles.torBarText}>Connected via Tor</Text>
+        <Text style={styles.torBarText}>{t('connected_via_tor')}</Text>
       </View>
 
       {/* Search */}
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search conversations..."
+          placeholder={t('search_conversations')}
           placeholderTextColor={Colors.textTertiary}
           value={searchQuery}
           onChangeText={setSearchQuery}
-          accessibilityLabel="Search conversations"
+          accessibilityLabel={t('search_conversations')}
         />
       </View>
 
@@ -190,9 +191,9 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({navigation}) => {
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No conversations yet</Text>
+            <Text style={styles.emptyText}>{t('no_conversations')}</Text>
             <Text style={styles.emptySubtext}>
-              Add a friend to start messaging securely
+              {t('add_friend_start')}
             </Text>
           </View>
         }

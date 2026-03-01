@@ -1,40 +1,41 @@
 import React from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, ScrollView, Linking} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const AboutScreen: React.FC<{navigation: any}> = ({navigation}) => {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>About</Text>
+        <Text style={styles.title}>{t('about')}</Text>
         <View style={{width: 60}} />
       </View>
 
       <View style={styles.logoSection}>
         <Text style={styles.logo}>🛡️</Text>
         <Text style={styles.appName}>Shield Messenger</Text>
-        <Text style={styles.version}>Version 1.0.0-beta (Build 42)</Text>
+        <Text style={styles.version}>{t('version')} 1.0.0-beta ({t('build')} 42)</Text>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Cryptography</Text>
+        <Text style={styles.sectionTitle}>{t('cryptography')}</Text>
         <View style={styles.cryptoRow}>
-          <Text style={styles.cryptoLabel}>Key Exchange</Text>
+          <Text style={styles.cryptoLabel}>{t('key_exchange')}</Text>
           <Text style={styles.cryptoValue}>ML-KEM-1024 (PQ) + X25519</Text>
         </View>
         <View style={styles.cryptoRow}>
-          <Text style={styles.cryptoLabel}>Signatures</Text>
+          <Text style={styles.cryptoLabel}>{t('signatures')}</Text>
           <Text style={styles.cryptoValue}>Ed25519</Text>
         </View>
         <View style={styles.cryptoRow}>
-          <Text style={styles.cryptoLabel}>Ratchet</Text>
+          <Text style={styles.cryptoLabel}>{t('ratchet')}</Text>
           <Text style={styles.cryptoValue}>PQ Double Ratchet (Hybrid)</Text>
         </View>
         <View style={styles.cryptoRow}>
-          <Text style={styles.cryptoLabel}>Symmetric</Text>
+          <Text style={styles.cryptoLabel}>{t('symmetric')}</Text>
           <Text style={styles.cryptoValue}>AES-256-GCM / ChaCha20-Poly1305</Text>
         </View>
         <View style={styles.cryptoRow}>
@@ -46,27 +47,27 @@ const AboutScreen: React.FC<{navigation: any}> = ({navigation}) => {
           <Text style={styles.cryptoValue}>SQLCipher (AES-256)</Text>
         </View>
         <View style={styles.cryptoRow}>
-          <Text style={styles.cryptoLabel}>Network</Text>
+          <Text style={styles.cryptoLabel}>{t('network')}</Text>
           <Text style={styles.cryptoValue}>Tor v3 Onion Services</Text>
         </View>
       </View>
 
       <View style={styles.section}>
         <TouchableOpacity style={styles.linkRow} onPress={() => navigation.navigate('Privacy')}>
-          <Text style={styles.linkText}>Privacy Policy</Text>
+          <Text style={styles.linkText}>{t('privacy_policy')}</Text>
           <Text style={styles.linkArrow}>›</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.linkRow} onPress={() => navigation.navigate('License')}>
-          <Text style={styles.linkText}>Open Source Licenses</Text>
+          <Text style={styles.linkText}>{t('open_source_licenses')}</Text>
           <Text style={styles.linkArrow}>›</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.linkRow}>
-          <Text style={styles.linkText}>Security Audit Report</Text>
+          <Text style={styles.linkText}>{t('security_audit_report')}</Text>
           <Text style={styles.linkArrow}>›</Text>
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.footer}>Built with Rust, React Native, and Tor{'\n'}No tracking · No metadata · No compromises</Text>
+      <Text style={styles.footer}>{t('built_with_footer')}</Text>
     </ScrollView>
   );
 };

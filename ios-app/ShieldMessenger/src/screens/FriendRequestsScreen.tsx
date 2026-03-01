@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, FlatList, TouchableOpacity, StyleSheet} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 interface FriendRequest {
   id: string;
@@ -39,9 +40,9 @@ const FriendRequestsScreen: React.FC<{navigation: any}> = ({navigation}) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Friend Requests</Text>
+        <Text style={styles.title}>{t('friend_requests')}</Text>
         <View style={{width: 60}} />
       </View>
 
@@ -64,10 +65,10 @@ const FriendRequestsScreen: React.FC<{navigation: any}> = ({navigation}) => {
             </View>
             <View style={styles.actions}>
               <TouchableOpacity style={styles.declineBtn} onPress={() => handleDecline(item.id)}>
-                <Text style={styles.declineText}>Decline</Text>
+                <Text style={styles.declineText}>{t('decline')}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.acceptBtn} onPress={() => handleAccept(item.id)}>
-                <Text style={styles.acceptText}>Accept</Text>
+                <Text style={styles.acceptText}>{t('accept')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -75,7 +76,7 @@ const FriendRequestsScreen: React.FC<{navigation: any}> = ({navigation}) => {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>📭</Text>
-            <Text style={styles.emptyText}>No pending requests</Text>
+            <Text style={styles.emptyText}>{t('no_pending_requests')}</Text>
           </View>
         }
       />

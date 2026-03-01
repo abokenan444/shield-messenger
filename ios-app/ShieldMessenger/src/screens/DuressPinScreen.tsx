@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, TextInput, TouchableOpacity, StyleSheet, Alert} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const DuressPinScreen: React.FC<{navigation: any}> = ({navigation}) => {
   const [pin, setPin] = useState('');
@@ -14,13 +15,13 @@ const DuressPinScreen: React.FC<{navigation: any}> = ({navigation}) => {
 
   const handleConfirm = () => {
     if (pin !== confirmPin) {
-      Alert.alert('Mismatch', 'PINs do not match. Try again.');
+      Alert.alert(t('pin_mismatch'), t('pins_dont_match'));
       setConfirmPin('');
       return;
     }
     // TODO: Save duress PIN via Rust core (separate from main PIN)
-    Alert.alert('Duress PIN Set', 'Your duress PIN has been configured. Using this PIN at unlock will securely wipe sensitive data.', [
-      {text: 'OK', onPress: () => navigation.goBack()},
+    Alert.alert(t('duress_pin_set'), t('duress_pin_configured'), [
+      {text: t('ok'), onPress: () => navigation.goBack()},
     ]);
   };
 
@@ -29,19 +30,19 @@ const DuressPinScreen: React.FC<{navigation: any}> = ({navigation}) => {
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.backText}>‹ Back</Text>
+            <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Duress PIN</Text>
+          <Text style={styles.title}>{t('duress_pin')}</Text>
           <View style={{width: 60}} />
         </View>
         <View style={styles.content}>
           <Text style={styles.infoIcon}>🚨</Text>
-          <Text style={styles.infoTitle}>What is a Duress PIN?</Text>
+          <Text style={styles.infoTitle}>{t('what_is_duress_pin')}</Text>
           <Text style={styles.infoText}>
             A duress PIN is a secondary PIN that, when entered, appears to unlock the app normally but silently wipes all sensitive data in the background.
           </Text>
           <View style={styles.infoCard}>
-            <Text style={styles.cardTitle}>When activated:</Text>
+            <Text style={styles.cardTitle}>{t('when_activated')}</Text>
             <Text style={styles.cardItem}>• All messages are securely wiped</Text>
             <Text style={styles.cardItem}>• Private keys are destroyed</Text>
             <Text style={styles.cardItem}>• Wallet data is removed</Text>
@@ -49,7 +50,7 @@ const DuressPinScreen: React.FC<{navigation: any}> = ({navigation}) => {
             <Text style={styles.cardItem}>• No evidence of data destruction</Text>
           </View>
           <TouchableOpacity style={styles.setupBtn} onPress={() => setStep('setup')}>
-            <Text style={styles.setupBtnText}>Set Up Duress PIN</Text>
+            <Text style={styles.setupBtnText}>{t('set_up_duress_pin')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -60,16 +61,16 @@ const DuressPinScreen: React.FC<{navigation: any}> = ({navigation}) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => step === 'confirm' ? setStep('setup') : setStep('info')}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>{step === 'setup' ? 'Set PIN' : 'Confirm PIN'}</Text>
+        <Text style={styles.title}>{step === 'setup' ? t('set_pin') : t('confirm_pin')}</Text>
         <View style={{width: 60}} />
       </View>
       <View style={styles.pinContent}>
         <Text style={styles.pinInstruction}>
-          {step === 'setup' ? 'Enter a duress PIN (min 4 digits)' : 'Re-enter your duress PIN'}
+          {step === 'setup' ? t('enter_duress_pin') : t('reenter_duress_pin')}
         </Text>
-        <Text style={styles.pinWarning}>Must be different from your unlock PIN</Text>
+        <Text style={styles.pinWarning}>{t('different_from_unlock')}</Text>
 
         <View style={styles.pinDots}>
           {Array.from({length: 6}).map((_, i) => (
@@ -91,7 +92,7 @@ const DuressPinScreen: React.FC<{navigation: any}> = ({navigation}) => {
           style={[styles.confirmBtn, (step === 'setup' ? pin.length < 4 : confirmPin.length < 4) && styles.btnDisabled]}
           disabled={step === 'setup' ? pin.length < 4 : confirmPin.length < 4}
           onPress={step === 'setup' ? handleSetPin : handleConfirm}>
-          <Text style={styles.confirmBtnText}>{step === 'setup' ? 'Next' : 'Confirm'}</Text>
+          <Text style={styles.confirmBtnText}>{step === 'setup' ? t('next') : t('confirm')}</Text>
         </TouchableOpacity>
       </View>
     </View>

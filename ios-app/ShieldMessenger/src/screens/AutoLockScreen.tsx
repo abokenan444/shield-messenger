@@ -1,30 +1,31 @@
 import React, {useState} from 'react';
 import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const AutoLockScreen: React.FC<{navigation: any}> = ({navigation}) => {
   const [selected, setSelected] = useState('5min');
 
   const options = [
-    {id: 'immediate', label: 'Immediately', desc: 'Lock as soon as app goes to background'},
-    {id: '30sec', label: '30 seconds', desc: 'Brief delay for multitasking'},
-    {id: '1min', label: '1 minute', desc: 'Standard delay'},
-    {id: '5min', label: '5 minutes', desc: 'Default setting'},
-    {id: '15min', label: '15 minutes', desc: 'Extended session'},
-    {id: '1hour', label: '1 hour', desc: 'Long session (not recommended)'},
+    {id: 'immediate', label: t('immediately'), desc: t('brief_delay')},
+    {id: '30sec', label: t('30_seconds'), desc: t('brief_delay')},
+    {id: '1min', label: t('1_minute'), desc: t('standard_delay')},
+    {id: '5min', label: t('5_minutes'), desc: t('default_setting')},
+    {id: '15min', label: t('15_minutes'), desc: t('standard_delay')},
+    {id: '1hour', label: t('1_hour'), desc: t('standard_delay')},
   ];
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Auto-Lock</Text>
+        <Text style={styles.title}>{t('auto_lock')}</Text>
         <View style={{width: 60}} />
       </View>
 
-      <Text style={styles.subtitle}>Choose when the app should lock after going to the background</Text>
+      <Text style={styles.subtitle}>{t('choose_auto_lock')}</Text>
 
       {options.map(opt => (
         <TouchableOpacity key={opt.id} style={styles.optionRow} onPress={() => setSelected(opt.id)}>
@@ -40,7 +41,7 @@ const AutoLockScreen: React.FC<{navigation: any}> = ({navigation}) => {
 
       <View style={styles.infoCard}>
         <Text style={styles.infoText}>
-          🔐 When locked, all data is encrypted with your Argon2id-derived key and cannot be accessed without your password.
+          🔐 {t('when_locked_encrypted')}
         </Text>
       </View>
     </View>

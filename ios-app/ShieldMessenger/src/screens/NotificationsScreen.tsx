@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, ScrollView} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const NotificationsScreen: React.FC<{navigation: any}> = ({navigation}) => {
   const [messageNotif, setMessageNotif] = useState(true);
@@ -26,25 +27,25 @@ const NotificationsScreen: React.FC<{navigation: any}> = ({navigation}) => {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Notifications</Text>
+        <Text style={styles.title}>{t('notifications')}</Text>
         <View style={{width: 60}} />
       </View>
 
-      <Text style={styles.sectionTitle}>Notification Types</Text>
-      <ToggleRow label="Messages" desc="New message notifications" value={messageNotif} onToggle={() => setMessageNotif(!messageNotif)} />
-      <ToggleRow label="Calls" desc="Incoming call alerts" value={callNotif} onToggle={() => setCallNotif(!callNotif)} />
-      <ToggleRow label="Groups" desc="Group message notifications" value={groupNotif} onToggle={() => setGroupNotif(!groupNotif)} />
-      <ToggleRow label="Wallet" desc="Transaction notifications" value={walletNotif} onToggle={() => setWalletNotif(!walletNotif)} />
+      <Text style={styles.sectionTitle}>{t('notification_types')}</Text>
+      <ToggleRow label={t('messages')} desc={t('new_message_notif')} value={messageNotif} onToggle={() => setMessageNotif(!messageNotif)} />
+      <ToggleRow label={t('calls')} desc={t('incoming_call_alerts')} value={callNotif} onToggle={() => setCallNotif(!callNotif)} />
+      <ToggleRow label={t('groups')} desc={t('group_message_notif')} value={groupNotif} onToggle={() => setGroupNotif(!groupNotif)} />
+      <ToggleRow label={t('wallet')} desc={t('transaction_notif')} value={walletNotif} onToggle={() => setWalletNotif(!walletNotif)} />
 
-      <Text style={styles.sectionTitle}>Privacy</Text>
-      <ToggleRow label="Show Content Preview" desc="Display message text in notifications (less private)" value={previewContent} onToggle={() => setPreviewContent(!previewContent)} />
-      <ToggleRow label="Show Sender Name" desc="Display who sent the message" value={showSender} onToggle={() => setShowSender(!showSender)} />
+      <Text style={styles.sectionTitle}>{t('privacy')}</Text>
+      <ToggleRow label={t('show_content_preview')} desc={t('show_content_preview_desc')} value={previewContent} onToggle={() => setPreviewContent(!previewContent)} />
+      <ToggleRow label={t('show_sender_name')} desc={t('show_sender_desc')} value={showSender} onToggle={() => setShowSender(!showSender)} />
 
       <View style={styles.infoCard}>
         <Text style={styles.infoText}>
-          🔐 Notifications are processed locally. No notification metadata is sent to Apple or Google servers.
+          🔐 {t('notifications_local_only')}
         </Text>
       </View>
     </ScrollView>

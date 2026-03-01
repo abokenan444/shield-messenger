@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, FlatList, TouchableOpacity, StyleSheet} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 interface LogEntry {
   id: string;
@@ -44,11 +45,11 @@ const SystemLogScreen: React.FC<{navigation: any}> = ({navigation}) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>System Log</Text>
+        <Text style={styles.title}>{t('system_log')}</Text>
         <TouchableOpacity>
-          <Text style={styles.clearBtn}>Clear</Text>
+          <Text style={styles.clearBtn}>{t('clear')}</Text>
         </TouchableOpacity>
       </View>
 

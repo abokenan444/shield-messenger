@@ -1,36 +1,37 @@
 import React from 'react';
 import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const AccountCreatedScreen: React.FC<{navigation: any}> = ({navigation}) => {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.checkmark}>✓</Text>
-        <Text style={styles.title}>Account Created</Text>
-        <Text style={styles.subtitle}>Your keys have been generated and your database is encrypted</Text>
+        <Text style={styles.title}>{t('account_created')}</Text>
+        <Text style={styles.subtitle}>{t('keys_generated')}</Text>
 
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
             <Text style={styles.infoIcon}>🔑</Text>
-            <Text style={styles.infoText}>Ed25519 identity keypair generated</Text>
+            <Text style={styles.infoText}>{t('ed25519_generated')}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoIcon}>🔐</Text>
-            <Text style={styles.infoText}>ML-KEM post-quantum keys created</Text>
+            <Text style={styles.infoText}>{t('mlkem_created')}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoIcon}>🗄️</Text>
-            <Text style={styles.infoText}>SQLCipher database initialized</Text>
+            <Text style={styles.infoText}>{t('sqlcipher_initialized')}</Text>
           </View>
           <View style={styles.infoRow}>
             <Text style={styles.infoIcon}>🧅</Text>
-            <Text style={styles.infoText}>Tor hidden service configured</Text>
+            <Text style={styles.infoText}>{t('tor_configured')}</Text>
           </View>
         </View>
 
         <View style={styles.warningCard}>
-          <Text style={styles.warningTitle}>⚠️ Important: Back Up Your Seed Phrase</Text>
+          <Text style={styles.warningTitle}>⚠️ {t('backup_seed_important')}</Text>
           <Text style={styles.warningText}>
             Your seed phrase is the only way to recover your account. Back it up now before you start messaging.
           </Text>
@@ -39,10 +40,10 @@ const AccountCreatedScreen: React.FC<{navigation: any}> = ({navigation}) => {
 
       <View style={styles.actions}>
         <TouchableOpacity style={styles.backupBtn} onPress={() => navigation.navigate('BackupSeed')}>
-          <Text style={styles.backupBtnText}>Back Up Seed Phrase</Text>
+          <Text style={styles.backupBtnText}>{t('back_up_seed')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.skipBtn} onPress={() => navigation.navigate('Main')}>
-          <Text style={styles.skipBtnText}>Skip for Now</Text>
+          <Text style={styles.skipBtnText}>{t('skip_for_now')}</Text>
         </TouchableOpacity>
       </View>
     </View>

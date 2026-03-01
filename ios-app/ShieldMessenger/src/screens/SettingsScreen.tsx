@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 interface SettingsScreenProps {
   navigation: any;
@@ -59,12 +60,12 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({navigation}) => {
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      'Delete Account',
-      'This will permanently delete your account, all messages, keys, and wallet data. This action cannot be undone.',
+      t('delete_account'),
+      t('delete_account_warning'),
       [
-        {text: 'Cancel', style: 'cancel'},
+        {text: t('cancel'), style: 'cancel'},
         {
-          text: 'Delete Everything',
+          text: t('confirm_delete'),
           style: 'destructive',
           onPress: () => {
             // TODO: Call Rust core secure wipe
@@ -94,12 +95,12 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({navigation}) => {
       </View>
 
       {/* Security Section */}
-      <Text style={styles.sectionTitle}>Security</Text>
+      <Text style={styles.sectionTitle}>{t('security')}</Text>
       <View style={styles.section}>
         <SettingRow
           icon="🔐"
-          title="Biometric Unlock"
-          subtitle="Use Face ID or Touch ID"
+          title={t('biometric_unlock')}
+          subtitle={t('use_faceid_touchid')}
           rightElement={
             <Switch
               value={biometricEnabled}
@@ -111,8 +112,8 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({navigation}) => {
         />
         <SettingRow
           icon="📸"
-          title="Screenshot Protection"
-          subtitle="Block screenshots and screen recording"
+          title={t('screenshot_protection')}
+          subtitle={t('block_screenshots')}
           rightElement={
             <Switch
               value={screenshotProtection}
@@ -124,8 +125,8 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({navigation}) => {
         />
         <SettingRow
           icon="⏱️"
-          title="Auto-Lock"
-          subtitle="Lock after 1 minute of inactivity"
+          title={t('auto_lock')}
+          subtitle={t('lock_after_1min')}
           rightElement={
             <Switch
               value={autoLockEnabled}
@@ -137,30 +138,35 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({navigation}) => {
         />
         <SettingRow
           icon="🚨"
-          title="Duress PIN"
-          subtitle="Set a panic PIN that wipes all data"
+          title={t('duress_pin')}
+          subtitle={t('set_panic_pin')}
           onPress={() => navigation.navigate('DuressPin')}
         />
         <SettingRow
           icon="🔑"
-          title="Change Password"
+          title={t('change_password')}
           onPress={() => navigation.navigate('ChangePassword')}
+        />
+        <SettingRow
+          icon="🔒"
+          title={t('two_factor')}
+          onPress={() => navigation.navigate('TotpSetup')}
         />
       </View>
 
       {/* Network Section */}
-      <Text style={styles.sectionTitle}>Network & Privacy</Text>
+      <Text style={styles.sectionTitle}>{t('network_privacy')}</Text>
       <View style={styles.section}>
         <SettingRow
           icon="🧅"
-          title="Tor Status"
-          subtitle="Connected — 3 circuits active"
+          title={t('tor_status')}
+          subtitle={t('circuits_active')}
           onPress={() => navigation.navigate('TorStatus')}
         />
         <SettingRow
           icon="🌉"
-          title="Use Bridges"
-          subtitle="Bypass Tor censorship with obfs4/snowflake"
+          title={t('use_bridges')}
+          subtitle={t('bypass_censorship')}
           rightElement={
             <Switch
               value={useBridges}
@@ -172,8 +178,8 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({navigation}) => {
         />
         <SettingRow
           icon="📊"
-          title="Traffic Padding"
-          subtitle="Send cover traffic to prevent analysis"
+          title={t('traffic_padding')}
+          subtitle={t('send_cover_traffic')}
           rightElement={
             <Switch
               value={paddingEnabled}
@@ -185,57 +191,77 @@ const SettingsScreen: React.FC<SettingsScreenProps> = ({navigation}) => {
         />
         <SettingRow
           icon="🔄"
-          title="New Tor Identity"
-          subtitle="Get new circuits (may disconnect calls)"
-          onPress={() => Alert.alert('New Identity', 'Requesting new Tor circuits...')}
+          title={t('new_identity')}
+          subtitle={t('get_new_circuits')}
+          onPress={() => Alert.alert(t('new_identity'), t('get_new_circuits'))}
         />
       </View>
 
       {/* Wallet Section */}
-      <Text style={styles.sectionTitle}>Wallet</Text>
+      <Text style={styles.sectionTitle}>{t('wallet')}</Text>
       <View style={styles.section}>
         <SettingRow
           icon="💰"
-          title="Zcash Wallet"
-          subtitle="Shielded transactions"
+          title={t('wallet')}
+          subtitle={t('shielded_transactions')}
           onPress={() => navigation.navigate('Wallet')}
         />
         <SettingRow
           icon="📝"
-          title="Backup Seed Phrase"
-          subtitle="Required to recover your wallet"
+          title={t('backup_seed')}
+          subtitle={t('required_recover_wallet')}
           onPress={() => navigation.navigate('BackupSeed')}
         />
       </View>
 
+      {/* General Section */}
+      <Text style={styles.sectionTitle}>{t('settings')}</Text>
+      <View style={styles.section}>
+        <SettingRow
+          icon="🌐"
+          title={t('language')}
+          onPress={() => navigation.navigate('Language')}
+        />
+        <SettingRow
+          icon="⭐"
+          title={t('subscription')}
+          onPress={() => navigation.navigate('Subscription')}
+        />
+        <SettingRow
+          icon="🔔"
+          title={t('notifications')}
+          onPress={() => navigation.navigate('Notifications')}
+        />
+      </View>
+
       {/* About Section */}
-      <Text style={styles.sectionTitle}>About</Text>
+      <Text style={styles.sectionTitle}>{t('about')}</Text>
       <View style={styles.section}>
         <SettingRow
           icon="ℹ️"
-          title="Version"
+          title={t('version')}
           subtitle="1.0.0-beta (Rust core v0.3.0)"
         />
         <SettingRow
           icon="📄"
-          title="Privacy Policy"
+          title={t('privacy_policy')}
           onPress={() => navigation.navigate('Privacy')}
         />
         <SettingRow
           icon="📜"
-          title="License"
+          title={t('license')}
           subtitle="PolyForm Noncommercial 1.0.0"
           onPress={() => navigation.navigate('License')}
         />
       </View>
 
       {/* Danger Zone */}
-      <Text style={[styles.sectionTitle, styles.destructiveText]}>Danger Zone</Text>
+      <Text style={[styles.sectionTitle, styles.destructiveText]}>{t('danger_zone')}</Text>
       <View style={styles.section}>
         <SettingRow
           icon="🗑️"
-          title="Delete Account"
-          subtitle="Permanently erase all data"
+          title={t('delete_account')}
+          subtitle={t('permanently_erase')}
           onPress={handleDeleteAccount}
           destructive
         />

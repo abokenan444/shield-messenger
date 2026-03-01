@@ -1,6 +1,7 @@
 import React from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, Share} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const QRCodeScreen: React.FC<{navigation: any}> = ({navigation}) => {
   // Demo fingerprint - in production this comes from Rust core
@@ -17,14 +18,14 @@ const QRCodeScreen: React.FC<{navigation: any}> = ({navigation}) => {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Text style={styles.closeBtn}>✕</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>My QR Code</Text>
+        <Text style={styles.title}>{t('your_qr_code')}</Text>
         <TouchableOpacity onPress={handleShare}>
-          <Text style={styles.shareBtn}>Share</Text>
+          <Text style={styles.shareBtn}>{t('share')}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.instruction}>Let your contact scan this QR code to verify your identity</Text>
+        <Text style={styles.instruction}>{t('let_contact_scan')}</Text>
 
         <View style={styles.qrContainer}>
           {/* QR code rendered by react-native-qrcode-svg in production */}
@@ -35,12 +36,12 @@ const QRCodeScreen: React.FC<{navigation: any}> = ({navigation}) => {
         </View>
 
         <View style={styles.fingerprintSection}>
-          <Text style={styles.fingerprintTitle}>Your Safety Number</Text>
+          <Text style={styles.fingerprintTitle}>{t('your_safety_number')}</Text>
           <Text style={styles.fingerprintText}>{displayFingerprint}</Text>
         </View>
 
         <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>How Verification Works</Text>
+          <Text style={styles.infoTitle}>{t('how_verification_works')}</Text>
           <Text style={styles.infoText}>
             1. Meet your contact in person{'\n'}
             2. They scan your QR code (or you scan theirs){'\n'}
@@ -50,7 +51,7 @@ const QRCodeScreen: React.FC<{navigation: any}> = ({navigation}) => {
         </View>
 
         <TouchableOpacity style={styles.scanBtn} onPress={() => navigation.navigate('QRScanner')}>
-          <Text style={styles.scanBtnText}>Scan Their QR Code Instead</Text>
+          <Text style={styles.scanBtnText}>{t('scan_their_qr')}</Text>
         </TouchableOpacity>
       </View>
     </View>

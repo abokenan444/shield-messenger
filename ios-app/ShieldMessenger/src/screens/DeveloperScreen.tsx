@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, TouchableOpacity, StyleSheet, ScrollView, Switch} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const DeveloperScreen: React.FC<{navigation: any}> = ({navigation}) => {
   const [debugLog, setDebugLog] = useState(false);
@@ -21,13 +22,13 @@ const DeveloperScreen: React.FC<{navigation: any}> = ({navigation}) => {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Developer</Text>
+        <Text style={styles.title}>{t('developer')}</Text>
         <View style={{width: 60}} />
       </View>
 
-      <Text style={styles.sectionTitle}>Build Info</Text>
+      <Text style={styles.sectionTitle}>{t('build_info')}</Text>
       {Object.entries(info).map(([key, val]) => (
         <View key={key} style={styles.infoRow}>
           <Text style={styles.infoLabel}>{key.replace(/([A-Z])/g, ' $1').trim()}</Text>
@@ -35,40 +36,40 @@ const DeveloperScreen: React.FC<{navigation: any}> = ({navigation}) => {
         </View>
       ))}
 
-      <Text style={styles.sectionTitle}>Debug Options</Text>
+      <Text style={styles.sectionTitle}>{t('debug_options')}</Text>
       <View style={styles.toggleRow}>
         <View>
-          <Text style={styles.toggleLabel}>Debug Logging</Text>
-          <Text style={styles.toggleDesc}>Enable verbose console logging</Text>
+          <Text style={styles.toggleLabel}>{t('debug_logging')}</Text>
+          <Text style={styles.toggleDesc}>{t('debug_logging_desc')}</Text>
         </View>
         <Switch value={debugLog} onValueChange={setDebugLog} trackColor={{false: Colors.border, true: Colors.primary}} thumbColor={Colors.textPrimary} />
       </View>
       <View style={styles.toggleRow}>
         <View>
-          <Text style={styles.toggleLabel}>Mock Rust Bridge</Text>
-          <Text style={styles.toggleDesc}>Use JavaScript mock instead of native FFI</Text>
+          <Text style={styles.toggleLabel}>{t('mock_rust_bridge')}</Text>
+          <Text style={styles.toggleDesc}>{t('mock_rust_desc')}</Text>
         </View>
         <Switch value={mockRust} onValueChange={setMockRust} trackColor={{false: Colors.border, true: Colors.primary}} thumbColor={Colors.textPrimary} />
       </View>
       <View style={styles.toggleRow}>
         <View>
-          <Text style={styles.toggleLabel}>Tor Debug Mode</Text>
-          <Text style={styles.toggleDesc}>Show circuit details in logs</Text>
+          <Text style={styles.toggleLabel}>{t('tor_debug_mode')}</Text>
+          <Text style={styles.toggleDesc}>{t('tor_debug_desc')}</Text>
         </View>
         <Switch value={torDebug} onValueChange={setTorDebug} trackColor={{false: Colors.border, true: Colors.primary}} thumbColor={Colors.textPrimary} />
       </View>
 
-      <Text style={styles.sectionTitle}>Actions</Text>
+      <Text style={styles.sectionTitle}>{t('actions')}</Text>
       <TouchableOpacity style={styles.actionRow} onPress={() => navigation.navigate('SystemLog')}>
-        <Text style={styles.actionText}>View System Logs</Text>
+        <Text style={styles.actionText}>{t('view_system_logs')}</Text>
         <Text style={styles.actionArrow}>›</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.actionRow}>
-        <Text style={styles.actionText}>Export Database (Encrypted)</Text>
+        <Text style={styles.actionText}>{t('export_database')}</Text>
         <Text style={styles.actionArrow}>›</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.actionRow}>
-        <Text style={styles.actionText}>Run Crypto Self-Test</Text>
+        <Text style={styles.actionText}>{t('run_crypto_self_test')}</Text>
         <Text style={styles.actionArrow}>›</Text>
       </TouchableOpacity>
     </ScrollView>

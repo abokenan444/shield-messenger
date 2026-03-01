@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const CreateWalletScreen: React.FC<{navigation: any}> = ({navigation}) => {
   const [creating, setCreating] = useState(false);
@@ -18,33 +19,33 @@ const CreateWalletScreen: React.FC<{navigation: any}> = ({navigation}) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Create Wallet</Text>
+        <Text style={styles.title}>{t('create_wallet')}</Text>
         <View style={{width: 60}} />
       </View>
 
       <View style={styles.content}>
         <Text style={styles.icon}>💰</Text>
-        <Text style={styles.heading}>Create Monero Wallet</Text>
-        <Text style={styles.subtitle}>Generate a new private Monero wallet integrated with Shield Messenger</Text>
+        <Text style={styles.heading}>{t('create_monero_wallet')}</Text>
+        <Text style={styles.subtitle}>{t('create_wallet_subtitle')}</Text>
 
         <View style={styles.featureList}>
           <View style={styles.featureRow}>
             <Text style={styles.featureIcon}>🔐</Text>
-            <Text style={styles.featureText}>Keys stored in secure enclave</Text>
+            <Text style={styles.featureText}>{t('keys_in_secure_enclave')}</Text>
           </View>
           <View style={styles.featureRow}>
             <Text style={styles.featureIcon}>🧅</Text>
-            <Text style={styles.featureText}>All transactions routed through Tor</Text>
+            <Text style={styles.featureText}>{t('transactions_via_tor')}</Text>
           </View>
           <View style={styles.featureRow}>
             <Text style={styles.featureIcon}>👤</Text>
-            <Text style={styles.featureText}>RingCT for transaction privacy</Text>
+            <Text style={styles.featureText}>{t('ringct_privacy')}</Text>
           </View>
           <View style={styles.featureRow}>
             <Text style={styles.featureIcon}>💬</Text>
-            <Text style={styles.featureText}>Send XMR directly in chats</Text>
+            <Text style={styles.featureText}>{t('send_xmr_in_chats')}</Text>
           </View>
         </View>
 
@@ -52,15 +53,15 @@ const CreateWalletScreen: React.FC<{navigation: any}> = ({navigation}) => {
           {creating ? (
             <View style={styles.loadingRow}>
               <ActivityIndicator color={Colors.textOnPrimary} />
-              <Text style={styles.createBtnText}> Generating keys...</Text>
+              <Text style={styles.createBtnText}> {t('generating_keys')}</Text>
             </View>
           ) : (
-            <Text style={styles.createBtnText}>Create Wallet</Text>
+            <Text style={styles.createBtnText}>{t('create_wallet')}</Text>
           )}
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.importBtn} onPress={() => navigation.navigate('ImportWallet')}>
-          <Text style={styles.importBtnText}>Import Existing Wallet</Text>
+          <Text style={styles.importBtnText}>{t('import_existing_wallet')}</Text>
         </TouchableOpacity>
       </View>
     </View>

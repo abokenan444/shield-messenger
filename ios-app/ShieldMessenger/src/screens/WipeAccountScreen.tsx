@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import {View, Text, TextInput, TouchableOpacity, StyleSheet, Alert} from 'react-native';
 import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
+import {t} from '../i18n';
 
 const WipeAccountScreen: React.FC<{navigation: any}> = ({navigation}) => {
   const [confirmation, setConfirmation] = useState('');
@@ -8,12 +9,12 @@ const WipeAccountScreen: React.FC<{navigation: any}> = ({navigation}) => {
 
   const handleWipe = () => {
     Alert.alert(
-      'FINAL WARNING',
-      'This will permanently destroy ALL data. Your keys, messages, wallet, and contacts will be unrecoverable. This action cannot be undone.',
+      t('final_warning'),
+      t('wipe_final_warning_desc'),
       [
-        {text: 'Cancel', style: 'cancel'},
+        {text: t('cancel'), style: 'cancel'},
         {
-          text: 'WIPE EVERYTHING',
+          text: t('wipe_everything'),
           style: 'destructive',
           onPress: () => {
             // TODO: Call Rust core secure_wipe_all()
@@ -30,43 +31,43 @@ const WipeAccountScreen: React.FC<{navigation: any}> = ({navigation}) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>‹ Back</Text>
+          <Text style={styles.backText}>{'‹ '}{t('back')}</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Wipe Account</Text>
+        <Text style={styles.title}>{t('wipe_account')}</Text>
         <View style={{width: 60}} />
       </View>
 
       <View style={styles.content}>
         <Text style={styles.warningIcon}>⚠️</Text>
-        <Text style={styles.warningTitle}>Permanent Data Destruction</Text>
+        <Text style={styles.warningTitle}>{t('permanent_data_destruction')}</Text>
         <Text style={styles.warningText}>
-          This will securely wipe all data from this device using cryptographic erasure. There is no recovery.
+          {t('wipe_warning_text')}
         </Text>
 
         <View style={styles.infoCard}>
-          <Text style={styles.cardTitle}>What will be destroyed:</Text>
-          <Text style={styles.cardItem}>🔑 All cryptographic keys (Ed25519, X25519, ML-KEM)</Text>
-          <Text style={styles.cardItem}>💬 All messages and media</Text>
-          <Text style={styles.cardItem}>👥 All contacts and groups</Text>
-          <Text style={styles.cardItem}>💰 Wallet keys and transaction history</Text>
-          <Text style={styles.cardItem}>🗄️ Entire SQLCipher database</Text>
-          <Text style={styles.cardItem}>🧅 Tor hidden service keys</Text>
+          <Text style={styles.cardTitle}>{t('what_will_be_destroyed')}</Text>
+          <Text style={styles.cardItem}>🔑 {t('all_crypto_keys')}</Text>
+          <Text style={styles.cardItem}>💬 {t('all_messages_media')}</Text>
+          <Text style={styles.cardItem}>👥 {t('all_contacts_groups')}</Text>
+          <Text style={styles.cardItem}>💰 {t('wallet_keys_history')}</Text>
+          <Text style={styles.cardItem}>🗄️ {t('entire_sqlcipher_db')}</Text>
+          <Text style={styles.cardItem}>🧅 {t('tor_hidden_service_keys')}</Text>
         </View>
 
-        <Text style={styles.inputLabel}>Type WIPE to confirm</Text>
+        <Text style={styles.inputLabel}>{t('type_wipe_to_confirm')}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Type WIPE"
+          placeholder={t('type_wipe')}
           placeholderTextColor={Colors.textTertiary}
           value={confirmation}
           onChangeText={setConfirmation}
           autoCapitalize="characters"
         />
 
-        <Text style={styles.inputLabel}>Enter your password</Text>
+        <Text style={styles.inputLabel}>{t('enter_your_password')}</Text>
         <TextInput
           style={styles.input}
-          placeholder="Your current password"
+          placeholder={t('your_current_password')}
           placeholderTextColor={Colors.textTertiary}
           value={password}
           onChangeText={setPassword}
@@ -77,7 +78,7 @@ const WipeAccountScreen: React.FC<{navigation: any}> = ({navigation}) => {
           style={[styles.wipeBtn, !canWipe && styles.btnDisabled]}
           disabled={!canWipe}
           onPress={handleWipe}>
-          <Text style={styles.wipeBtnText}>Wipe All Data</Text>
+          <Text style={styles.wipeBtnText}>{t('wipe_all_data')}</Text>
         </TouchableOpacity>
       </View>
     </View>
