@@ -75,6 +75,7 @@ let initPromise: Promise<void> | null = null;
 /**
  * Load and initialize the WASM module.
  * Safe to call multiple times — only loads once.
+ * Retries on failure (resets cached promise so next call re-attempts).
  */
 export async function initWasm(): Promise<void> {
   if (wasmModule) return;
@@ -86,18 +87,18 @@ export async function initWasm(): Promise<void> {
 
   initPromise = (async () => {
     try {
-      // Dynamic import of the wasm-bindgen generated module
       const wasm = await import('../wasm/shieldmessenger.js');
-      // Load the WASM binary
       const wasmBinaryUrl = new URL('../wasm/shieldmessenger_bg.wasm', import.meta.url);
-      await wasm.default(wasmBinaryUrl);
+      await wasm.default({ module_or_path: wasmBinaryUrl });
       wasmModule = wasm as unknown as ShieldMessengerWasm;
       console.log('[SL] WASM core loaded — version:', wasmModule.get_version());
     } catch (e) {
+      // Reset so next call retries instead of returning cached rejection
+      initPromise = null;
       console.error('[SL] Failed to load WASM module:', e);
+      const detail = e instanceof Error ? e.message : String(e);
       throw new Error(
-        'Failed to initialize Shield Messenger core. ' +
-        'Build the WASM module first: see web/README.md',
+        `Failed to initialize Shield Messenger core: ${detail}`,
       );
     }
   })();
