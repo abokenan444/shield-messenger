@@ -476,7 +476,7 @@ class KeyManager private constructor(context: Context) {
      */
     @Suppress("unused") // Will be called on app startup
     fun isInitialized(): Boolean {
-        return encryptedPrefs.contains(WALLET_SEED_ALIAS)
+        return encryptedPrefs.contains(WALLET_SEED_ALIAS) || encryptedPrefs.contains(DEVICE_PASSWORD_HASH_ALIAS)
     }
 
     /**
@@ -805,10 +805,11 @@ class KeyManager private constructor(context: Context) {
      */
     fun isAccountSetupComplete(): Boolean {
         val hasWallet = isInitialized()
-        val hasContactCard = hasContactCardInfo()
         val hasUsername = getUsername() != null
-        Log.d(TAG, "Account setup check - Wallet: $hasWallet, Contact card: $hasContactCard, Username: $hasUsername")
-        return hasWallet && hasContactCard && hasUsername
+        // Consider setup complete if wallet and username exist. 
+        // Contact card info can be recovered or regenerated later if missing.
+        Log.d(TAG, "Account setup check - Wallet: $hasWallet, Username: $hasUsername")
+        return hasWallet && hasUsername
     }
 
     /**
