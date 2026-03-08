@@ -45,7 +45,7 @@ class AudioPlaybackManager(
         // Start big, grow immediately on underrun, shrink slowly after long stability
         private const val MIN_BUFFER_MS = 200 // Minimum target buffer
         private const val MAX_BUFFER_MS = 800 // Maximum target buffer
-        private const val INITIAL_BUFFER_MS = 400 // Start with 400ms (balanced latency/stability)
+        private const val INITIAL_BUFFER_MS = 250 // Start with 250ms (lower latency)
         private const val HARD_CAP_MS = 1000 // Hard cap at 1000ms (drop frames beyond)
         private const val FRAME_DURATION_MS = OpusCodec.FRAME_SIZE_MS // 40ms per frame (matches OpusCodec)
         private const val MAX_OUT_OF_ORDER = 10 // Max frames to buffer before considering lost
@@ -68,7 +68,7 @@ class AudioPlaybackManager(
         // Buffer adaptation tuning (immediate growth, slow shrinking)
         private const val UNDERRUN_GROWTH_MS = 100 // Immediate +100ms on underrun
         private const val SHRINK_STEP_MS = 25 // -25ms shrink steps
-        private const val SHRINK_STABILITY_MS = 10_000L // Wait 10 seconds stable before shrinking
+        private const val SHRINK_STABILITY_MS = 5_000L // Wait 5 seconds stable before shrinking
     }
 
     private var audioTrack: AudioTrack? = null

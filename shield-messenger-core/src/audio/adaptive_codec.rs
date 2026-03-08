@@ -43,18 +43,16 @@ impl QualityTier {
     }
 
     pub fn dtx_enabled(&self) -> bool {
-        match self {
-            QualityTier::High => false,
-            QualityTier::Medium => false,
-            QualityTier::Low => true,
-        }
+        // DTX disabled at ALL tiers - causes audible distortion
+        // when switching between DTX and normal frames
+        false
     }
 
     pub fn max_bandwidth(&self) -> i32 {
         match self {
             QualityTier::High => 1104,   // SUPERWIDEBAND (12 kHz)
-            QualityTier::Medium => 1103, // WIDEBAND (8 kHz)
-            QualityTier::Low => 1102,    // MEDIUMBAND (6 kHz)
+            QualityTier::Medium => 1104, // SUPERWIDEBAND (12 kHz) - keep quality
+            QualityTier::Low => 1103,    // WIDEBAND (8 kHz) - minimum acceptable
         }
     }
 

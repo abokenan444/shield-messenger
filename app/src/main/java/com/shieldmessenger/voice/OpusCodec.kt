@@ -37,7 +37,7 @@ class OpusCodec {
         // FEC (Forward Error Correction) configuration for Tor voice calls
         const val ENABLE_FEC = true // Enable in-band FEC
         const val PACKET_LOSS_PERC = 15 // Expected packet loss % (15% - balanced for Tor)
-        const val DTX_ENABLED = true // DTX enabled (saves bandwidth during silence)
+        const val DTX_ENABLED = false // DTX disabled (causes distortion on continuous speech)
     }
 
     private var encoderHandle: Long = 0

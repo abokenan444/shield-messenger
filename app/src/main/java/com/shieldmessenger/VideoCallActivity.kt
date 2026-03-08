@@ -564,9 +564,11 @@ class VideoCallActivity : BaseActivity() {
         callStartTime = System.currentTimeMillis()
         timerHandler.post(timerRunnable)
 
-        // Start video streaming when call connects
-        startVideoStreaming()
+        // Start video streaming with delay to ensure call state is fully ACTIVE
+        timerHandler.postDelayed({ startVideoStreaming() }, 1000)
     }
+
+    private var videoRetryCount = 0
 
     /**
      * Start the video streaming pipeline once the call is active.
@@ -606,11 +608,21 @@ class VideoCallActivity : BaseActivity() {
                 findViewById<View>(R.id.noVideoPlaceholder).visibility = View.GONE
                 // Bind camera with ImageAnalysis to feed encoder
                 if (isCameraOn) bindCameraForVideo()
-                Log.i(TAG, "Video streaming started")
+                Log.i(TAG, "Video streaming started successfully")
             } else {
-                Log.w(TAG, "Failed to start video stream - audio only")
-                findViewById<TextView>(R.id.placeholderText).text =
-                    "$contactName\nAudio only"
+                Log.w(TAG, "Failed to start video stream (attempt ${videoRetryCount + 1})")
+                // Retry up to 5 times with increasing delay
+                if (videoRetryCount < 5) {
+                    videoRetryCount++
+                    val delayMs = (videoRetryCount * 1000).toLong()
+                    Log.i(TAG, "Retrying video stream in ${delayMs}ms...")
+                    timerHandler.postDelayed({
+                        startVideoStreamWithSurface(session, remoteSurface)
+                    }, delayMs)
+                } else {
+                    findViewById<TextView>(R.id.placeholderText).text =
+                        "$contactName\nAudio only"
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error starting video stream", e)

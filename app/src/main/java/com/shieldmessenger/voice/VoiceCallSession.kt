@@ -451,23 +451,19 @@ class VoiceCallSession(
      */
     private fun startQualityMonitoring() {
         qualityMonitorJob = callScope.launch {
-            delay(15000) // Wait 15 seconds for call to fully stabilize over Tor
+            delay(30000) // Wait 30 seconds for Tor circuits to fully stabilize
 
             while (isActive && callState == CallState.ACTIVE) {
                 try {
                     // Get current telemetry snapshot
                     val snapshot = telemetry.getSnapshot()
-                    // Compute average loss from per-circuit missing%
-                    val avgMissingPct = if (snapshot.perCircuitStats.isNotEmpty()) {
-                        snapshot.perCircuitStats
-                            .filter { it.framesSent > 10 } // Need enough samples
-                            .map { it.missingPercent }
-                            .average().takeIf { !it.isNaN() } ?: 0.0
-                    } else 0.0
-                    val lossRate = (avgMissingPct / 100.0).toFloat().coerceIn(0f, 1f)
-                    // Don't estimate RTT from jitter buffer - it's wildly inaccurate for Tor.
-                    // Use a fixed reasonable value; real adaptation should be loss-based.
-                    val rttMs = 200f // Fixed nominal value - loss rate drives adaptation, not RTT
+                    // Use RECEIVE-SIDE PLC% as the loss indicator.
+                    // DO NOT use peerFramesReceived/missingPercent - it depends on CONTROL
+                    // packets arriving from the other phone, which may be delayed or lost.
+                    // PLC% = how many frames we had to conceal = actual packet loss we experience.
+                    val plcPct = snapshot.plcPercent
+                    val lossRate = (plcPct / 100.0).toFloat().coerceIn(0f, 1f)
+                    val rttMs = 200f // Fixed - Tor RTT is inherently high, don't penalize
                     val jitterMs = (snapshot.latePercent * 5.0).toFloat().coerceAtLeast(5f)
 
                     // Update adaptive codec controller
@@ -491,7 +487,7 @@ class VoiceCallSession(
                         1 -> "MEDIUM(16kbps)"
                         else -> "HIGH(24kbps)"
                     }
-                    Log.d(TAG, "QUALITY: MOS=${String.format("%.1f", estimatedMOS)} tier=$tierName loss=${String.format("%.1f", lossRate*100)}% rtt=${rttMs.toInt()}ms")
+                    Log.d(TAG, "QUALITY: MOS=${String.format("%.1f", estimatedMOS)} tier=$tierName plc=${String.format("%.1f", plcPct)}% late=${String.format("%.1f", snapshot.latePercent)}%")
 
                 } catch (e: Exception) {
                     Log.e(TAG, "Quality monitoring error: ${e.message}")

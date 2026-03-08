@@ -89,12 +89,13 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_opusEncoderCreate(
             return -1;
         }
 
-        // Enable DTX (Discontinuous Transmission) - saves bandwidth during silence
-        // Over Tor this reduces unnecessary traffic and improves overall throughput
-        let dtx_applied = match crate::audio::opus_ctl::opus_set_dtx(encoder_ptr, true) {
-            Ok(_) => true,
+        // Disable DTX (Discontinuous Transmission) - causes audible distortion
+        // when switching between DTX and normal frames during continuous speech.
+        // Over Tor, the bandwidth savings (~1-2kbps) aren't worth the quality loss.
+        let dtx_applied = match crate::audio::opus_ctl::opus_set_dtx(encoder_ptr, false) {
+            Ok(_) => false,
             Err(e) => {
-                log::warn!("Failed to enable DTX: error={} (non-fatal)", e);
+                log::warn!("Failed to disable DTX: error={} (non-fatal)", e);
                 false
             }
         };
