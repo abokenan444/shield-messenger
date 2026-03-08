@@ -10601,3 +10601,42 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_detectIdentityKeyCh
         std::ptr::null_mut()
     )
 }
+
+// ==================== SLEEP MODE ====================
+
+/// Enable or disable Tor sleep mode
+/// When enabled, the Rust side reduces timer sensitivity and batches events
+#[no_mangle]
+pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_setSleepModeEnabled(
+    _env: JNIEnv,
+    _class: JClass,
+    enabled: jboolean,
+) {
+    let is_enabled = enabled != 0;
+    crate::network::sleep_mode::set_sleep_mode_enabled(is_enabled);
+}
+
+/// Set whether the device is currently in sleep state
+/// Controls Rust-side behavior: reduced polling, batched events
+#[no_mangle]
+pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_setSleepActive(
+    _env: JNIEnv,
+    _class: JClass,
+    active: jboolean,
+) {
+    let is_active = active != 0;
+    crate::network::sleep_mode::set_sleep_active(is_active);
+}
+
+/// Check if sleep mode is currently active on the Rust side
+#[no_mangle]
+pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_isSleepActive(
+    _env: JNIEnv,
+    _class: JClass,
+) -> jboolean {
+    if crate::network::sleep_mode::is_sleep_active() {
+        JNI_TRUE
+    } else {
+        JNI_FALSE
+    }
+}
