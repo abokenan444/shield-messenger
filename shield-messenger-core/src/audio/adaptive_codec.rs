@@ -216,7 +216,7 @@ impl AdaptiveCodecController {
 
 /// Create adaptive codec controller
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_adaptiveCodecCreate(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_adaptiveCodecCreate(
     _env: JNIEnv,
     _class: JClass,
 ) -> jlong {
@@ -227,7 +227,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_adaptiveCodecCreate
 
 /// Destroy adaptive codec controller
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_adaptiveCodecDestroy(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_adaptiveCodecDestroy(
     _env: JNIEnv,
     _class: JClass,
     handle: jlong,
@@ -248,7 +248,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_adaptiveCodecDestro
 /// @param jitter_ms Jitter in milliseconds
 /// @return Current quality tier (0=LOW, 1=MEDIUM, 2=HIGH), -1 on error
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_adaptiveCodecUpdate(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_adaptiveCodecUpdate(
     _env: JNIEnv,
     _class: JClass,
     handle: jlong,
@@ -292,7 +292,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_adaptiveCodecUpdate
 /// Get estimated MOS score from adaptive controller
 /// @return MOS score (1.0-5.0) as float
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_adaptiveCodecGetMOS(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_adaptiveCodecGetMOS(
     _env: JNIEnv,
     _class: JClass,
     handle: jlong,

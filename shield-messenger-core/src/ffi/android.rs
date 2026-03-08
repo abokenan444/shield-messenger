@@ -310,7 +310,7 @@ fn blocking_recv_vec(
 /// Uses proper X25519 ECDH key exchange to derive shared secret
 /// Wire format: [Our X25519 Public Key - 32 bytes][Encrypted Message]
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_encryptMessage(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_encryptMessage(
     mut env: JNIEnv,
     _class: JClass,
     plaintext: JString,
@@ -455,7 +455,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_encryptMessage(
 /// Uses proper X25519 ECDH key exchange to derive shared secret
 /// Wire format: [Sender X25519 Public Key - 32 bytes][Encrypted Message]
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_decryptMessage(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_decryptMessage(
     mut env: JNIEnv,
     _class: JClass,
     wire_message: JByteArray,
@@ -580,7 +580,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_decryptMessage(
 
 /// Sign data with Ed25519
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_signData(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_signData(
     mut env: JNIEnv,
     _class: JClass,
     data: JByteArray,
@@ -625,7 +625,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_signData(
 
 /// Verify Ed25519 signature
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_verifySignature(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_verifySignature(
     mut env: JNIEnv,
     _class: JClass,
     data: JByteArray,
@@ -667,7 +667,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_verifySignature(
 
 /// Generate keypair
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_generateKeypair(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_generateKeypair(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jobjectArray {
@@ -714,7 +714,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_generateKeypair(
 
 /// Hash password with Argon2id
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_hashPassword(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_hashPassword(
     mut env: JNIEnv,
     _class: JClass,
     password: JString,
@@ -763,7 +763,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_hashPassword(
 /// (Tor daemon managed by OnionProxyManager, this just connects to control port)
 /// Returns status message
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_initializeTor(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_initializeTor(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jstring {
@@ -810,7 +810,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_initializeTor(
 /// Voice Tor runs with Single Onion Service configuration (HiddenServiceNonAnonymousMode 1)
 /// cookie_path: The full filesystem path to the voice Tor control_auth_cookie file
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_initializeVoiceTorControl(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_initializeVoiceTorControl(
     mut env: JNIEnv,
     _class: JClass,
     cookie_path: JString,
@@ -870,7 +870,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_initializeVoiceTorC
 /// * `service_port` - The virtual port on the .onion address (e.g., 80, 9150)
 /// * `local_port` - The local port to forward connections to (e.g., 9150)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_createHiddenService(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_createHiddenService(
     mut env: JNIEnv,
     _class: JClass,
     service_port: jint,
@@ -977,7 +977,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_createHiddenService
 /// # Returns
 /// The v3 .onion address (56 chars + ".onion")
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_computeOnionAddressFromSeed(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_computeOnionAddressFromSeed(
     mut env: JNIEnv,
     _class: JClass,
     seed: JByteArray,
@@ -1068,7 +1068,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_computeOnionAddress
 /// This removes orphaned services from previous failed account creation attempts
 /// Returns the number of services deleted
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_clearAllEphemeralServices(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_clearAllEphemeralServices(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jint {
@@ -1104,7 +1104,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_clearAllEphemeralSe
 /// (e.g. pending ratchet keys). The app must then wipe the database and optionally
 /// present a plausible fake DB. Returns true on success.
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_onDuressPinEntered(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_onDuressPinEntered(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jboolean {
@@ -1133,7 +1133,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_onDuressPinEntered(
 /// Uses seed-derived voice service Ed25519 key from KeyManager
 /// Returns the .onion address (port 9152)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_createVoiceHiddenService(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_createVoiceHiddenService(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jstring {
@@ -1216,7 +1216,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_createVoiceHiddenSe
 /// Get the current hidden service .onion address (if created)
 /// Returns the .onion address or null if not created yet
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getHiddenServiceAddress(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_getHiddenServiceAddress(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jstring {
@@ -1242,7 +1242,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getHiddenServiceAdd
 /// This enables receiving incoming Ping tokens
 /// Returns true if listener started successfully
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_startHiddenServiceListener(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_startHiddenServiceListener(
     mut env: JNIEnv,
     _class: JClass,
     port: jint,
@@ -1307,7 +1307,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_startHiddenServiceL
 
 /// Stop the hidden service listener
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_stopHiddenServiceListener(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_stopHiddenServiceListener(
     mut env: JNIEnv,
     _class: JClass,
 ) {
@@ -1329,7 +1329,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_stopHiddenServiceLi
 /// Start SOCKS5 proxy server on 127.0.0.1:9050
 /// Routes all HTTP traffic through Tor for privacy
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_startSocksProxy(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_startSocksProxy(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jboolean {
@@ -1361,7 +1361,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_startSocksProxy(
 
 /// Stop SOCKS5 proxy server
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_stopSocksProxy(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_stopSocksProxy(
     mut env: JNIEnv,
     _class: JClass,
 ) {
@@ -1379,7 +1379,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_stopSocksProxy(
 
 /// Check if SOCKS5 proxy is running
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_isSocksProxyRunning(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_isSocksProxyRunning(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jboolean {
@@ -1401,7 +1401,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_isSocksProxyRunning
 /// Test SOCKS5 proxy connectivity
 /// Actually attempts a connection to verify SOCKS is functional
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_testSocksConnectivity(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_testSocksConnectivity(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jboolean {
@@ -1429,7 +1429,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_testSocksConnectivi
 
 /// Stop all listeners (hidden service listener, tap listener, etc.)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_stopListeners(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_stopListeners(
     mut env: JNIEnv,
     _class: JClass,
 ) {
@@ -1459,7 +1459,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_stopListeners(
 /// Rotates Tor guards and circuits (rate-limited by Tor itself)
 /// Returns true on success, false if failed or rate-limited
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendNewnym(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_sendNewnym(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jboolean {
@@ -1487,7 +1487,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendNewnym(
 /// Returns encoded data: [connection_id (8 bytes)][encrypted_ping_bytes]
 /// or null if no ping available
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollIncomingPing(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_pollIncomingPing(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jbyteArray {
@@ -1550,7 +1550,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollIncomingPing(
 /// Returns encoded data: [connection_id (8 bytes)][encrypted message blob]
 /// Returns null if no message is available
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollIncomingMessage(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_pollIncomingMessage(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jbyteArray {
@@ -1592,7 +1592,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollIncomingMessage
 /// Returns null if no message is available
 /// Completely separate from MESSAGE channel to allow simultaneous text messaging during voice calls
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollVoiceMessage(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_pollVoiceMessage(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jbyteArray {
@@ -1637,7 +1637,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollVoiceMessage(
 /// # Returns
 /// True if connection exists in PENDING_CONNECTIONS (indicates it's still alive)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_isConnectionAlive(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_isConnectionAlive(
     mut env: JNIEnv,
     _class: JClass,
     connection_id: jlong,
@@ -1676,7 +1676,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_isConnectionAlive(
 /// # Returns
 /// The encrypted message bytes sent by the sender after receiving the Pong
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendPongBytes(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_sendPongBytes(
     mut env: JNIEnv,
     _class: JClass,
     connection_id: jlong,
@@ -1735,7 +1735,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendPongBytes(
 /// Send encrypted Pong over a NEW connection to sender's .onion address
 /// Used when original connection has closed (e.g., user downloads message hours later)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendPongToNewConnection(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_sendPongToNewConnection(
     mut env: JNIEnv,
     _class: JClass,
     sender_onion: JString,
@@ -1807,7 +1807,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendPongToNewConnec
 /// Send encrypted Pong to sender's Pong listener (port 9152)
 /// Used for delayed downloads - sends pong to sender's listening port
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendPongToListener(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_sendPongToListener(
     mut env: JNIEnv,
     _class: JClass,
     sender_onion: JString,
@@ -1887,7 +1887,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendPongToListener(
 }
 
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendPing(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_sendPing(
     mut env: JNIEnv,
     _class: JClass,
     recipient_ed25519_pubkey: JByteArray,
@@ -2394,7 +2394,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendPing(
 }
 
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_resendPingWithWireBytes(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_resendPingWithWireBytes(
     mut env: JNIEnv,
     _class: JClass,
     wire_bytes_base64: JString,
@@ -2544,7 +2544,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_resendPingWithWireB
 }
 
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendTap(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_sendTap(
     mut env: JNIEnv,
     _class: JClass,
     recipient_ed25519_pubkey: JByteArray,
@@ -2699,7 +2699,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendTap(
 
 /// Send friend request (fire-and-forget notification)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendFriendRequest(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_sendFriendRequest(
     mut env: JNIEnv,
     _class: JClass,
     recipient_onion: JString,
@@ -2841,7 +2841,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendFriendRequest(
 /// encrypted_acceptance - Encrypted friend request acceptance message
 /// Returns: true if sent successfully, false otherwise
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendFriendRequestAccepted(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_sendFriendRequestAccepted(
     mut env: JNIEnv,
     _class: JClass,
     recipient_onion: JString,
@@ -2973,7 +2973,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendFriendRequestAc
 /// WARNING: Must stop all listeners first before calling this
 /// Used when wiping account data to prevent stale control port connections
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_resetTorManager(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_resetTorManager(
     mut env: JNIEnv,
     _class: JClass,
 ) {
@@ -3012,7 +3012,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_resetTorManager(
 /// encrypted_ack - Encrypted ACK bytes
 /// Returns: true if sent successfully, false otherwise
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendAckOnConnection(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_sendAckOnConnection(
     mut env: JNIEnv,
     _class: JClass,
     connection_id: jlong,
@@ -3113,7 +3113,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendAckOnConnection
 
 /// Start tap listener on port 9151
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_startTapListener(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_startTapListener(
     mut env: JNIEnv,
     _class: JClass,
     port: jint,
@@ -3186,7 +3186,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_startTapListener(
 
 /// Stop the TAP listener
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_stopTapListener(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_stopTapListener(
     mut env: JNIEnv,
     _class: JClass,
 ) {
@@ -3209,7 +3209,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_stopTapListener(
 
 /// Poll for an incoming tap (non-blocking)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollIncomingTap(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_pollIncomingTap(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jbyteArray {
@@ -3245,7 +3245,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollIncomingTap(
 /// Start friend request listener (separate from TAP to avoid interference)
 /// Initializes the global friend request channel
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_startFriendRequestListener(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_startFriendRequestListener(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jboolean {
@@ -3277,7 +3277,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_startFriendRequestL
 /// Decrypt incoming tap and return sender's Ed25519 public key
 /// Wire format: [Sender X25519 Public Key - 32 bytes][Encrypted Tap]
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_decryptIncomingTap(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_decryptIncomingTap(
     mut env: JNIEnv,
     _class: JClass,
     tap_wire: JByteArray,
@@ -3382,7 +3382,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_decryptIncomingTap(
 
 /// Start pong listener on port 9152
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_startPongListener(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_startPongListener(
     mut env: JNIEnv,
     _class: JClass,
     port: jint,
@@ -3420,7 +3420,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_startPongListener(
 /// Poll for an incoming pong (non-blocking)
 /// Reads from GLOBAL_PONG_RECEIVER (local channel stored in FFI, not global in tor.rs)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollIncomingPong(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_pollIncomingPong(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jbyteArray {
@@ -3488,7 +3488,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollIncomingPong(
 /// Decrypt incoming pong from listener and store in GLOBAL_PONG_SESSIONS
 /// Wire format: [Recipient X25519 Public Key - 32 bytes][Encrypted Pong]
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_decryptAndStorePongFromListener(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_decryptAndStorePongFromListener(
     mut env: JNIEnv,
     _class: JClass,
     pong_wire: JByteArray,
@@ -3704,7 +3704,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_decryptAndStorePong
 }
 
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_waitForPong(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_waitForPong(
     mut env: JNIEnv,
     _class: JClass,
     ping_id: JString,
@@ -3751,7 +3751,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_waitForPong(
 /// Check if a Pong has been received (non-blocking poll)
 /// Returns true if Pong exists in global storage
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollForPong(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_pollForPong(
     mut env: JNIEnv,
     _class: JClass,
     ping_id: JString,
@@ -3783,7 +3783,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollForPong(
 /// Send encrypted message blob to recipient via Tor
 /// Used after Pong is received - sends the actual message payload
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendMessageBlob(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_sendMessageBlob(
     mut env: JNIEnv,
     _class: JClass,
     recipient_onion: JString,
@@ -4000,7 +4000,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendMessageBlob(
 /// Send call signaling message via HTTP POST to voice .onion
 /// This bypasses VOICE channel routing and sends directly to voice streaming listener
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendHttpToVoiceOnion(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_sendHttpToVoiceOnion(
     mut env: JNIEnv,
     _class: JClass,
     voice_onion: JString,
@@ -4180,7 +4180,7 @@ fn cleanup_verified_pong_ids(env: &mut JNIEnv) {
 /// Called after inserting into OUTGOING_PING_SIGNERS in-memory map.
 /// Persists across process restart so PONG verification doesn't fail.
 fn store_pending_ping_db(env: &mut JNIEnv, ping_id: &str, signer_pubkey: &[u8; 32]) {
-    let class = match env.find_class("com/shieldmessenger/database/PendingPingStore") {
+    let class = match env.find_class("com/securelegion/database/PendingPingStore") {
         Ok(c) => c,
         Err(_) => {
             log::warn!(
@@ -4234,7 +4234,7 @@ fn store_pending_ping_db(env: &mut JNIEnv, ping_id: &str, signer_pubkey: &[u8; 3
 /// Called when OUTGOING_PING_SIGNERS in-memory miss — DB fallback for process restart survival.
 /// Returns Some([u8; 32]) if found, None if not found or error.
 fn lookup_signer_db(env: &mut JNIEnv, ping_id: &str) -> Option<[u8; 32]> {
-    let class = match env.find_class("com/shieldmessenger/database/PendingPingStore") {
+    let class = match env.find_class("com/securelegion/database/PendingPingStore") {
         Ok(c) => c,
         Err(_) => {
             log::debug!("lookup_signer_db: PendingPingStore class not found");
@@ -4294,7 +4294,7 @@ fn lookup_signer_db(env: &mut JNIEnv, ping_id: &str) -> Option<[u8; 32]> {
 
 /// Delete a pending ping from the Kotlin Room database after successful verification.
 fn delete_pending_ping_db(env: &mut JNIEnv, ping_id: &str) {
-    let class = match env.find_class("com/shieldmessenger/database/PendingPingStore") {
+    let class = match env.find_class("com/securelegion/database/PendingPingStore") {
         Ok(c) => c,
         Err(_) => return,
     };
@@ -4343,7 +4343,7 @@ fn detect_wire_format(wire_bytes: &[u8]) -> (usize, bool) {
 /// Backward compatible: detects if type byte is present automatically
 /// Returns: Ping ID (String) that can be passed to respondToPing
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_decryptIncomingPing(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_decryptIncomingPing(
     mut env: JNIEnv,
     _class: JClass,
     encrypted_ping_wire: JByteArray,
@@ -4572,7 +4572,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_decryptIncomingPing
 
 /// Get the sender's Ed25519 public key from a stored Ping token
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getPingSenderPublicKey(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_getPingSenderPublicKey(
     mut env: JNIEnv,
     _class: JClass,
     ping_id: JString,
@@ -4620,7 +4620,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getPingSenderPublic
 }
 
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_respondToPing(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_respondToPing(
     mut env: JNIEnv,
     _class: JClass,
     ping_id: JString,
@@ -4823,7 +4823,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_respondToPing(
 /// Wire format: [Sender X25519 Public Key - 32 bytes][Encrypted Pong Token]
 /// Returns: Ping ID (String) that the Pong is responding to
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_decryptIncomingPong(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_decryptIncomingPong(
     mut env: JNIEnv,
     _class: JClass,
     encrypted_pong_wire: JByteArray,
@@ -5011,7 +5011,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_decryptIncomingPong
 /// # Returns
 /// * `true` if message sent successfully, `false` otherwise
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendDirectMessage(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_sendDirectMessage(
     mut env: JNIEnv,
     _class: JClass,
     recipient_ed25519_pubkey: JByteArray,
@@ -5361,7 +5361,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendDirectMessage(
 /// # Returns
 /// * Encrypted message bytes, or null if no message or error
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_receiveIncomingMessage(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_receiveIncomingMessage(
     mut env: JNIEnv,
     _class: JClass,
     connection_id: jlong,
@@ -5440,7 +5440,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_receiveIncomingMess
 /// This should be called early, before Tor initialization, so it can capture progress from the start
 /// socketPath: path to ControlSocket file (GP tor-android 0.4.9.5 Unix domain socket)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_startBootstrapListener(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_startBootstrapListener(
     mut env: JNIEnv,
     _class: JClass,
     socket_path: JObject,
@@ -5467,7 +5467,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_startBootstrapListe
 /// Check if the bootstrap event listener thread is currently running
 /// Returns JNI_TRUE (1) if running, JNI_FALSE (0) if dead/stopped
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_isEventListenerRunning(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_isEventListenerRunning(
     _env: JNIEnv,
     _class: JClass,
 ) -> jboolean {
@@ -5477,7 +5477,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_isEventListenerRunn
 /// Stop the bootstrap event listener (signal it to exit)
 /// Call this before restarting Tor so a fresh listener can be spawned
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_stopBootstrapListener(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_stopBootstrapListener(
     mut env: JNIEnv,
     _class: JClass,
 ) {
@@ -5495,7 +5495,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_stopBootstrapListen
 /// Returns the current bootstrap percentage from the global atomic (updated by event listener)
 /// This is much faster than querying the control port and provides real-time updates
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getBootstrapStatus(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_getBootstrapStatus(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jint {
@@ -5514,7 +5514,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getBootstrapStatus(
 /// Get circuit established status (0 = no circuits, 1 = circuits established)
 /// Fast atomic read, updated every 5 seconds by ControlPort polling
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getCircuitEstablished(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_getCircuitEstablished(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jint {
@@ -5535,7 +5535,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getCircuitEstablish
 /// Kotlin uses this to detect a frozen/stale listener — if heartbeat is >30s old
 /// and tor state is RUNNING, the listener is dead and health should be treated as unhealthy.
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getLastListenerHeartbeat(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_getLastListenerHeartbeat(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jlong {
@@ -5550,7 +5550,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getLastListenerHear
 /// Updated in real-time by event listener when it sees HS_DESC UPLOADED events
 /// v3 onions upload to ~6-8 HSDirs; count >= 1 means partially reachable, >= 3 is good
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getHsDescUploadCount(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_getHsDescUploadCount(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jint {
@@ -5566,7 +5566,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getHsDescUploadCoun
 
 /// Reset HS descriptor upload counter (call before creating a new hidden service)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_resetHsDescUploadCount(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_resetHsDescUploadCount(
     mut env: JNIEnv,
     _class: JClass,
 ) {
@@ -5584,7 +5584,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_resetHsDescUploadCo
 /// Receives ControlPort events (CIRC, HS_DESC, STATUS_GENERAL, etc)
 /// Callback signature: onTorEvent(eventType: String, circId: String, reason: String, address: String, severity: String, message: String, progress: Int)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_setTorEventCallback(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_setTorEventCallback(
     mut env: JNIEnv,
     _class: JClass,
     callback: JObject,
@@ -5749,7 +5749,7 @@ fn invoke_tor_event_callback(
 /// Create encrypted Ping token for socket.io wake notification
 /// Uses KeyStore keys via JNI callbacks + X25519 ECDH for encryption
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_createPingToken(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_createPingToken(
     mut env: JNIEnv,
     _class: JClass,
     recipient_pubkey: JByteArray,
@@ -5979,7 +5979,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_createPingToken(
 /// Decrypt and parse incoming Ping token
 /// Stores in global session storage for later Pong creation
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_nativeDecryptPingToken(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_nativeDecryptPingToken(
     mut env: JNIEnv,
     _class: JClass,
     encrypted_ping: JByteArray,
@@ -6175,7 +6175,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_nativeDecryptPingTo
 /// Create encrypted Pong response token
 /// Retrieves stored Ping from global session storage
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_createPongToken(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_createPongToken(
     mut env: JNIEnv,
     _class: JClass,
     sender_x25519_pubkey: JByteArray,
@@ -6343,7 +6343,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_createPongToken(
 
 /// Decrypt and parse incoming Pong token for verification
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_nativeDecryptPongToken(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_nativeDecryptPongToken(
     mut env: JNIEnv,
     _class: JClass,
     encrypted_pong: JByteArray,
@@ -6570,7 +6570,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_nativeDecryptPongTo
 /// Generate X25519 keypair for encryption
 /// Returns: byte[2][32] - [publicKey, privateKey]
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_generateX25519Keypair(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_generateX25519Keypair(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jobjectArray {
@@ -6619,7 +6619,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_generateX25519Keypa
 /// Args: privateKey - 32-byte X25519 private key
 /// Returns: 32-byte public key
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_deriveX25519PublicKey(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_deriveX25519PublicKey(
     mut env: JNIEnv,
     _class: JClass,
     private_key: JByteArray,
@@ -6661,7 +6661,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_deriveX25519PublicK
 /// theirPublicKey - Their 32-byte X25519 public key
 /// Returns: 32-byte shared secret
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_deriveSharedSecret(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_deriveSharedSecret(
     mut env: JNIEnv,
     _class: JClass,
     our_private_key: JByteArray,
@@ -6711,7 +6711,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_deriveSharedSecret(
 /// @param info Context string (e.g., "ShieldMessenger-RootKey-v1")
 /// @return 32-byte root key
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_deriveRootKey(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_deriveRootKey(
     mut env: JNIEnv,
     _class: JClass,
     shared_secret: JByteArray,
@@ -6767,7 +6767,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_deriveRootKey(
 /// @param chainKey Current 32-byte chain key (will be zeroized)
 /// @return Next chain key (32 bytes)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_evolveChainKey(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_evolveChainKey(
     mut env: JNIEnv,
     _class: JClass,
     chain_key: JByteArray,
@@ -6818,7 +6818,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_evolveChainKey(
 /// @param theirOnion Their .onion address (for direction mapping)
 /// @return 32-byte chain key at sender's sequence (for decrypting their message)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_deriveReceiveKeyAtSequence(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_deriveReceiveKeyAtSequence(
     mut env: JNIEnv,
     _class: JClass,
     root_key: JByteArray,
@@ -6893,7 +6893,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_deriveReceiveKeyAtS
 /// @param chainKey Current 32-byte chain key
 /// @return 32-byte message key for encrypting/decrypting this message
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_deriveMessageKey(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_deriveMessageKey(
     mut env: JNIEnv,
     _class: JClass,
     chain_key: JByteArray,
@@ -6943,7 +6943,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_deriveMessageKey(
 /// @param seed 32-byte seed for deterministic key generation
 /// @return Serialized keypair: [x25519_pub:32][x25519_sec:32][kyber_pub:1568][kyber_sec:3168]
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_generateHybridKEMKeypairFromSeed(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_generateHybridKEMKeypairFromSeed(
     mut env: JNIEnv,
     _class: JClass,
     seed: JByteArray,
@@ -7005,7 +7005,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_generateHybridKEMKe
 /// @param theirKyberPublic Their Kyber public key (1568 bytes)
 /// @return [combined_secret:64][x25519_ephemeral:32][kyber_ciphertext:1568]
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_hybridEncapsulate(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_hybridEncapsulate(
     mut env: JNIEnv,
     _class: JClass,
     their_x25519_public: JByteArray,
@@ -7089,7 +7089,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_hybridEncapsulate(
 /// @param ciphertext Combined ciphertext (1600 bytes: 32 + 1568)
 /// @return Combined secret (64 bytes)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_hybridDecapsulate(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_hybridDecapsulate(
     mut env: JNIEnv,
     _class: JClass,
     our_x25519_secret: JByteArray,
@@ -7196,7 +7196,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_hybridDecapsulate(
 /// @param sequence Message sequence number
 /// @return [evolved_chain_key:32][encrypted_message] - split first 32 bytes on Kotlin side
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_encryptMessageWithEvolutionJNI(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_encryptMessageWithEvolutionJNI(
     mut env: JNIEnv,
     _class: JClass,
     plaintext: JString,
@@ -7272,7 +7272,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_encryptMessageWithE
 /// @param expectedSequence Expected sequence number (for replay protection)
 /// @return [evolved_chain_key:32][plaintext_utf8] - split first 32 bytes on Kotlin side, or null if decryption fails
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_decryptMessageWithEvolutionJNI(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_decryptMessageWithEvolutionJNI(
     mut env: JNIEnv,
     _class: JClass,
     encrypted_data: JByteArray,
@@ -7357,7 +7357,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_decryptMessageWithE
 /// Wire format: [version:1][sequence:8][nonce:24][ciphertext+tag]
 /// This is used for decrypting messages that arrived out-of-order after their key was pre-derived
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_decryptWithMessageKey(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_decryptWithMessageKey(
     mut env: JNIEnv,
     _class: JClass,
     ciphertext: JByteArray,
@@ -7466,7 +7466,7 @@ use crate::crypto::replay_cache::check_ping_replay;
 /// FIX #6: Encrypt message with deferred ratchet commitment (Phase 1)
 /// Returns JSON: {"ciphertext": "base64", "nextChainKey": "base64", "nextSequence": 123}
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_encryptMessageDeferred(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_encryptMessageDeferred(
     mut env: JNIEnv,
     _class: JClass,
     plaintext: JString,
@@ -7541,7 +7541,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_encryptMessageDefer
 
 /// FIX #6: Store pending ratchet advancement (after encryption but before PING_ACK)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_storePendingRatchetAdvancement(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_storePendingRatchetAdvancement(
     mut env: JNIEnv,
     _class: JClass,
     contact_id: JString,
@@ -7591,7 +7591,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_storePendingRatchet
 /// FIX #6: Commit ratchet advancement after PING_ACK received (Phase 2)
 /// Returns JSON: {"nextChainKey": "base64", "nextSequence": 123} or null if no pending
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_commitRatchetAdvancement(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_commitRatchetAdvancement(
     mut env: JNIEnv,
     _class: JClass,
     contact_id: JString,
@@ -7635,7 +7635,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_commitRatchetAdvanc
 
 /// FIX #6: Rollback pending ratchet advancement (if send permanently fails)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_rollbackRatchetAdvancement(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_rollbackRatchetAdvancement(
     mut env: JNIEnv,
     _class: JClass,
     contact_id: JString,
@@ -7661,7 +7661,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_rollbackRatchetAdva
 /// Returns true if PING should be processed (not a replay)
 /// Returns false if PING is a duplicate (should be dropped)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_checkPingReplay(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_checkPingReplay(
     mut env: JNIEnv,
     _class: JClass,
     sender_pubkey: JByteArray,
@@ -7705,7 +7705,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_checkPingReplay(
 /// @param ackType 0=PING_ACK, 1=PONG_ACK, 2=MESSAGE_ACK
 /// @return true if ACK is valid, false if it violates ordering
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_validateAckOrdering(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_validateAckOrdering(
     mut env: JNIEnv,
     _class: JClass,
     contact_id: JString,
@@ -7736,7 +7736,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_validateAckOrdering
 
 /// FIX #7: Reset ACK state for a contact (after completing message exchange)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_resetAckState(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_resetAckState(
     mut env: JNIEnv,
     _class: JClass,
     contact_id: JString,
@@ -7763,7 +7763,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_resetAckState(
 /// ack_type: "PING_ACK" or "MESSAGE_ACK"
 /// item_id: ping_id or message_id being acknowledged
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendDeliveryAck(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_sendDeliveryAck(
     mut env: JNIEnv,
     _class: JClass,
     item_id: JString,
@@ -7973,7 +7973,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendDeliveryAck(
 
 /// Start ACK listener on port 9153
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_startAckListener(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_startAckListener(
     mut env: JNIEnv,
     _class: JClass,
     port: jint,
@@ -8040,7 +8040,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_startAckListener(
 
 /// Poll for an incoming ACK (non-blocking)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollIncomingAck(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_pollIncomingAck(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jbyteArray {
@@ -8076,7 +8076,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollIncomingAck(
 /// Decrypt incoming ACK from listener and store in GLOBAL_ACK_SESSIONS
 /// Wire format: [Type byte][Sender X25519 Public Key - 32 bytes][Encrypted ACK]
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_decryptAndStoreAckFromListener(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_decryptAndStoreAckFromListener(
     mut env: JNIEnv,
     _class: JClass,
     ack_wire: JByteArray,
@@ -8285,7 +8285,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_decryptAndStoreAckF
 // ==================== UTILITY ====================
 
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getVersion(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_getVersion(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jstring {
@@ -8306,7 +8306,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getVersion(
 /// Remove Ping session after Pong is sent
 /// Call this immediately after successfully sending Pong to prevent memory leak
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_removePingSession(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_removePingSession(
     mut env: JNIEnv,
     _class: JClass,
     ping_id: JString,
@@ -8332,7 +8332,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_removePingSession(
 /// Remove Pong session after message blob is sent
 /// Call this immediately after successfully sending message to prevent memory leak
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_removePongSession(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_removePongSession(
     mut env: JNIEnv,
     _class: JClass,
     ping_id: JString,
@@ -8364,7 +8364,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_removePongSession(
 /// Remove ACK session after processing
 /// Call this immediately after processing ACK to prevent memory leak
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_removeAckSession(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_removeAckSession(
     mut env: JNIEnv,
     _class: JClass,
     item_id: JString,
@@ -8390,7 +8390,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_removeAckSession(
 /// Clean up expired Ping/Pong/ACK sessions (older than 5 minutes)
 /// Call this periodically as a safety net for orphaned entries from crashes
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_cleanupExpiredSessions(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_cleanupExpiredSessions(
     _env: JNIEnv,
     _class: JClass,
 ) {
@@ -8405,7 +8405,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_cleanupExpiredSessi
 /// Create a payment quote for NLx402 protocol
 /// Returns JSON string containing the quote
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_createPaymentQuote(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_createPaymentQuote(
     mut env: JNIEnv,
     _class: JClass,
     recipient: JString,
@@ -8504,7 +8504,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_createPaymentQuote(
 
 /// Get the memo string for a payment quote (for embedding in transaction)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getQuoteMemo(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_getQuoteMemo(
     mut env: JNIEnv,
     _class: JClass,
     quote_json: JString,
@@ -8548,7 +8548,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getQuoteMemo(
 /// Verify a payment against a quote
 /// Returns true if payment is valid (excluding replay check - that's done in Kotlin)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_verifyPayment(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_verifyPayment(
     mut env: JNIEnv,
     _class: JClass,
     quote_json: JString,
@@ -8624,7 +8624,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_verifyPayment(
 
 /// Check if a quote has expired
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_isQuoteExpired(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_isQuoteExpired(
     mut env: JNIEnv,
     _class: JClass,
     quote_json: JString,
@@ -8661,7 +8661,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_isQuoteExpired(
 /// Extract quote hash from a transaction memo
 /// Returns empty string if memo is not valid NLx402 format
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_extractQuoteHashFromMemo(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_extractQuoteHashFromMemo(
     mut env: JNIEnv,
     _class: JClass,
     memo: JString,
@@ -8696,7 +8696,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_extractQuoteHashFro
 
 /// Get the NLx402 protocol version
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getNLx402Version(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_getNLx402Version(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jstring {
@@ -8720,7 +8720,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getNLx402Version(
 /// Create a friend request hidden service (.onion address)
 /// Returns the .onion address as a string
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_createFriendRequestHiddenService(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_createFriendRequestHiddenService(
     mut env: JNIEnv,
     _class: JClass,
     service_port: jint,
@@ -8829,7 +8829,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_createFriendRequest
 /// Start the contact exchange endpoint on the specified port
 /// Returns true if endpoint started successfully
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_startFriendRequestServer(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_startFriendRequestServer(
     mut env: JNIEnv,
     _class: JClass,
     port: jint,
@@ -8863,7 +8863,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_startFriendRequestS
 
 /// Stop the contact exchange endpoint
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_stopFriendRequestServer(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_stopFriendRequestServer(
     mut env: JNIEnv,
     _class: JClass,
 ) {
@@ -8888,7 +8888,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_stopFriendRequestSe
 
 /// Store encrypted contact card to be served at GET /contact-card
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_serveContactCard(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_serveContactCard(
     mut env: JNIEnv,
     _class: JClass,
     encrypted_card: JByteArray,
@@ -8936,7 +8936,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_serveContactCard(
 
 /// Serve contact list on the contact exchange endpoint (v5 architecture)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_serveContactList(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_serveContactList(
     mut env: JNIEnv,
     _class: JClass,
     cid: JString,
@@ -8986,7 +8986,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_serveContactList(
 /// Returns raw encrypted bytes (0x07 or 0x08 wire protocol messages)
 /// Kotlin will handle decryption based on message type
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollFriendRequest(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_pollFriendRequest(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jbyteArray {
@@ -9025,7 +9025,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollFriendRequest(
 /// Poll for friend request responses (non-blocking)
 /// Returns JSON string with response data, or null if no responses
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollFriendResponse(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_pollFriendResponse(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jstring {
@@ -9072,7 +9072,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollFriendResponse(
 /// Make HTTP GET request via Tor SOCKS5 proxy
 /// Returns response body or null on error
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_httpGetViaTor(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_httpGetViaTor(
     mut env: JNIEnv,
     _class: JClass,
     url: JString,
@@ -9134,7 +9134,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_httpGetViaTor(
 /// Make HTTP POST request via Tor SOCKS5 proxy
 /// Returns response body or null on error
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_httpPostViaTor(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_httpPostViaTor(
     mut env: JNIEnv,
     _class: JClass,
     url: JString,
@@ -9213,7 +9213,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_httpPostViaTor(
 /// Called by Kotlin after seed restore when contacts weren't found locally.
 /// Rust will accept POST /recovery/push/{cid} and write the blob to disk.
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_setRecoveryMode(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_setRecoveryMode(
     mut env: JNIEnv,
     _class: JClass,
     enabled: jboolean,
@@ -9264,7 +9264,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_setRecoveryMode(
 
 /// Clear recovery mode after contacts have been successfully imported.
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_clearRecoveryMode(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_clearRecoveryMode(
     mut env: JNIEnv,
     _class: JClass,
 ) {
@@ -9288,7 +9288,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_clearRecoveryMode(
 /// Poll whether a recovery blob has been written to disk by a friend's push.
 /// Returns true if Kotlin should call recoverFromIPFS() to try importing contacts.
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollRecoveryReady(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_pollRecoveryReady(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jboolean {
@@ -9320,7 +9320,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollRecoveryReady(
 /// Used by the friend side to push the encrypted contact list blob.
 /// Returns response body as String, or null on error.
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_httpPostBinaryViaTor(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_httpPostBinaryViaTor(
     mut env: JNIEnv,
     _class: JClass,
     url: JString,
@@ -9399,7 +9399,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_httpPostBinaryViaTo
 /// Register voice packet callback handler (v2.0)
 /// Must be called before startVoiceStreamingServer
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_setVoicePacketCallback(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_setVoicePacketCallback(
     mut env: JNIEnv,
     _class: JClass,
     callback: JObject,
@@ -9426,7 +9426,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_setVoicePacketCallb
 /// Handles incoming signaling messages (CALL_OFFER, CALL_ANSWER, etc) over voice onion HTTP
 /// Must be called before startVoiceStreamingServer
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_setVoiceSignalingCallback(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_setVoiceSignalingCallback(
     mut env: JNIEnv,
     _class: JClass,
     callback: JObject,
@@ -9452,7 +9452,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_setVoiceSignalingCa
 /// Start voice streaming listener on port 9152 (v2.0)
 /// Must be called before accepting or creating voice sessions
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_startVoiceStreamingServer(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_startVoiceStreamingServer(
     mut env: JNIEnv,
     _class: JClass,
 ) {
@@ -9606,7 +9606,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_startVoiceStreaming
 /// Connects to peer's voice hidden service on port 9152 with multiple circuits
 /// @param num_circuits Number of parallel Tor circuits to create (typically 3)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_createVoiceSession(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_createVoiceSession(
     mut env: JNIEnv,
     _class: JClass,
     call_id: JString,
@@ -9676,7 +9676,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_createVoiceSession(
 /// @param circuit_index Which circuit to use (0 to num_circuits-1)
 /// @param ptype Packet type (0x01=AUDIO, 0x02=CONTROL)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendAudioPacket(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_sendAudioPacket(
     mut env: JNIEnv,
     _class: JClass,
     call_id: JString,
@@ -9737,7 +9737,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_sendAudioPacket(
 
 /// End voice session and close connection (v2.0)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_endVoiceSession(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_endVoiceSession(
     mut env: JNIEnv,
     _class: JClass,
     call_id: JString,
@@ -9765,7 +9765,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_endVoiceSession(
 
 /// Get number of active voice sessions (v2.0)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getActiveVoiceSessions(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_getActiveVoiceSessions(
     _env: JNIEnv,
     _class: JClass,
 ) -> jint {
@@ -9781,7 +9781,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getActiveVoiceSessi
 /// @param rebuild_epoch Incremented counter (forces fresh SOCKS5 isolation)
 /// @return true if rebuild succeeded, false if failed
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_rebuildVoiceCircuit(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_rebuildVoiceCircuit(
     mut env: JNIEnv,
     _class: JClass,
     call_id: JString,
@@ -9845,7 +9845,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_rebuildVoiceCircuit
 /// Get all debug counters as JSON string
 /// Returns: {"blobFailSocksTimeout": 5, "blobFailConnectErr": 2, ...}
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getDebugCountersJson(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_getDebugCountersJson(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jstring {
@@ -9881,7 +9881,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getDebugCountersJso
 
 /// Reset all debug counters (dev-only, for fast iteration)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_resetDebugCounters(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_resetDebugCounters(
     mut env: JNIEnv,
     _class: JClass,
 ) {
@@ -9907,7 +9907,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_resetDebugCounters(
 
 /// Get current Pong session count (session leak detector)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getPongSessionCount(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_getPongSessionCount(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jlong {
@@ -9920,7 +9920,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getPongSessionCount
 
 /// Get listener replaced count (thrashing indicator)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getListenerReplacedCount(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_getListenerReplacedCount(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jlong {
@@ -9933,7 +9933,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getListenerReplaced
 
 /// Get MESSAGE_TX drop count (initialization race indicator)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getMessageTxDropCount(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_getMessageTxDropCount(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jlong {
@@ -9956,7 +9956,7 @@ fn bytemuck_cast_slice(bytes: &[u8]) -> &[i8] {
 /// Generate a Bulletproof range proof for private transfers
 /// Returns: [4-byte proof_len (big-endian)][proof_bytes][32-byte commitment][32-byte blinding_factor]
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_generateRangeProof(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_generateRangeProof(
     mut env: JNIEnv,
     _class: JClass,
     amount: jlong,
@@ -10002,7 +10002,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_generateRangeProof(
 
 /// Verify a Bulletproof range proof
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_verifyRangeProof(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_verifyRangeProof(
     mut env: JNIEnv,
     _class: JClass,
     proof_bytes: JByteArray,
@@ -10051,7 +10051,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_verifyRangeProof(
 // Used by CRDT group messages: encrypt/decrypt with shared group secret.
 
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_xchacha20Encrypt(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_xchacha20Encrypt(
     mut env: JNIEnv,
     _class: JClass,
     plaintext: JByteArray,
@@ -10128,7 +10128,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_xchacha20Encrypt(
 }
 
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_xchacha20Decrypt(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_xchacha20Decrypt(
     mut env: JNIEnv,
     _class: JClass,
     ciphertext: JByteArray,
@@ -10209,7 +10209,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_xchacha20Decrypt(
 
 /// Blocking poll for incoming Ping (blocks up to 5s)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollIncomingPingBlocking(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_pollIncomingPingBlocking(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jbyteArray {
@@ -10251,7 +10251,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollIncomingPingBlo
 
 /// Blocking poll for incoming MESSAGE (blocks up to 5s)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollIncomingMessageBlocking(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_pollIncomingMessageBlocking(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jbyteArray {
@@ -10277,7 +10277,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollIncomingMessage
 
 /// Blocking poll for incoming VOICE signaling (blocks up to 5s)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollVoiceMessageBlocking(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_pollVoiceMessageBlocking(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jbyteArray {
@@ -10303,7 +10303,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollVoiceMessageBlo
 
 /// Blocking poll for incoming Tap (blocks up to 5s)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollIncomingTapBlocking(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_pollIncomingTapBlocking(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jbyteArray {
@@ -10327,7 +10327,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollIncomingTapBloc
 
 /// Blocking poll for incoming Pong (blocks up to 5s)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollIncomingPongBlocking(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_pollIncomingPongBlocking(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jbyteArray {
@@ -10371,7 +10371,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollIncomingPongBlo
 
 /// Blocking poll for incoming ACK (blocks up to 5s)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollIncomingAckBlocking(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_pollIncomingAckBlocking(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jbyteArray {
@@ -10395,7 +10395,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollIncomingAckBloc
 
 /// Blocking poll for incoming friend requests (blocks up to 5s)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollFriendRequestBlocking(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_pollFriendRequestBlocking(
     mut env: JNIEnv,
     _class: JClass,
 ) -> jbyteArray {
@@ -10424,7 +10424,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_pollFriendRequestBl
 
 /// Generate a 60-digit safety number from two identity public keys (commutative).
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_generateSafetyNumber(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_generateSafetyNumber(
     mut env: JNIEnv,
     _class: JClass,
     our_identity: JByteArray,
@@ -10453,7 +10453,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_generateSafetyNumbe
 
 /// Verify a safety number against two identity keys.
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_verifySafetyNumber(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_verifySafetyNumber(
     mut env: JNIEnv,
     _class: JClass,
     our_identity: JByteArray,
@@ -10487,7 +10487,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_verifySafetyNumber(
 
 /// Encode a FingerprintQrPayload for QR code display.
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_encodeFingerprintQr(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_encodeFingerprintQr(
     mut env: JNIEnv,
     _class: JClass,
     identity_key: JByteArray,
@@ -10520,7 +10520,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_encodeFingerprintQr
 /// Verify a scanned QR fingerprint against our identity key.
 /// Returns JSON: { "status": "Verified" | "Mismatch" | "InvalidData" }
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_verifyContactFingerprint(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_verifyContactFingerprint(
     mut env: JNIEnv,
     _class: JClass,
     our_identity: JByteArray,
@@ -10556,7 +10556,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_verifyContactFinger
 /// Detect if a contact's identity key has changed (possible MITM).
 /// Returns JSON with result field.
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_detectIdentityKeyChange(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_detectIdentityKeyChange(
     mut env: JNIEnv,
     _class: JClass,
     our_identity: JByteArray,
@@ -10614,7 +10614,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_detectIdentityKeyCh
 /// Enable or disable Tor sleep mode
 /// When enabled, the Rust side reduces timer sensitivity and batches events
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_setSleepModeEnabled(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_setSleepModeEnabled(
     _env: JNIEnv,
     _class: JClass,
     enabled: jboolean,
@@ -10626,7 +10626,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_setSleepModeEnabled
 /// Set whether the device is currently in sleep state
 /// Controls Rust-side behavior: reduced polling, batched events
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_setSleepActive(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_setSleepActive(
     _env: JNIEnv,
     _class: JClass,
     active: jboolean,
@@ -10637,7 +10637,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_setSleepActive(
 
 /// Check if sleep mode is currently active on the Rust side
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_isSleepActive(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_isSleepActive(
     _env: JNIEnv,
     _class: JClass,
 ) -> jboolean {

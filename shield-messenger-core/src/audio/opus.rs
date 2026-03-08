@@ -40,7 +40,7 @@ extern "C" {
 /// Uses raw libopus FFI for full control - no unsafe transmute needed
 /// Returns encoder handle (raw pointer) or -1 on error
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_opusEncoderCreate(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_opusEncoderCreate(
     _env: JNIEnv,
     _class: JClass,
     bitrate: jint,
@@ -175,7 +175,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_opusEncoderCreate(
 
 /// Destroy Opus encoder
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_opusEncoderDestroy(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_opusEncoderDestroy(
     _env: JNIEnv,
     _class: JClass,
     handle: jlong,
@@ -195,7 +195,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_opusEncoderDestroy(
 /// @param pcmData - 16-bit PCM audio samples
 /// @return Opus-encoded bytes or null on error
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_opusEncode(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_opusEncode(
     mut env: JNIEnv,
     _class: JClass,
     handle: jlong,
@@ -255,7 +255,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_opusEncode(
 /// Create Opus decoder
 /// Returns decoder handle (pointer) or -1 on error
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_opusDecoderCreate(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_opusDecoderCreate(
     _env: JNIEnv,
     _class: JClass,
 ) -> jlong {
@@ -273,7 +273,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_opusDecoderCreate(
 
 /// Destroy Opus decoder
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_opusDecoderDestroy(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_opusDecoderDestroy(
     _env: JNIEnv,
     _class: JClass,
     handle: jlong,
@@ -289,7 +289,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_opusDecoderDestroy(
 /// @param opusData - Opus-encoded bytes
 /// @return 16-bit PCM audio samples or null on error
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_opusDecode(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_opusDecode(
     mut env: JNIEnv,
     _class: JClass,
     handle: jlong,
@@ -343,7 +343,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_opusDecode(
 /// @param opusData - Opus-encoded bytes of packet N+1
 /// @return 16-bit PCM audio samples for the PREVIOUS frame (N) recovered via FEC, or null on error
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_opusDecodeFEC(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_opusDecodeFEC(
     mut env: JNIEnv,
     _class: JClass,
     handle: jlong,
@@ -401,7 +401,7 @@ extern "C" {
 /// Get Opus library version string
 /// Returns string like "libopus 1.4" or "libopus 1.6"
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_getOpusVersion(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_getOpusVersion(
     env: JNIEnv,
     _class: JClass,
 ) -> jstring {

@@ -40,7 +40,7 @@ struct DenoiserHandle {
 /// Create RNNoise denoiser instance
 /// Returns handle or -1 on error
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_denoiserCreate(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_denoiserCreate(
     _env: JNIEnv,
     _class: JClass,
 ) -> jlong {
@@ -57,7 +57,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_denoiserCreate(
 
 /// Destroy RNNoise denoiser instance
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_denoiserDestroy(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_denoiserDestroy(
     _env: JNIEnv,
     _class: JClass,
     handle: jlong,
@@ -77,7 +77,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_denoiserDestroy(
 /// The function processes 4 sub-frames of 480 samples each.
 /// Returns denoised audio or null on error.
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_denoiserProcess(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_denoiserProcess(
     mut env: JNIEnv,
     _class: JClass,
     handle: jlong,
@@ -171,7 +171,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_denoiserProcess(
 /// Get Voice Activity Detection probability from last processed frame
 /// Returns 0.0-1.0 (0 = silence/noise only, 1 = speech detected)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_denoiserGetVAD(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_denoiserGetVAD(
     _env: JNIEnv,
     _class: JClass,
     handle: jlong,
@@ -190,7 +190,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_denoiserGetVAD(
 /// Enable/disable denoising at runtime
 /// When disabled, audio passes through unchanged (zero CPU cost)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_denoiserSetEnabled(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_denoiserSetEnabled(
     _env: JNIEnv,
     _class: JClass,
     handle: jlong,
@@ -211,7 +211,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_denoiserSetEnabled(
 /// 0.0 = full denoise (default), 1.0 = no denoise (bypass)
 /// 0.3 = 70% denoised + 30% original (more natural)
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_denoiserSetMixRatio(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_denoiserSetMixRatio(
     _env: JNIEnv,
     _class: JClass,
     handle: jlong,

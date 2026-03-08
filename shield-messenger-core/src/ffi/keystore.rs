@@ -318,14 +318,14 @@ pub fn get_key_manager<'a>(
 ) -> Result<JObject<'a>, KeyStoreError> {
     // Get KeyManager.getInstance(context)
     let key_manager_class = env
-        .find_class("com/shieldmessenger/crypto/KeyManager")
+        .find_class("com/securelegion/crypto/KeyManager")
         .map_err(|e| KeyStoreError::JniError(format!("Failed to find KeyManager class: {}", e)))?;
 
     let key_manager = env
         .call_static_method(
             key_manager_class,
             "getInstance",
-            "(Landroid/content/Context;)Lcom/shieldmessenger/crypto/KeyManager;",
+            "(Landroid/content/Context;)Lcom/securelegion/crypto/KeyManager;",
             &[context.into()],
         )
         .map_err(|e| {

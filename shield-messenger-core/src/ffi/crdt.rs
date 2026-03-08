@@ -265,7 +265,7 @@ macro_rules! throw_rt {
 /// `serialized_ops_bytes` is length-prefixed: [4-byte BE len][op bytes]...
 /// Returns true on success, false on error.
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_crdtLoadGroup(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_crdtLoadGroup(
     mut env: JNIEnv,
     _class: JClass,
     group_id_hex: JString,
@@ -328,7 +328,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_crdtLoadGroup(
 
 /// Free group state from memory (call when off-screen or on low memory).
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_crdtUnloadGroup(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_crdtUnloadGroup(
     mut env: JNIEnv,
     _class: JClass,
     group_id_hex: JString,
@@ -367,7 +367,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_crdtUnloadGroup(
 ///
 /// Returns JSON: `{"applied": N, "rejected": N, "limit_status": "Ok|..."}`
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_crdtApplyOps(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_crdtApplyOps(
     mut env: JNIEnv,
     _class: JClass,
     group_id_hex: JString,
@@ -452,7 +452,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_crdtApplyOps(
 /// **Deviation from plan:** returns `String` (JSON) instead of `ByteArray`
 /// so Kotlin gets the op_id and lamport without extra parsing.
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_crdtCreateOp(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_crdtCreateOp(
     mut env: JNIEnv,
     _class: JClass,
     group_id_hex: JString,
@@ -808,7 +808,7 @@ fn build_op_envelope(
 /// - `"state_hash"` — BLAKE3 convergence hash
 /// - `"limit_status"` — op count + limit status
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_crdtQuery(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_crdtQuery(
     mut env: JNIEnv,
     _class: JClass,
     group_id_hex: JString,
@@ -980,7 +980,7 @@ fn message_to_json(msg: &MessageEntry) -> serde_json::Value {
 // ===========================================================================
 
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_crdtGenerateSyncHello(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_crdtGenerateSyncHello(
     mut env: JNIEnv,
     _class: JClass,
     _peer_device_id_hex: JString,
@@ -999,7 +999,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_crdtGenerateSyncHel
 }
 
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_crdtProcessSyncHello(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_crdtProcessSyncHello(
     mut env: JNIEnv,
     _class: JClass,
     _peer_device_id_hex: JString,
@@ -1019,7 +1019,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_crdtProcessSyncHell
 }
 
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_crdtPrepareSyncChunks(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_crdtPrepareSyncChunks(
     mut env: JNIEnv,
     _class: JClass,
     _request_bytes: JByteArray,
@@ -1038,7 +1038,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_crdtPrepareSyncChun
 }
 
 #[no_mangle]
-pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_crdtApplySyncChunk(
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_crdtApplySyncChunk(
     mut env: JNIEnv,
     _class: JClass,
     _chunk_bytes: JByteArray,
