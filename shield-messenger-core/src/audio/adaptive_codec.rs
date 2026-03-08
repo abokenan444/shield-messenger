@@ -105,7 +105,7 @@ impl AdaptiveCodecController {
             tick: 0,
             stability_count: 0,
             min_stability_ticks: 75, // 3 seconds at 40ms frames
-            alpha: 0.05,              // Very smooth EMA for Tor stability
+            alpha: 0.05,             // Very smooth EMA for Tor stability
         }
     }
 
