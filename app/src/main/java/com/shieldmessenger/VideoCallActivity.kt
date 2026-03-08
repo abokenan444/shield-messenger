@@ -388,6 +388,12 @@ class VideoCallActivity : BaseActivity() {
     }
 
     private fun startCamera() {
+        if (isVideoStreaming) {
+            // When video streaming is active, use bindCameraForVideo
+            // which includes both Preview and ImageAnalysis
+            bindCameraForVideo()
+            return
+        }
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
         cameraProviderFuture.addListener({
             cameraProvider = cameraProviderFuture.get()
@@ -569,24 +575,7 @@ class VideoCallActivity : BaseActivity() {
 
         surfaceView.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceCreated(holder: SurfaceHolder) {
-                val remoteSurface = holder.surface
-                try {
-                    val started = session.startVideoStream(remoteSurface)
-                    if (started) {
-                        isVideoStreaming = true
-                        // Hide placeholder, show remote video
-                        findViewById<View>(R.id.noVideoPlaceholder).visibility = View.GONE
-                        // Bind camera with ImageAnalysis to feed encoder
-                        if (isCameraOn) bindCameraForVideo()
-                        Log.i(TAG, "Video streaming started")
-                    } else {
-                        Log.w(TAG, "Failed to start video stream - audio only")
-                        findViewById<TextView>(R.id.placeholderText).text =
-                            "$contactName\nAudio only"
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error starting video stream", e)
-                }
+                startVideoStreamWithSurface(session, holder.surface)
             }
 
             override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
@@ -595,6 +584,34 @@ class VideoCallActivity : BaseActivity() {
                 session.stopVideoStream()
             }
         })
+
+        // Surface may already be created (SurfaceView was added in initViews).
+        // If so, the callback above will never fire — start immediately.
+        val surface = surfaceView.holder.surface
+        if (surface != null && surface.isValid) {
+            startVideoStreamWithSurface(session, surface)
+        }
+    }
+
+    private fun startVideoStreamWithSurface(session: VoiceCallSession, remoteSurface: Surface) {
+        if (isVideoStreaming) return // Already started
+        try {
+            val started = session.startVideoStream(remoteSurface)
+            if (started) {
+                isVideoStreaming = true
+                // Hide placeholder, show remote video
+                findViewById<View>(R.id.noVideoPlaceholder).visibility = View.GONE
+                // Bind camera with ImageAnalysis to feed encoder
+                if (isCameraOn) bindCameraForVideo()
+                Log.i(TAG, "Video streaming started")
+            } else {
+                Log.w(TAG, "Failed to start video stream - audio only")
+                findViewById<TextView>(R.id.placeholderText).text =
+                    "$contactName\nAudio only"
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting video stream", e)
+        }
     }
 
     /**
