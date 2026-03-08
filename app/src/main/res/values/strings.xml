@@ -47,6 +47,11 @@
     <string name="balance_00000">Balance: 0.0000</string>
     <string name="before_you_proceed">Before You Proceed</string>
     <string name="biometric_unlock">Biometric Unlock</string>
+    <string name="biometric_or">or</string>
+    <string name="biometric_touch_to_unlock">Touch fingerprint sensor to unlock</string>
+    <string name="biometric_unlock_desc">Unlock with biometric</string>
+    <string name="biometric_setup_required">Tap to set up biometric unlock</string>
+    <string name="biometric_not_enrolled">Set up fingerprint in device settings</string>
     <string name="birthday_height">Birthday Height:</string>
     <string name="birthday_height_optional">BIRTHDAY HEIGHT (OPTIONAL)</string>
     <string name="block">Block</string>

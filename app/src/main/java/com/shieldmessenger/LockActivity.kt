@@ -9,6 +9,9 @@ import android.text.style.ForegroundColorSpan
 import android.util.Log
 import android.view.View
 import android.view.WindowManager
+import android.view.animation.AnimationUtils
+import android.view.animation.AlphaAnimation
+import android.view.animation.Animation
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -111,6 +114,9 @@ class LockActivity : AppCompatActivity() {
 
     private fun setupBiometricUI() {
         val biometricButton = findViewById<ImageView>(R.id.biometricButton)
+        val biometricSection = findViewById<LinearLayout>(R.id.biometricSection)
+        val biometricDivider = findViewById<LinearLayout>(R.id.biometricDivider)
+        val biometricLabel = findViewById<TextView>(R.id.biometricLabel)
 
         // Check biometric availability
         val biometricStatus = biometricHelper.isBiometricAvailable()
@@ -122,31 +128,127 @@ class LockActivity : AppCompatActivity() {
         when (biometricStatus) {
             BiometricAuthHelper.BiometricStatus.AVAILABLE -> {
                 Log.d("LockActivity", "Biometric hardware available and enrolled")
-                // Check if biometric is already enabled in app
+                // Always show biometric section when hardware is available
+                biometricSection.visibility = View.VISIBLE
+                biometricDivider.visibility = View.VISIBLE
+
                 if (isEnabled) {
-                    Log.i("LockActivity", "Biometric unlock enabled - showing button")
-                    biometricButton.visibility = View.VISIBLE
+                    // Biometric is enabled - show normal unlock button
+                    Log.i("LockActivity", "Biometric unlock enabled - showing active button")
+                    biometricButton.alpha = 1.0f
+                    biometricLabel.text = getString(R.string.biometric_touch_to_unlock)
+
+                    // Pulse animation to draw attention
+                    startBiometricPulseAnimation(biometricButton)
                 } else {
-                    Log.d("LockActivity", "Biometric available but not enabled in app yet")
+                    // Biometric available but not yet enabled - show setup prompt
+                    Log.d("LockActivity", "Biometric available but not enabled - showing setup prompt")
+                    biometricButton.alpha = 0.5f
+                    biometricLabel.text = getString(R.string.biometric_setup_required)
                 }
             }
             BiometricAuthHelper.BiometricStatus.NONE_ENROLLED -> {
-                Log.w("LockActivity", "No biometric enrolled on device (check Android Settings > Security)")
+                // Show message to enroll biometric in device settings
+                Log.w("LockActivity", "No biometric enrolled on device")
+                biometricSection.visibility = View.VISIBLE
+                biometricDivider.visibility = View.VISIBLE
+                biometricButton.alpha = 0.3f
+                biometricLabel.text = getString(R.string.biometric_not_enrolled)
             }
             BiometricAuthHelper.BiometricStatus.NO_HARDWARE -> {
                 Log.w("LockActivity", "No biometric hardware available on device")
+                biometricSection.visibility = View.GONE
+                biometricDivider.visibility = View.GONE
             }
             BiometricAuthHelper.BiometricStatus.HARDWARE_UNAVAILABLE -> {
                 Log.w("LockActivity", "Biometric hardware temporarily unavailable")
+                biometricSection.visibility = View.GONE
+                biometricDivider.visibility = View.GONE
             }
             BiometricAuthHelper.BiometricStatus.UNKNOWN_ERROR -> {
                 Log.e("LockActivity", "Unknown biometric error from Android system")
+                biometricSection.visibility = View.GONE
+                biometricDivider.visibility = View.GONE
             }
         }
 
         // Biometric button click listener
         biometricButton.setOnClickListener {
-            authenticateWithBiometric()
+            when {
+                isEnabled -> {
+                    // Already enabled - authenticate
+                    authenticateWithBiometric()
+                }
+                biometricStatus == BiometricAuthHelper.BiometricStatus.AVAILABLE -> {
+                    // Available but not enabled - prompt to enable
+                    promptBiometricSetup()
+                }
+                biometricStatus == BiometricAuthHelper.BiometricStatus.NONE_ENROLLED -> {
+                    // No biometric enrolled - guide to settings
+                    ThemedToast.show(this, getString(R.string.biometric_not_enrolled))
+                }
+            }
+        }
+    }
+
+    private fun startBiometricPulseAnimation(view: ImageView) {
+        val pulseAnimation = AlphaAnimation(1.0f, 0.5f).apply {
+            duration = 1200
+            repeatCount = Animation.INFINITE
+            repeatMode = Animation.REVERSE
+        }
+        view.startAnimation(pulseAnimation)
+    }
+
+    private fun promptBiometricSetup() {
+        // User tapped biometric button but it's not enabled yet
+        // Ask for password first, then enable biometric
+        val password = findViewById<EditText>(R.id.passwordInput).text.toString()
+
+        if (password.isBlank()) {
+            ThemedToast.show(this, "Enter your password first, then tap fingerprint to enable")
+            return
+        }
+
+        val keyManager = KeyManager.getInstance(this)
+        if (!keyManager.verifyDevicePassword(password)) {
+            ThemedToast.show(this, "Incorrect password")
+            return
+        }
+
+        // Password verified - enable biometric now
+        val passwordHash = keyManager.getPasswordHash()
+        if (passwordHash != null) {
+            biometricHelper.enableBiometric(
+                passwordHash = passwordHash,
+                activity = this,
+                onSuccess = {
+                    Log.i("LockActivity", "Biometric enabled from lock screen")
+                    ThemedToast.show(this, "Biometric unlock enabled!")
+
+                    // Update UI to show active state
+                    val biometricButton = findViewById<ImageView>(R.id.biometricButton)
+                    val biometricLabel = findViewById<TextView>(R.id.biometricLabel)
+                    biometricButton.alpha = 1.0f
+                    biometricLabel.text = getString(R.string.biometric_touch_to_unlock)
+                    startBiometricPulseAnimation(biometricButton)
+
+                    // Mark enrollment as done
+                    getSharedPreferences("biometric_prefs", MODE_PRIVATE)
+                        .edit().putBoolean("biometric_enrollment_asked", true).apply()
+
+                    // Reset failed attempts and unlock
+                    resetFailedAttempts()
+                    hasAuthenticated = true
+                    unlockApp()
+                },
+                onError = { error ->
+                    Log.w("LockActivity", "Biometric setup failed: $error")
+                    if (!error.contains("Cancel")) {
+                        ThemedToast.show(this, "Biometric setup failed: $error")
+                    }
+                }
+            )
         }
     }
 
@@ -348,6 +450,7 @@ class LockActivity : AppCompatActivity() {
 
     /**
      * Offer biometric enrollment on first successful password login
+     * Auto-enables biometric if available - this is the recommended security setting
      * @param onComplete Callback to execute after biometric dialog is handled (or immediately if not shown)
      */
     private fun offerBiometricEnrollment(keyManager: KeyManager, onComplete: () -> Unit) {
@@ -360,70 +463,42 @@ class LockActivity : AppCompatActivity() {
             val alreadyAsked = prefs.getBoolean("biometric_enrollment_asked", false)
 
             if (!alreadyAsked) {
-                Log.d("LockActivity", "Offering biometric enrollment to user")
+                Log.d("LockActivity", "Auto-enabling biometric on first login")
 
-                // SECURITY FIX: Show dialog first, mark as asked when user responds
-                // This prevents repeated prompts even if user cancels biometric scan
-                androidx.appcompat.app.AlertDialog.Builder(this)
-                    .setTitle("Enable Biometric Unlock?")
-                    .setMessage("Use fingerprint or face unlock instead of typing your password every time.")
-                    .setPositiveButton("Enable") { _, _ ->
-                        // Get password hash for encryption
-                        val passwordHash = keyManager.getPasswordHash()
-                        if (passwordHash != null) {
-                            biometricHelper.enableBiometric(
-                                passwordHash = passwordHash,
-                                activity = this,
-                                onSuccess = {
-                                    Log.i("LockActivity", "Biometric enrollment successful")
-                                    ThemedToast.show(this, "Biometric unlock enabled")
+                val passwordHash = keyManager.getPasswordHash()
+                if (passwordHash != null) {
+                    // Auto-enable biometric - directly trigger enrollment
+                    biometricHelper.enableBiometric(
+                        passwordHash = passwordHash,
+                        activity = this,
+                        onSuccess = {
+                            Log.i("LockActivity", "Biometric auto-enrollment successful")
+                            ThemedToast.show(this, "Biometric unlock enabled!")
 
-                                    // Mark as asked ONLY after successful enrollment
-                                    prefs.edit().putBoolean("biometric_enrollment_asked", true).apply()
+                            // Mark as asked after successful enrollment
+                            prefs.edit().putBoolean("biometric_enrollment_asked", true).apply()
 
-                                    // Update UI to show biometric button
-                                    findViewById<ImageView>(R.id.biometricButton).visibility = View.VISIBLE
+                            // Update UI
+                            val biometricButton = findViewById<ImageView>(R.id.biometricButton)
+                            val biometricSection = findViewById<LinearLayout>(R.id.biometricSection)
+                            biometricSection.visibility = View.VISIBLE
+                            biometricButton.alpha = 1.0f
 
-                                    // Call completion callback
-                                    onComplete()
-                                },
-                                onError = { error ->
-                                    Log.w("LockActivity", "Biometric enrollment failed: $error")
-                                    // Don't mark as asked - let user try again next login
-                                    ThemedToast.show(this, "Biometric setup cancelled - try again next login")
-
-                                    // Call completion callback even on error
-                                    onComplete()
-                                }
-                            )
-                        } else {
-                            // No password hash - proceed anyway
+                            onComplete()
+                        },
+                        onError = { error ->
+                            Log.w("LockActivity", "Biometric auto-enrollment failed: $error")
+                            // Don't mark as asked - let user try again next login
                             onComplete()
                         }
-                    }
-                    .setNegativeButton("Not Now") { _, _ ->
-                        // Mark as asked when user explicitly declines
-                        prefs.edit().putBoolean("biometric_enrollment_asked", true).apply()
-                        Log.d("LockActivity", "User declined biometric enrollment")
-
-                        // Call completion callback
-                        onComplete()
-                    }
-                    .setCancelable(true)
-                    .setOnCancelListener {
-                        // Don't mark as asked if user dismisses - let them be prompted again
-                        Log.d("LockActivity", "User dismissed biometric enrollment dialog")
-
-                        // Call completion callback
-                        onComplete()
-                    }
-                    .show()
+                    )
+                } else {
+                    onComplete()
+                }
             } else {
-                // Already asked before - proceed immediately
                 onComplete()
             }
         } else {
-            // Biometric not available or already enabled - proceed immediately
             onComplete()
         }
     }

@@ -189,4 +189,9 @@
     <string name="warnings">Warnungen</string>
     <string name="wipe_account">Konto loeschen</string>
     <string name="your_assets">Ihre Vermoegenswerte</string>
+    <string name="biometric_or">oder</string>
+    <string name="biometric_touch_to_unlock">Fingerabdrucksensor berühren zum Entsperren</string>
+    <string name="biometric_unlock_desc">Mit Biometrie entsperren</string>
+    <string name="biometric_setup_required">Tippen zum Einrichten der biometrischen Entsperrung</string>
+    <string name="biometric_not_enrolled">Fingerabdruck in Geräteeinstellungen einrichten</string>
 </resources>

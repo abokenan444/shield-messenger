@@ -121,4 +121,9 @@
     <string name="wallet_settings">Impostazioni portafoglio</string>
     <string name="warnings">Avvisi</string>
     <string name="wipe_account">Cancella account</string>
+    <string name="biometric_or">o</string>
+    <string name="biometric_touch_to_unlock">Tocca il sensore di impronte per sbloccare</string>
+    <string name="biometric_unlock_desc">Sblocca con biometria</string>
+    <string name="biometric_setup_required">Tocca per configurare lo sblocco biometrico</string>
+    <string name="biometric_not_enrolled">Configura l\'impronta nelle impostazioni del dispositivo</string>
 </resources>

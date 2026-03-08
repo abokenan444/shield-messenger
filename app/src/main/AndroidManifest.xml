@@ -385,6 +385,12 @@
             android:enabled="true"
             android:exported="false" />
 
+        <!-- Broadcast receiver for Tor Push sleep mode maintenance wakes and cover traffic -->
+        <receiver
+            android:name=".receivers.TorPushAlarmReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
         <!-- Boot receiver - Start services after device reboot -->
         <receiver
             android:name=".receivers.BootReceiver"

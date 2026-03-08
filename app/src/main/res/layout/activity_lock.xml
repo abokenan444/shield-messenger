@@ -109,20 +109,77 @@
             android:focusable="true"
             android:layout_marginBottom="24dp" />
 
-        <!-- Biometric Authentication Button -->
-        <ImageView
-            android:id="@+id/biometricButton"
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:layout_gravity="center_horizontal"
-            android:src="@drawable/ic_fingerprint"
-            android:scaleType="fitCenter"
-            android:alpha="0.3"
-            android:clickable="true"
-            android:focusable="true"
-            android:visibility="gone"
-            android:contentDescription="Unlock with biometric"
-            android:layout_marginTop="8dp" />
+        <!-- OR Divider -->
+        <LinearLayout
+            android:id="@+id/biometricDivider"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginEnd="20dp"
+            android:layout_marginBottom="16dp"
+            android:visibility="gone">
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"
+                android:background="#2A2A2A" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/biometric_or"
+                android:textColor="#666666"
+                android:textSize="13sp"
+                android:fontFamily="@font/poppins_regular"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1"
+                android:background="#2A2A2A" />
+
+        </LinearLayout>
+
+        <!-- Biometric Authentication Section -->
+        <LinearLayout
+            android:id="@+id/biometricSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:layout_marginEnd="20dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/biometricButton"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_gravity="center_horizontal"
+                android:src="@drawable/ic_fingerprint"
+                android:scaleType="fitCenter"
+                android:alpha="1.0"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/biometric_unlock_desc"
+                android:padding="8dp" />
+
+            <TextView
+                android:id="@+id/biometricLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/biometric_touch_to_unlock"
+                android:textColor="#888888"
+                android:textSize="13sp"
+                android:fontFamily="@font/poppins_regular"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp" />
+
+        </LinearLayout>
 
     </LinearLayout>
 

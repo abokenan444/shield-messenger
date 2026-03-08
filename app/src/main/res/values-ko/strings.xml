@@ -153,4 +153,9 @@
     <string name="wallet_settings">지갑 설정</string>
     <string name="warnings">경고</string>
     <string name="wipe_account">계정 삭제</string>
+    <string name="biometric_or">또는</string>
+    <string name="biometric_touch_to_unlock">지문 센서를 터치하여 잠금 해제</string>
+    <string name="biometric_unlock_desc">생체 인증으로 잠금 해제</string>
+    <string name="biometric_setup_required">탭하여 생체 인증 잠금 해제 설정</string>
+    <string name="biometric_not_enrolled">기기 설정에서 지문을 설정하세요</string>
 </resources>

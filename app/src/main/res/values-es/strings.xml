@@ -243,4 +243,9 @@
     <string name="warnings">Advertencias</string>
     <string name="wipe_account">Borrar cuenta</string>
     <string name="your_assets">Tus activos</string>
+    <string name="biometric_or">o</string>
+    <string name="biometric_touch_to_unlock">Toca el sensor de huella digital para desbloquear</string>
+    <string name="biometric_unlock_desc">Desbloquear con biometría</string>
+    <string name="biometric_setup_required">Toca para configurar desbloqueo biométrico</string>
+    <string name="biometric_not_enrolled">Configura huella digital en ajustes del dispositivo</string>
 </resources>

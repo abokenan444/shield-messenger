@@ -41,6 +41,7 @@ import com.shieldmessenger.network.TransportGate
 import com.shieldmessenger.network.TorProbe
 import com.shieldmessenger.network.TorRehydrator
 import com.shieldmessenger.network.NetworkWatcher
+import com.shieldmessenger.receivers.TrafficPaddingManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -145,6 +146,12 @@ class TorService : Service() {
     private var isAppInForeground = false
     private val BANDWIDTH_UPDATE_FAST = 5000L // 5 seconds when app open (matches VPN update interval)
     private val BANDWIDTH_UPDATE_SLOW = 10000L // 10 seconds when app closed (saves battery)
+
+    // Tor Push Sleep Mode
+    private lateinit var sleepManager: TorSleepManager
+    private lateinit var paddingManager: TrafficPaddingManager
+    private var idleCheckHandler: Handler? = null
+    private var idleCheckRunnable: Runnable? = null
 
     // ==================== TOR STATE MACHINE ====================
 
@@ -1568,6 +1575,17 @@ class TorService : Service() {
             handleNetworkEvent(event)
         }
         networkWatcher!!.start()
+
+        // Initialize Tor Push Sleep Mode
+        sleepManager = TorSleepManager.getInstance(this)
+        sleepManager.initialize()
+        sleepManager.onSleepStateChanged = { state -> handleSleepStateChanged(state) }
+
+        paddingManager = TrafficPaddingManager.getInstance(this)
+        paddingManager.initialize()
+
+        // Start idle check timer (checks every 60s if device should enter sleep)
+        startIdleCheckTimer()
 
         // Register Tor ControlPort event callback for fast reaction
         registerTorEventCallback()
@@ -4016,6 +4034,8 @@ class TorService : Service() {
      * Wire format: [connection_id (8 bytes LE)][encrypted_message_blob]
      */
     private fun handleIncomingMessage(encodedData: ByteArray) {
+        // Record activity for sleep mode (incoming message = wake up if sleeping)
+        recordNetworkActivity()
         try {
             // Wire format: [connection_id (8 bytes LE)][encrypted_message_blob]
             if (encodedData.size < 8) {
@@ -4111,6 +4131,8 @@ class TorService : Service() {
     }
 
     private suspend fun handleIncomingPing(encodedData: ByteArray) {
+        // Record activity for sleep mode
+        recordNetworkActivity()
         try {
             // Wire format: [connection_id (8 bytes LE)][encrypted_ping_wire]
             if (encodedData.size < 8) {
@@ -7150,7 +7172,133 @@ class TorService : Service() {
         if (isAppInForeground != inForeground) {
             isAppInForeground = inForeground
             Log.d(TAG, "App foreground state changed: $inForeground (bandwidth updates: ${if (inForeground) "fast (5s)" else "slow (10s)"})")
+
+            // Tor Push Sleep Mode integration
+            if (inForeground) {
+                sleepManager.onAppForeground()
+            } else {
+                sleepManager.onAppBackground()
+            }
         }
+    }
+
+    // ==================== TOR PUSH SLEEP MODE ====================
+
+    /**
+     * Handle sleep state transitions from TorSleepManager.
+     * Controls poller lifecycle and notification updates based on sleep state.
+     */
+    private fun handleSleepStateChanged(state: TorSleepManager.SleepState) {
+        when (state) {
+            TorSleepManager.SleepState.ENTERING_SLEEP -> {
+                Log.i(TAG, "SLEEP: Entering sleep mode - flushing pending operations")
+                updateNotification("Sleep mode (saving battery)")
+            }
+
+            TorSleepManager.SleepState.SLEEPING -> {
+                Log.i(TAG, "SLEEP: Deep sleep active - pausing non-critical pollers")
+                pauseNonCriticalPollers()
+                paddingManager.startCoverTraffic()
+                updateNotification("Sleep mode \uD83D\uDCA4")
+            }
+
+            TorSleepManager.SleepState.MAINTENANCE_WAKE -> {
+                Log.i(TAG, "SLEEP: Maintenance wake - resuming pollers briefly")
+                resumeAllPollers()
+                updateNotification("Maintenance check...")
+                // Record activity from any incoming messages during maintenance
+                serviceScope.launch {
+                    delay(TorSleepManager.MAINTENANCE_DURATION_MS)
+                    // TorSleepManager handles return to sleep automatically
+                }
+            }
+
+            TorSleepManager.SleepState.WAKING_UP -> {
+                Log.i(TAG, "SLEEP: Waking up - resuming all pollers")
+                resumeAllPollers()
+                paddingManager.stopCoverTraffic()
+                updateNotification("Connected to Tor")
+            }
+
+            TorSleepManager.SleepState.AWAKE -> {
+                Log.i(TAG, "SLEEP: Fully awake")
+                paddingManager.stopCoverTraffic()
+                if (torState == TorState.RUNNING) {
+                    updateNotification("Connected to Tor")
+                }
+            }
+        }
+    }
+
+    /**
+     * Pause non-critical pollers during sleep.
+     * Keeps message poller running (low-frequency) for incoming message detection.
+     * The TCP socket-level wake still works for immediate messages.
+     */
+    private fun pauseNonCriticalPollers() {
+        // Cancel non-essential pollers to save battery
+        pollerJobs["Tap"]?.cancel()
+        pollerJobs["FriendRequest"]?.cancel()
+        pollerJobs["Pong"]?.cancel()
+        pollerJobs["Voice"]?.cancel()
+        pollerJobs["SessionCleanup"]?.cancel()
+        Log.i(TAG, "Non-critical pollers paused (Tap, FriendRequest, Pong, Voice, SessionCleanup)")
+        // Keep Ping, Message, and ACK pollers running for incoming message detection
+    }
+
+    /**
+     * Resume all pollers after sleep/maintenance.
+     */
+    private fun resumeAllPollers() {
+        if (!isServiceRunning || torState != TorState.RUNNING) return
+
+        if (!isTapPollerRunning) startTapPoller()
+        if (!isFriendRequestPollerRunning) startFriendRequestPoller()
+        if (!isPongPollerRunning) startPongPoller()
+        if (!isVoicePollerRunning) startVoicePoller()
+        if (!isSessionCleanupRunning) startSessionCleanup()
+        Log.i(TAG, "All pollers resumed")
+    }
+
+    /**
+     * Periodic idle check - runs every 60 seconds to detect if device should enter sleep.
+     */
+    private fun startIdleCheckTimer() {
+        idleCheckHandler = Handler(Looper.getMainLooper())
+        idleCheckRunnable = object : Runnable {
+            override fun run() {
+                if (sleepManager.checkIdleTimeout() && torState == TorState.RUNNING && !isAppInForeground) {
+                    sleepManager.enterSleep()
+                }
+                idleCheckHandler?.postDelayed(this, 60_000L) // Check every 60 seconds
+            }
+        }
+        idleCheckHandler?.postDelayed(idleCheckRunnable!!, 60_000L)
+        Log.d(TAG, "Idle check timer started (60s interval)")
+    }
+
+    /**
+     * Stop the idle check timer.
+     */
+    private fun stopIdleCheckTimer() {
+        idleCheckRunnable?.let { idleCheckHandler?.removeCallbacks(it) }
+        idleCheckHandler = null
+        idleCheckRunnable = null
+    }
+
+    /**
+     * Record network activity (call when messages are sent/received).
+     * Resets the idle timer and wakes from sleep if needed.
+     */
+    fun recordNetworkActivity() {
+        sleepManager.recordActivity()
+    }
+
+    /**
+     * Get sleep mode statistics for UI display.
+     */
+    fun getSleepStats(): TorSleepManager.SleepStats? {
+        return try { sleepManager.getStats() } catch (_: Exception) { null }
     }
 
     /**
@@ -7832,6 +7980,11 @@ class TorService : Service() {
 
         // Cancel AlarmManager restart checks
         cancelServiceRestart()
+
+        // Clean up Tor Push Sleep Mode
+        stopIdleCheckTimer()
+        sleepManager.destroy()
+        paddingManager.destroy()
 
         // Clean up handlers
         reconnectHandler.removeCallbacksAndMessages(null)

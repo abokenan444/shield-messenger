@@ -510,4 +510,9 @@
     <string name="your_transaction_history_will_appear_her">سيظهر سجل معاملاتك هنا</string>
     <string name="zec_blockchain_wallet">محفظة بلوكتشين ZEC</string>
     <string name="zec_wallet_2">ZEC - المحفظة 2</string>
+    <string name="biometric_or">أو</string>
+    <string name="biometric_touch_to_unlock">المس مستشعر البصمة للفتح</string>
+    <string name="biometric_unlock_desc">الفتح بالبصمة</string>
+    <string name="biometric_setup_required">اضغط لإعداد فتح البصمة</string>
+    <string name="biometric_not_enrolled">أعد ضبط البصمة في إعدادات الجهاز</string>
 </resources>

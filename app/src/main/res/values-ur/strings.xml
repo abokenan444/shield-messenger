@@ -77,4 +77,9 @@
     <string name="today">آج</string>
     <string name="unlock">کھولیں</string>
     <string name="wallet">والیٹ</string>
+    <string name="biometric_or">یا</string>
+    <string name="biometric_touch_to_unlock">انلاک کرنے کے لیے فنگر پرنٹ سینسر کو ٹچ کریں</string>
+    <string name="biometric_unlock_desc">بایومیٹرک سے انلاک کریں</string>
+    <string name="biometric_setup_required">بایومیٹرک انلاک سیٹ اپ کے لیے ٹیپ کریں</string>
+    <string name="biometric_not_enrolled">ڈیوائس سیٹنگز میں فنگر پرنٹ سیٹ اپ کریں</string>
 </resources>

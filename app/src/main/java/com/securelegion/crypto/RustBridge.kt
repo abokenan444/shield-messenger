@@ -1610,4 +1610,10 @@ object RustBridge {
         storedTheirIdentity: ByteArray,
         currentTheirIdentity: ByteArray
     ): String
+
+    // ===== Sleep Mode (Tor Push) =====
+
+    external fun setSleepModeEnabled(enabled: Boolean)
+    external fun setSleepActive(active: Boolean)
+    external fun isSleepActive(): Boolean
 }

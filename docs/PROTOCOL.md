@@ -91,7 +91,7 @@ All keys are derived using a hierarchical KDF structure based on **HKDF-SHA256**
     `HybridSecret = BLAKE3-KDF("ShieldMessenger-HybridKEM...", x25519_ss || mlkem_ss)`
 
 2.  **Root Key:** A root key is derived from the hybrid secret:
-    `RootKey = HKDF(salt=NULL, ikm=HybridSecret, info="SecureLegion-RootKey-v1")`
+    `RootKey = HKDF(salt=NULL, ikm=HybridSecret, info="ShieldMessenger-RootKey-v1")`
 
 3.  **Chain Keys:** The root key is split into two initial chain keys, one for each direction of communication (determined by lexicographical comparison of onion addresses):
     `SendChainKey = HMAC(RootKey, 0x03)`

@@ -121,4 +121,9 @@
     <string name="wallet_settings">Config. da carteira</string>
     <string name="warnings">Avisos</string>
     <string name="wipe_account">Apagar conta</string>
+    <string name="biometric_or">ou</string>
+    <string name="biometric_touch_to_unlock">Toque no sensor de impressão digital para desbloquear</string>
+    <string name="biometric_unlock_desc">Desbloquear com biometria</string>
+    <string name="biometric_setup_required">Toque para configurar o desbloqueio biométrico</string>
+    <string name="biometric_not_enrolled">Configure a impressão digital nas configurações do dispositivo</string>
 </resources>
