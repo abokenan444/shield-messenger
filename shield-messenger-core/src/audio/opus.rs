@@ -139,8 +139,7 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_opusEncoderCreate(
 
         // Set complexity: 7 for good quality with lower CPU usage
         // Complexity 10 uses maximum CPU which can cause frame drops on mid-range devices
-        let complexity_applied = match crate::audio::opus_ctl::opus_set_complexity(encoder_ptr, 7)
-        {
+        let complexity_applied = match crate::audio::opus_ctl::opus_set_complexity(encoder_ptr, 7) {
             Ok(_) => true,
             Err(e) => {
                 log::warn!("Failed to set complexity: error={} (non-fatal)", e);
