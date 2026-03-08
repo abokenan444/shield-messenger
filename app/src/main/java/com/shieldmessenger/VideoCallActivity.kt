@@ -23,6 +23,8 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.crypto.TorManager
+import com.shieldmessenger.database.entities.ed25519PublicKeyBytes
+import com.shieldmessenger.database.entities.x25519PublicKeyBytes
 import com.shieldmessenger.utils.ThemedToast
 import com.shieldmessenger.voice.CallSignaling
 import com.shieldmessenger.voice.VoiceCallManager
@@ -99,9 +101,11 @@ class VideoCallActivity : BaseActivity() {
     private var isMuted = false
     private var isCameraOn = true
     private var isUsingFrontCamera = true
+    private var waitingForAnswer = false
 
-    // Incoming call data
+    // Call data
     private var theirEphemeralKey: ByteArray? = null
+    private var ourEphemeralSecretKey: ByteArray? = null
     private var contactOnion: String = ""
     private var contactX25519PublicKey: ByteArray? = null
 
@@ -139,6 +143,7 @@ class VideoCallActivity : BaseActivity() {
         callId = intent.getStringExtra(EXTRA_CALL_ID) ?: ""
         isOutgoing = intent.getBooleanExtra(EXTRA_IS_OUTGOING, true)
         theirEphemeralKey = intent.getByteArrayExtra(EXTRA_THEIR_EPHEMERAL_KEY)
+        ourEphemeralSecretKey = intent.getByteArrayExtra(EXTRA_OUR_EPHEMERAL_SECRET_KEY)
         contactOnion = intent.getStringExtra(EXTRA_CONTACT_ONION) ?: ""
         contactX25519PublicKey = intent.getByteArrayExtra(EXTRA_CONTACT_X25519_PUBLIC_KEY)
 
@@ -168,8 +173,11 @@ class VideoCallActivity : BaseActivity() {
             }
         }
 
-        // For incoming calls, start the answering flow
-        if (!isOutgoing) {
+        if (isOutgoing) {
+            // Outgoing call: wait for CALL_ANSWER
+            waitingForAnswer = true
+        } else {
+            // Incoming call: start answering flow
             answerIncomingCall()
         }
     }
@@ -408,10 +416,109 @@ class VideoCallActivity : BaseActivity() {
         cameraProvider?.unbindAll()
     }
 
-    private fun handleCallAnswered(answeredCallId: String, theirEphemeralKey: ByteArray) {
-        if (answeredCallId != callId) return
-        Log.i(TAG, "Call answered")
-        runOnUiThread { callStatusText.text = "Connecting..." }
+    private fun handleCallAnswered(answeredCallId: String, receivedTheirEphemeralKey: ByteArray) {
+        if (answeredCallId != callId) {
+            Log.w(TAG, "Received CALL_ANSWER for different call ID: $answeredCallId (expected $callId)")
+            return
+        }
+        if (!waitingForAnswer) {
+            Log.w(TAG, "Received CALL_ANSWER but not waiting for answer")
+            return
+        }
+
+        Log.i(TAG, "Received CALL_ANSWER for our outgoing video call")
+        waitingForAnswer = false
+        theirEphemeralKey = receivedTheirEphemeralKey
+
+        runOnUiThread {
+            callStatusText.text = "Connecting..."
+            startOutgoingCall()
+        }
+    }
+
+    private fun startOutgoingCall() {
+        val callManager = VoiceCallManager.getInstance(this)
+
+        lifecycleScope.launch {
+            try {
+                val keyManager = KeyManager.getInstance(this@VideoCallActivity)
+                val dbPassphrase = keyManager.getDatabasePassphrase()
+                val db = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@VideoCallActivity, dbPassphrase)
+
+                val contact = withContext(Dispatchers.IO) {
+                    db.contactDao().getContactById(contactId)
+                }
+                if (contact == null) {
+                    Log.e(TAG, "Contact not found for outgoing video call")
+                    handleCallEnded("Contact not found")
+                    return@launch
+                }
+                if (contact.messagingOnion == null) {
+                    Log.e(TAG, "Contact has no messaging address")
+                    handleCallEnded("Contact has no messaging address")
+                    return@launch
+                }
+
+                val theirEphKey = theirEphemeralKey
+                if (theirEphKey == null) {
+                    Log.e(TAG, "No their ephemeral key available")
+                    handleCallEnded("Missing encryption key")
+                    return@launch
+                }
+
+                val contactVoiceOnion = contact.voiceOnion ?: ""
+                if (contactVoiceOnion.isEmpty()) {
+                    Log.e(TAG, "Contact has no voice onion address")
+                    handleCallEnded("Contact has no voice address")
+                    return@launch
+                }
+
+                val ourEphSecret = ourEphemeralSecretKey
+                if (ourEphSecret == null) {
+                    Log.e(TAG, "No our ephemeral secret key")
+                    handleCallEnded("Missing encryption key")
+                    return@launch
+                }
+
+                val result = callManager.startCall(
+                    contactOnion = contact.messagingOnion!!,
+                    contactVoiceOnion = contactVoiceOnion,
+                    contactEd25519PublicKey = contact.ed25519PublicKeyBytes,
+                    contactName = contact.displayName,
+                    theirEphemeralPublicKey = theirEphKey,
+                    ourEphemeralSecretKey = ourEphSecret,
+                    callId = callId,
+                    contactX25519PublicKey = contact.x25519PublicKeyBytes
+                )
+
+                if (result.isFailure) {
+                    Log.e(TAG, "Failed to start video call", result.exceptionOrNull())
+                    handleCallEnded("Failed to connect: ${result.exceptionOrNull()?.message}")
+                } else {
+                    Log.i(TAG, "Outgoing video call started successfully")
+                    // Monitor the session
+                    callManager.getActiveCall()?.onCallStateChanged = { state ->
+                        runOnUiThread {
+                            when (state) {
+                                VoiceCallSession.Companion.CallState.ACTIVE -> updateCallConnected()
+                                VoiceCallSession.Companion.CallState.ENDED -> {
+                                    ThemedToast.show(this@VideoCallActivity, "Call ended")
+                                    finish()
+                                }
+                                else -> {}
+                            }
+                        }
+                    }
+                    runOnUiThread { updateCallConnected() }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error starting outgoing video call", e)
+                if (callManager.hasActiveCall()) {
+                    callManager.endCall("Error during setup")
+                }
+                handleCallEnded("Error: ${e.message}")
+            }
+        }
     }
 
     private fun handleCallTimeout(timedOutCallId: String) {
