@@ -1,6 +1,6 @@
 # Shield Messenger — Technical Whitepaper
 
-**Version 1.0 — June 2025**
+**Version 1.1 — June 2025**
 
 ---
 
@@ -16,8 +16,10 @@ Shield Messenger is a multi-platform, serverless, end-to-end encrypted communica
 2. [Design Principles](#2-design-principles)
 3. [Cryptographic Architecture](#3-cryptographic-architecture)
 4. [Network Architecture](#4-network-architecture)
+   - 4.4 [Tor Push & Smart Sleep Mode](#44-tor-push--smart-sleep-mode)
 5. [Shield Messenger Protocol](#5-shield-messenger-protocol)
 6. [Key Management](#6-key-management)
+   - 6.4 [Biometric Authentication](#64-biometric-authentication)
 7. [Secure Pay Protocol](#7-secure-pay-protocol)
 8. [Threat Model](#8-threat-model)
 9. [Implementation](#9-implementation)
@@ -176,6 +178,75 @@ When a recipient is offline:
 4. Messages are delivered in order with deduplication via message IDs
 5. After confirmed delivery (ACK), the local copy is cryptographically erased
 
+### 4.4 Tor Push & Smart Sleep Mode
+
+A core challenge of serverless, Tor-based messaging is keeping the device reachable for incoming messages while preserving battery life. Shield Messenger solves this with a **Smart Sleep Mode** — a state machine that cycles the Tor connection through energy-efficient phases without relying on centralized push notification services (no Firebase/FCM, no APNs).
+
+#### 4.4.1 Sleep State Machine
+
+```
+             ┌─────────────────────────────────────────────┐
+             │                                             │
+             ▼                                             │
+         ┌───────┐  idle 5 min   ┌────────────────┐        │
+         │ Awake ├──────────────►│ EnteringSleep   │        │
+         └───┬───┘               └───────┬────────┘        │
+             ▲                           │                 │
+             │                           ▼                 │
+             │                    ┌───────────┐            │
+             │  user activity     │ Sleeping  │◄───────┐   │
+             │                    └─────┬─────┘        │   │
+             │                          │              │   │
+             │                 every 15 min            │   │
+             │                          ▼              │   │
+             │               ┌──────────────────┐      │   │
+             │               │ MaintenanceWake  ├──────┘   │
+             │               │   (60 seconds)   │          │
+             │               └────────┬─────────┘          │
+             │                        │                    │
+             │            new message received             │
+             │                        ▼                    │
+             │               ┌───────────────┐             │
+             └───────────────┤   WakingUp    ├─────────────┘
+                             └───────────────┘
+```
+
+**States:**
+
+| State | Tor Circuits | Pollers | Battery Impact |
+|-------|-------------|---------|----------------|
+| **Awake** | All active | Running | Normal |
+| **EnteringSleep** | Draining | Pausing | Decreasing |
+| **Sleeping** | Minimal (1 circuit) | Suspended | Minimal |
+| **MaintenanceWake** | Restored temporarily | Brief check | Low burst |
+| **WakingUp** | Fully restoring | Resuming | Brief burst |
+
+#### 4.4.2 Configuration Defaults
+
+| Parameter | Default | Purpose |
+|-----------|---------|---------|
+| Idle timeout | 5 minutes | Time before entering sleep |
+| Maintenance interval | 15 minutes | Time between maintenance wakes |
+| Maintenance duration | 60 seconds | How long a maintenance wake lasts |
+| Cover traffic interval | 30 seconds | Interval for dummy padding packets |
+
+#### 4.4.3 Cover Traffic & Anti-Traffic-Analysis
+
+During sleep, a **TrafficPaddingManager** emits dummy encrypted packets at randomized intervals (20–45 seconds) to prevent an adversary from distinguishing sleep periods from active periods based on traffic patterns. This defeats traffic-analysis attacks that could infer user activity schedules.
+
+#### 4.4.4 Doze Compatibility
+
+On Android, the sleep mode integrates with the OS power management system:
+- Uses `AlarmManager.setExactAndAllowWhileIdle()` to schedule maintenance wakes even in Doze mode
+- Acquires partial `WakeLock` (90-second timeout) during maintenance windows
+- Persists sleep state across process restarts via `SharedPreferences`
+
+#### 4.4.5 Implementation
+
+The sleep mode is implemented in two layers:
+- **Rust core** (`sleep_mode.rs`): Platform-independent state machine with `SleepModeManager`, atomic global flags (`GLOBAL_SLEEP_ENABLED`, `GLOBAL_SLEEP_ACTIVE`), and statistics tracking
+- **Kotlin layer** (`TorSleepManager.kt`, `TorPushAlarmReceiver.kt`, `TrafficPaddingManager.kt`): Android-specific integration with AlarmManager, WakeLock, and TorService poller pause/resume
+
 ---
 
 ## 5. Shield Messenger Protocol
@@ -270,6 +341,48 @@ A secondary PIN that triggers immediate cryptographic erasure:
 4. Displays a convincing "factory reset" screen
 5. The device appears to have been reset, not wiped under duress
 
+### 6.4 Biometric Authentication
+
+Shield Messenger provides hardware-backed biometric authentication as a convenient and secure alternative to PIN entry, using the Android BiometricPrompt API with the highest available security class.
+
+#### 6.4.1 Supported Modalities
+
+| Modality | Security Class | Requirement |
+|----------|---------------|-------------|
+| Fingerprint | Class 3 (Strong) | Hardware sensor + TEE/StrongBox |
+| Face Unlock | Class 2 (Weak) | Device-dependent |
+
+Biometric authentication requires that the user has already set a PIN — the biometric credential unlocks the encrypted PIN hash, never replacing or bypassing it.
+
+#### 6.4.2 Cryptographic Flow
+
+```
+Enrollment:
+1. User logs in with PIN successfully
+2. Generate AES-256-GCM key bound to BiometricPrompt
+3. Store key in Android Keystore (StrongBox/TEE)
+4. Encrypt PIN hash: E = AES-256-GCM(bio_key, pin_hash)
+5. Store E in encrypted SharedPreferences
+
+Unlock:
+1. User presents biometric (fingerprint / face)
+2. BiometricPrompt authenticates → unlocks bio_key
+3. Decrypt: pin_hash = AES-256-GCM.Decrypt(bio_key, E)
+4. Authenticate with decrypted pin_hash
+```
+
+#### 6.4.3 Lock Screen Integration
+
+The lock screen presents biometric authentication alongside PIN entry:
+- Biometric button is always visible when hardware is available
+- First-time users are prompted to enroll biometric on successful PIN login
+- A pulse animation draws attention to the biometric option
+- If biometric is not enrolled on the device, the user is directed to system settings
+
+#### 6.4.4 Internationalization
+
+Biometric UI strings are localized in 17 languages: Arabic, Chinese (S/T), Czech, Dutch, English, French, German, Hindi, Italian, Japanese, Korean, Portuguese, Russian, Spanish, Swedish, and Turkish.
+
 ---
 
 ## 7. Secure Pay Protocol
@@ -314,6 +427,7 @@ Alice                                          Bob
 |-----------|-----------|------------|
 | **Passive Network Observer** | Monitors all network traffic | Tor hidden services (no IP exposure) |
 | **Active Network Attacker** | Can inject, modify, drop packets | Ed25519 signatures, Tor E2E encryption |
+| **Traffic Analyst** | Correlates activity / sleep patterns | Cover traffic padding, randomized intervals |
 | **Compromised Server** | Full access to server data | No servers exist to compromise |
 | **Law Enforcement (legal)** | Subpoena, warrant | No data exists to be subpoenaed |
 | **State-Level Adversary** | Tor traffic analysis, zero-days | Triple .onion, hardware-backed keys |
