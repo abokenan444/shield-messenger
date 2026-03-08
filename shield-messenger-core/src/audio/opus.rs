@@ -133,7 +133,8 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_opusEncoderCreate(
         };
 
         // Set complexity: 10 for best quality (modern phones handle it easily)
-        let complexity_applied = match crate::audio::opus_ctl::opus_set_complexity(encoder_ptr, 10) {
+        let complexity_applied = match crate::audio::opus_ctl::opus_set_complexity(encoder_ptr, 10)
+        {
             Ok(_) => true,
             Err(e) => {
                 log::warn!("Failed to set complexity: error={} (non-fatal)", e);
