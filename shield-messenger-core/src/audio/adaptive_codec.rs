@@ -113,8 +113,7 @@ impl AdaptiveCodecController {
     pub fn update(&mut self, loss_rate: f32, rtt_ms: f32, jitter_ms: f32) {
         self.ema_loss = (1.0 - self.alpha) * self.ema_loss + self.alpha * loss_rate.clamp(0.0, 1.0);
         self.ema_rtt = (1.0 - self.alpha) * self.ema_rtt + self.alpha * rtt_ms.max(0.0);
-        self.ema_jitter =
-            (1.0 - self.alpha) * self.ema_jitter + self.alpha * jitter_ms.max(0.0);
+        self.ema_jitter = (1.0 - self.alpha) * self.ema_jitter + self.alpha * jitter_ms.max(0.0);
 
         // Estimate MOS using E-model
         self.estimated_mos = crate::audio::voice_latency_bench::estimate_mos(

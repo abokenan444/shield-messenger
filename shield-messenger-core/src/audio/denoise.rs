@@ -138,9 +138,7 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_denoiserProcess(
 
         // Process through RNNoise neural network
         let mut output_f32 = [0.0f32; RNNOISE_FRAME_SIZE];
-        let vad = denoiser
-            .state
-            .process_frame(&mut output_f32, &input_f32);
+        let vad = denoiser.state.process_frame(&mut output_f32, &input_f32);
         total_vad += vad;
 
         // Apply mix ratio (0.0 = full denoise, 1.0 = bypass)

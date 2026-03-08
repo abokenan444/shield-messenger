@@ -6972,7 +6972,9 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_generateHybridKEMKe
 
             match crate::crypto::generate_hybrid_keypair_from_seed(&seed_array) {
                 Ok(keypair) => {
-                    let mut serialized = Vec::with_capacity(32 + 32 + keypair.kyber_public.len() + keypair.kyber_secret.len());
+                    let mut serialized = Vec::with_capacity(
+                        32 + 32 + keypair.kyber_public.len() + keypair.kyber_secret.len(),
+                    );
                     serialized.extend_from_slice(&keypair.x25519_public);
                     serialized.extend_from_slice(&keypair.x25519_secret);
                     serialized.extend_from_slice(&keypair.kyber_public);
@@ -7053,7 +7055,9 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_hybridEncapsulate(
             match crate::crypto::hybrid_encapsulate(&x25519_array, &kyber_array) {
                 Ok(hybrid_ct) => {
                     // Serialize: [shared_secret][x25519_ephemeral:32][kyber_ciphertext]
-                    let mut result = Vec::with_capacity(hybrid_ct.shared_secret.len() + 32 + hybrid_ct.kyber_ciphertext.len());
+                    let mut result = Vec::with_capacity(
+                        hybrid_ct.shared_secret.len() + 32 + hybrid_ct.kyber_ciphertext.len(),
+                    );
                     result.extend_from_slice(&hybrid_ct.shared_secret);
                     result.extend_from_slice(&hybrid_ct.x25519_ephemeral_public);
                     result.extend_from_slice(&hybrid_ct.kyber_ciphertext);
@@ -7153,7 +7157,12 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_hybridDecapsulate(
             let x25519_ephemeral = &ct[..32];
             let kyber_ciphertext = &ct[32..];
 
-            match crate::crypto::hybrid_decapsulate(x25519_ephemeral, kyber_ciphertext, &x25519_array, &kyber_array) {
+            match crate::crypto::hybrid_decapsulate(
+                x25519_ephemeral,
+                kyber_ciphertext,
+                &x25519_array,
+                &kyber_array,
+            ) {
                 Ok(combined_secret) => match vec_to_jbytearray(&mut env, &combined_secret) {
                     Ok(arr) => arr.into_raw(),
                     Err(e) => {
