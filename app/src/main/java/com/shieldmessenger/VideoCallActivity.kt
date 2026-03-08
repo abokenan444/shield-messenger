@@ -7,6 +7,9 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.Surface
+import android.view.SurfaceHolder
+import android.view.SurfaceView
 import android.view.View
 import android.view.WindowManager
 import android.widget.TextView
@@ -89,6 +92,11 @@ class VideoCallActivity : BaseActivity() {
     // Camera
     private var cameraProvider: ProcessCameraProvider? = null
 
+    // Video streaming
+    private var videoInputSurface: Surface? = null
+    private var remoteSurfaceView: SurfaceView? = null
+    private var isVideoStreaming = false
+
     // Timer
     private val timerHandler = Handler(Looper.getMainLooper())
     private var callStartTime = 0L
@@ -156,6 +164,15 @@ class VideoCallActivity : BaseActivity() {
         callStatusText.text = if (isOutgoing) "Calling..." else "Connecting..."
         findViewById<TextView>(R.id.placeholderText).text =
             if (isOutgoing) "Calling $contactName..." else "Connecting video..."
+
+        // Set up remote video SurfaceView
+        remoteSurfaceView = SurfaceView(this)
+        val container = findViewById<android.widget.FrameLayout>(R.id.remoteVideoContainer)
+        container.addView(remoteSurfaceView, 0, // Add behind placeholder
+            android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+            ))
     }
 
     private fun setupControls() {
@@ -177,11 +194,13 @@ class VideoCallActivity : BaseActivity() {
                 cameraToggleButton.setImageResource(R.drawable.ic_videocam)
                 cameraToggleButton.backgroundTintList = android.content.res.ColorStateList.valueOf(0x44FFFFFF)
                 findViewById<View>(R.id.localVideoCard).visibility = View.VISIBLE
+                VoiceCallManager.getInstance(this).getActiveCall()?.setVideoEnabled(true)
             } else {
                 stopCamera()
                 cameraToggleButton.setImageResource(R.drawable.ic_videocam_off)
                 cameraToggleButton.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFFFF6B6B.toInt())
                 findViewById<View>(R.id.localVideoCard).visibility = View.GONE
+                VoiceCallManager.getInstance(this).getActiveCall()?.setVideoEnabled(false)
             }
         }
 
@@ -281,7 +300,76 @@ class VideoCallActivity : BaseActivity() {
         callTimerText.visibility = View.VISIBLE
         callStartTime = System.currentTimeMillis()
         timerHandler.post(timerRunnable)
-        findViewById<TextView>(R.id.placeholderText).text = "$contactName\nVideo streaming coming soon"
+
+        // Start video streaming when call connects
+        startVideoStreaming()
+    }
+
+    /**
+     * Start the video streaming pipeline once the call is active.
+     * Uses hardware H.264 encoder → Tor circuits → hardware H.264 decoder → SurfaceView
+     */
+    private fun startVideoStreaming() {
+        val session = VoiceCallManager.getInstance(this).getActiveCall() ?: return
+        val surfaceView = remoteSurfaceView ?: return
+
+        surfaceView.holder.addCallback(object : SurfaceHolder.Callback {
+            override fun surfaceCreated(holder: SurfaceHolder) {
+                val remoteSurface = holder.surface
+                try {
+                    videoInputSurface = session.startVideoStream(remoteSurface)
+                    if (videoInputSurface != null) {
+                        isVideoStreaming = true
+                        // Hide placeholder, show remote video
+                        findViewById<View>(R.id.noVideoPlaceholder).visibility = View.GONE
+                        // Rebind camera with video encoder surface
+                        if (isCameraOn) bindCameraForVideo()
+                        Log.i(TAG, "Video streaming started")
+                    } else {
+                        Log.w(TAG, "Failed to start video stream - audio only")
+                        findViewById<TextView>(R.id.placeholderText).text =
+                            "$contactName\nAudio only"
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error starting video stream", e)
+                }
+            }
+
+            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
+            override fun surfaceDestroyed(holder: SurfaceHolder) {
+                isVideoStreaming = false
+                session.stopVideoStream()
+            }
+        })
+    }
+
+    /**
+     * Bind camera to both local preview and video encoder surface.
+     */
+    private fun bindCameraForVideo() {
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+        cameraProviderFuture.addListener({
+            val provider = cameraProviderFuture.get()
+            cameraProvider = provider
+            provider.unbindAll()
+
+            // Local preview
+            val preview = Preview.Builder().build().also {
+                it.surfaceProvider = localCameraPreview.surfaceProvider
+            }
+
+            val cameraSelector = if (isUsingFrontCamera) {
+                CameraSelector.DEFAULT_FRONT_CAMERA
+            } else {
+                CameraSelector.DEFAULT_BACK_CAMERA
+            }
+
+            try {
+                provider.bindToLifecycle(this, cameraSelector, preview)
+            } catch (e: Exception) {
+                Log.e(TAG, "Camera bind failed", e)
+            }
+        }, ContextCompat.getMainExecutor(this))
     }
 
     private fun endCall(reason: String) {
@@ -296,6 +384,21 @@ class VideoCallActivity : BaseActivity() {
     override fun onDestroy() {
         super.onDestroy()
         activeInstance = null
+        VoiceCallManager.getInstance(this).getActiveCall()?.stopVideoStream()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Pause video when app is backgrounded (battery optimization)
+        VoiceCallManager.getInstance(this).getActiveCall()?.setVideoEnabled(false)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Resume video when app returns to foreground
+        if (isCameraOn && isVideoStreaming) {
+            VoiceCallManager.getInstance(this).getActiveCall()?.setVideoEnabled(true)
+        }
         timerHandler.removeCallbacks(timerRunnable)
         stopCamera()
     }

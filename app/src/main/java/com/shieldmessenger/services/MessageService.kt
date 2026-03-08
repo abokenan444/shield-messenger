@@ -693,8 +693,9 @@ class MessageService(private val context: Context) {
     }
 
     /**
-     * Send a file message — encrypted file bytes sent via Tor.
-     * Wire type 0x0F (FILE).
+     * Send a file/document message — encrypted file bytes with metadata sent via Tor.
+     * Wire type 0x11 (DOCUMENT) with metadata header.
+     * Format: [0x11][metadataLen:2][metadata JSON][fileBytes...]
      */
     suspend fun sendFileMessage(
         contactId: Long,
@@ -727,8 +728,15 @@ class MessageService(private val context: Context) {
             val keyChain = KeyChainManager.getKeyChain(context, contactId)
                 ?: throw Exception("Key chain not found for contact ${contact.displayName}")
 
-            // FILE format: [0x0F][fileBytes...]
-            val plaintextWithType = byteArrayOf(0x0F) + fileBytes
+            // DOCUMENT format: [0x11][metadataLen:2][metadata JSON UTF-8][fileBytes...]
+            val metadata = """{"name":"${fileName.replace("\"", "\\\"")}","size":${fileBytes.size},"mime":"application/octet-stream"}"""
+            val metaBytes = metadata.toByteArray(Charsets.UTF_8)
+            val plaintextWithType = ByteArray(1 + 2 + metaBytes.size + fileBytes.size)
+            plaintextWithType[0] = 0x11
+            plaintextWithType[1] = ((metaBytes.size shr 8) and 0xFF).toByte()
+            plaintextWithType[2] = (metaBytes.size and 0xFF).toByte()
+            System.arraycopy(metaBytes, 0, plaintextWithType, 3, metaBytes.size)
+            System.arraycopy(fileBytes, 0, plaintextWithType, 3 + metaBytes.size, fileBytes.size)
             val plaintextForEncryption = String(plaintextWithType, Charsets.ISO_8859_1)
 
             val result = RustBridge.encryptMessageWithEvolution(
@@ -1790,7 +1798,8 @@ class MessageService(private val context: Context) {
         0x0B, // PAYMENT_SENT
         0x0C, // PAYMENT_ACCEPTED
         0x0E, // STICKER
-        0x0F  // PROFILE_UPDATE
+        0x0F, // PROFILE_UPDATE
+        0x11  // DOCUMENT (file attachment)
     )
 
     /**
@@ -2151,6 +2160,69 @@ class MessageService(private val context: Context) {
                         pingId = pingId
                     )
                 }
+                Message.MESSAGE_TYPE_FILE -> {
+                    // Document message: decrypted payload is [0x11][metadataLen:2][metadata JSON][fileBytes...]
+                    val rawBytes = decryptedData.toByteArray(Charsets.ISO_8859_1)
+                    if (rawBytes.size < 4 || rawBytes[0] != 0x11.toByte()) {
+                        Log.e(TAG, "Document payload missing 0x11 prefix or too small: size=${rawBytes.size}")
+                        return@withContext Result.failure(Exception("Corrupted document payload"))
+                    }
+                    val metaLen = ((rawBytes[1].toInt() and 0xFF) shl 8) or (rawBytes[2].toInt() and 0xFF)
+                    if (rawBytes.size < 3 + metaLen) {
+                        Log.e(TAG, "Document metadata truncated: metaLen=$metaLen, available=${rawBytes.size - 3}")
+                        return@withContext Result.failure(Exception("Truncated document metadata"))
+                    }
+                    val metaJson = String(rawBytes.copyOfRange(3, 3 + metaLen), Charsets.UTF_8)
+                    val fileBytes = rawBytes.copyOfRange(3 + metaLen, rawBytes.size)
+                    Log.d(TAG, "Received document: meta=$metaJson, fileSize=${fileBytes.size} bytes")
+
+                    val meta = try { org.json.JSONObject(metaJson) } catch (_: Exception) { org.json.JSONObject() }
+                    val docName = meta.optString("name", "document")
+                    val docSize = fileBytes.size
+
+                    val fileBase64 = Base64.encodeToString(fileBytes, Base64.NO_WRAP)
+
+                    // PHASE 1.2: Generate deterministic messageId
+                    val messageId = generateDeterministicMessageId(
+                        plaintext = fileBase64,
+                        senderEd25519Base64 = senderPublicKeyBase64,
+                        recipientEd25519Base64 = ourPublicKeyBase64,
+                        messageNonce = messageNonce
+                    )
+
+                    // Check for duplicate
+                    if (database.messageDao().messageExists(messageId)) {
+                        Log.w(TAG, "Duplicate document message ignored: $messageId")
+                        return@withContext Result.failure(Exception("Duplicate message"))
+                    }
+
+                    // Save file encrypted at rest (AES-256-GCM)
+                    val fileDir = java.io.File(context.filesDir, "file_messages")
+                    fileDir.mkdirs()
+                    val ext = docName.substringAfterLast(".", "bin")
+                    val storedFile = java.io.File(fileDir, "$messageId.$ext.enc")
+                    val encryptedFileBytes = keyManager.encryptImageFile(fileBytes)
+                    storedFile.writeBytes(encryptedFileBytes)
+                    Log.d(TAG, "Saved encrypted received document to: ${storedFile.absolutePath} (${fileBytes.size} -> ${encryptedFileBytes.size} bytes)")
+
+                    Message(
+                        contactId = contact.id,
+                        messageId = messageId,
+                        encryptedContent = "$docName|$docSize",
+                        messageType = Message.MESSAGE_TYPE_FILE,
+                        attachmentType = "file",
+                        attachmentData = storedFile.absolutePath,
+                        isSentByMe = false,
+                        timestamp = System.currentTimeMillis(),
+                        status = Message.STATUS_DELIVERED,
+                        signatureBase64 = "",
+                        nonceBase64 = nonceBase64,
+                        messageNonce = messageNonce,
+                        selfDestructAt = selfDestructAt,
+                        requiresReadReceipt = requiresReadReceipt,
+                        pingId = pingId
+                    )
+                }
                 Message.MESSAGE_TYPE_PAYMENT_REQUEST -> {
                     // Payment request: decryptedData is JSON {"type":"PAYMENT_REQUEST","quote":{...}}
                     val payloadJson = org.json.JSONObject(decryptedData)
@@ -2367,6 +2439,14 @@ class MessageService(private val context: Context) {
                             actualMessageType = Message.MESSAGE_TYPE_STICKER
                             actualAttachmentType = "sticker"
                             actualAttachmentData = decoded.bodyUtf8 // asset path
+                        }
+                        0x11 -> {
+                            // DOCUMENT misrouted as TEXT — self-heal
+                            Log.w(TAG, "Document message misrouted as TEXT, self-healing to FILE")
+                            actualContent = ""
+                            actualMessageType = Message.MESSAGE_TYPE_FILE
+                            actualAttachmentType = "file"
+                            actualAttachmentData = decoded.bodyUtf8
                         }
                         else -> {
                             // Other known type misrouted here — decode body, store as TEXT
@@ -2885,6 +2965,7 @@ class MessageService(private val context: Context) {
                 Message.MESSAGE_TYPE_PAYMENT_ACCEPTED -> 0x0C.toByte() // PAYMENT_ACCEPTED
                 Message.MESSAGE_TYPE_STICKER -> 0x0E.toByte() // STICKER
                 Message.MESSAGE_TYPE_PROFILE_UPDATE -> 0x0F.toByte() // PROFILE_UPDATE
+                Message.MESSAGE_TYPE_FILE -> 0x11.toByte() // DOCUMENT
                 else -> 0x03.toByte() // TEXT (default)
             }
             Log.d(TAG, "Message type: ${message.messageType} → wire byte: 0x${messageTypeByte.toString(16).padStart(2, '0')}")
@@ -3279,6 +3360,7 @@ class MessageService(private val context: Context) {
                 com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_PAYMENT_ACCEPTED -> 0x0C.toByte() // PAYMENT_ACCEPTED
                 com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_STICKER -> 0x0E.toByte() // STICKER
                 com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_PROFILE_UPDATE -> 0x0F.toByte() // PROFILE_UPDATE
+                com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_FILE -> 0x11.toByte() // DOCUMENT
                 else -> 0x03.toByte() // TEXT (default)
             }
 

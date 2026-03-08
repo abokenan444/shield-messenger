@@ -710,6 +710,7 @@ class DownloadMessageService : Service() {
                     com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_VOICE -> 0x04
                     com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_IMAGE -> 0x09
                     com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_STICKER -> 0x0E
+                    com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_FILE -> 0x11
                     else -> 0x03 // Default to text
                 }
             }
@@ -844,6 +845,7 @@ class DownloadMessageService : Service() {
             0x0B -> "Payment received" to "Payment sent by $contactName"
             0x0C -> "Payment accepted" to "Payment accepted by $contactName"
             0x0F -> return // Profile update — no notification
+            0x11 -> "New document" to "New document from $contactName"
             else -> "New message" to "New message from $contactName"
         }
 
@@ -1016,6 +1018,18 @@ class DownloadMessageService : Service() {
                     encryptedPayload = messageBytes.copyOfRange(33, messageBytes.size)
                     voiceDuration = null
                     Log.d(TAG, "Sticker message received")
+                }
+                0x11 -> {
+                    // DOCUMENT: [0x11][X25519 32 bytes][Encrypted Document+Metadata]
+                    // Same wire format as TEXT/IMAGE
+                    if (messageBytes.size < 82) {
+                        Log.e(TAG, "DOCUMENT message blob too small: ${messageBytes.size} bytes (need at least 82)")
+                        return
+                    }
+                    senderX25519PublicKey = messageBytes.copyOfRange(1, 33)
+                    encryptedPayload = messageBytes.copyOfRange(33, messageBytes.size)
+                    voiceDuration = null
+                    Log.d(TAG, "Document message received")
                 }
                 0x0F -> {
                     // PROFILE_UPDATE: [0x0F][X25519 32 bytes][Encrypted Photo]
@@ -1549,6 +1563,68 @@ class DownloadMessageService : Service() {
                             notifMgr?.cancel(contactId.toInt() + 20000)
                         } else {
                             Log.e(TAG, "Failed to save STICKER message: $errorMessage")
+                        }
+                    }
+                }
+
+                0x11 -> {
+                    // DOCUMENT message (MSG_TYPE_FILE = 0x11)
+                    Log.d(TAG, "Processing DOCUMENT message...")
+
+                    val messageService = MessageService(this@DownloadMessageService)
+                    val encryptedBase64 = android.util.Base64.encodeToString(encryptedPayload, android.util.Base64.NO_WRAP)
+
+                    val result = kotlin.runCatching {
+                        database.withTransaction {
+                            val existingMessage = database.messageDao().getMessageByPingId(pingId)
+
+                            if (existingMessage != null) {
+                                Log.i(TAG, "DOCUMENT message $pingId already in DB (duplicate)")
+                                val now = System.currentTimeMillis()
+                                database.pingInboxDao().transitionToMsgStored(pingId, now)
+                                database.pingInboxDao().clearPingWireBytes(pingId, now)
+                                Result.success(existingMessage)
+                            } else {
+                                val insertResult = messageService.receiveMessage(
+                                    encryptedData = encryptedBase64,
+                                    senderPublicKey = senderPublicKey,
+                                    senderOnionAddress = contact.messagingOnion ?: "",
+                                    messageType = com.shieldmessenger.database.entities.Message.MESSAGE_TYPE_FILE,
+                                    pingId = pingId
+                                )
+
+                                if (insertResult.isSuccess) {
+                                    Log.i(TAG, "-> Transitioning pingId=$pingId to MSG_STORED (atomic)")
+                                    val now = System.currentTimeMillis()
+                                    database.pingInboxDao().transitionToMsgStored(pingId, now)
+                                    database.pingInboxDao().clearPingWireBytes(pingId, now)
+                                }
+
+                                insertResult
+                            }
+                        }
+                    }
+
+                    if (result.isSuccess && result.getOrNull()?.isSuccess == true) {
+                        Log.i(TAG, "DOCUMENT message saved to database (atomic transaction)")
+
+                        val intent = Intent("com.shieldmessenger.MESSAGE_RECEIVED")
+                        intent.setPackage(packageName)
+                        intent.putExtra("CONTACT_ID", contactId)
+                        sendBroadcast(intent)
+
+                        sendMessageAck(contactId, contactName, connectionId, pingId)
+                        val notifMgr = getSystemService(android.app.NotificationManager::class.java)
+                        notifMgr?.cancel(contactId.toInt() + 20000)
+                    } else {
+                        val errorMessage = result.exceptionOrNull()?.message
+                        if (errorMessage?.contains("Duplicate message") == true) {
+                            Log.w(TAG, "Document already downloaded - treating as success")
+                            sendMessageAck(contactId, contactName, connectionId, pingId)
+                            val notifMgr = getSystemService(android.app.NotificationManager::class.java)
+                            notifMgr?.cancel(contactId.toInt() + 20000)
+                        } else {
+                            Log.e(TAG, "Failed to save DOCUMENT message: $errorMessage")
                         }
                     }
                 }
