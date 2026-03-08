@@ -121,6 +121,16 @@ class CircuitScheduler(
         var missingEma: Double = 0.0, // Smoothed missing %
         var plcEma: Double = 0.0, // Smoothed PLC %
 
+        // Jitter variance tracking (audio-aware circuit selection)
+        var jitterVariance: Double = 0.0, // Running variance of late% changes
+        private var prevLatePercent: Double = 0.0, // Previous late% for delta calc
+        private var jitterM2: Double = 0.0, // Welford's M2 accumulator
+        private var jitterN: Int = 0, // Welford's sample count
+
+        // Sender-side send duration tracking (detect congestion before feedback)
+        var avgSendDurationMs: Double = 0.0, // EMA of send() call duration
+        var sendDurationSpikes: Int = 0, // Count of sends taking >200ms (Tor congestion signal)
+
         // Circuit rebuild policy (v3 - Quarantine → Replace → Ramp)
         var badWindowsCount: Int = 0, // Consecutive bad 5s windows (for rebuild)
         var quarantineUntil: Long = 0, // Quarantine timestamp (10s test period)
@@ -155,6 +165,20 @@ class CircuitScheduler(
             lateEma = alpha * lateFramePercent + (1.0 - alpha) * lateEma
             missingEma = alpha * missingFramePercent + (1.0 - alpha) * missingEma
             plcEma = alpha * plcPercent + (1.0 - alpha) * plcEma
+
+            // Welford's online variance for jitter (late% delta between feedback windows)
+            val delta = lateFramePercent - prevLatePercent
+            prevLatePercent = lateFramePercent
+            jitterN++
+            val d1 = delta - jitterVariance
+            jitterVariance += d1 / jitterN
+            val d2 = delta - jitterVariance
+            jitterM2 += d1 * d2
+        }
+
+        /** Jitter standard deviation (sqrt of variance) */
+        fun jitterStdDev(): Double {
+            return if (jitterN > 1) kotlin.math.sqrt(jitterM2 / (jitterN - 1)) else 0.0
         }
 
         /**
@@ -176,6 +200,11 @@ class CircuitScheduler(
             penalties += missingEma * 1.5 // Missing frames = packet loss (smoothed)
             penalties += plcEma * 2.0 // PLC = severe quality hit (smoothed)
             penalties += sendFailures * 5.0 // Send failures (instant)
+            // Audio-aware: penalize high jitter variance (unstable circuits)
+            penalties += jitterStdDev() * 0.8 // High variance = unpredictable latency
+            // Audio-aware: penalize send-side congestion spikes
+            val congestionPenalty = (avgSendDurationMs / 100.0).coerceAtMost(5.0) // 100ms→1.0, 500ms→5.0
+            penalties += congestionPenalty * 0.3
 
             return penalties // Lower = better
         }
@@ -481,6 +510,24 @@ class CircuitScheduler(
 
         circuitHealth[circuitIndex].resetFailures()
         circuitHealth[circuitIndex].totalFramesSent++
+    }
+
+    /**
+     * Report send timing for sender-side congestion detection
+     * Called after each successful send with the duration of the send() call.
+     * High send durations (>200ms) indicate Tor circuit congestion before receiver feedback arrives.
+     */
+    fun reportSendDuration(circuitIndex: Int, durationMs: Long) {
+        if (circuitIndex !in 0 until numCircuits) return
+
+        val health = circuitHealth[circuitIndex]
+        val alpha = 0.15
+        health.avgSendDurationMs = alpha * durationMs + (1.0 - alpha) * health.avgSendDurationMs
+
+        if (durationMs > 200) {
+            health.sendDurationSpikes++
+            Log.d(TAG, "Circuit $circuitIndex send spike: ${durationMs}ms (avg=${String.format("%.0f", health.avgSendDurationMs)}ms, spikes=${health.sendDurationSpikes})")
+        }
     }
 
     /**
@@ -845,6 +892,16 @@ class CircuitScheduler(
                 if (deliveryRate != null) {
                     append("(${String.format("%.0f%%", deliveryRate * 100)})")
                 }
+
+                // Audio-aware metrics
+                val jStd = health.jitterStdDev()
+                if (jStd > 0.1) {
+                    append(" jStd=${String.format("%.1f", jStd)}")
+                }
+                if (health.avgSendDurationMs > 50) {
+                    append(" sendMs=${String.format("%.0f", health.avgSendDurationMs)}")
+                }
+
                 append("] ")
             }
         }

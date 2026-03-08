@@ -67,8 +67,8 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_opusEncoderCreate(
             return -1;
         }
 
-        // Set bitrate (48kbps for high quality voice over Tor)
-        let target_bitrate = if bitrate > 0 { bitrate } else { 48000 };
+        // Set bitrate (24kbps optimized for Tor - good quality with lower bandwidth)
+        let target_bitrate = if bitrate > 0 { bitrate } else { 24000 };
         if let Err(e) = crate::audio::opus_ctl::opus_set_bitrate(encoder_ptr, target_bitrate) {
             log::error!("Failed to set bitrate: error={}", e);
             opus_encoder_destroy(encoder_ptr);
@@ -89,12 +89,13 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_opusEncoderCreate(
             return -1;
         }
 
-        // Disable DTX (Discontinuous Transmission) - send continuous audio for smoother Tor streaming
-        let dtx_applied = match crate::audio::opus_ctl::opus_set_dtx(encoder_ptr, false) {
-            Ok(_) => false,
+        // Enable DTX (Discontinuous Transmission) - saves bandwidth during silence
+        // Over Tor this reduces unnecessary traffic and improves overall throughput
+        let dtx_applied = match crate::audio::opus_ctl::opus_set_dtx(encoder_ptr, true) {
+            Ok(_) => true,
             Err(e) => {
-                log::warn!("Failed to disable DTX: error={} (non-fatal)", e);
-                true // Assume DTX stayed enabled on error
+                log::warn!("Failed to enable DTX: error={} (non-fatal)", e);
+                false
             }
         };
 

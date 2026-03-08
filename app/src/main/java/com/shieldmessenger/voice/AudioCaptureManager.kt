@@ -11,6 +11,7 @@ import android.media.audiofx.AutomaticGainControl
 import android.media.audiofx.NoiseSuppressor
 import android.util.Log
 import androidx.core.content.ContextCompat
+import com.securelegion.crypto.RustBridge
 import kotlinx.coroutines.*
 import kotlin.coroutines.coroutineContext
 import java.nio.ByteBuffer
@@ -55,6 +56,15 @@ class AudioCaptureManager(
     private var acousticEchoCanceler: AcousticEchoCanceler? = null
     private var noiseSuppressor: NoiseSuppressor? = null
     private var automaticGainControl: AutomaticGainControl? = null
+
+    // RNNoise AI denoiser (runs on-device, ~200KB neural network model)
+    private var denoiserHandle: Long = 0
+    private var denoiserEnabled: Boolean = true
+
+    // Voice Activity Detection from RNNoise
+    @Volatile
+    var lastVADProbability: Float = 0f
+        private set
 
     // Callback for emitting encoded Opus frames
     var onFrameEncoded: ((ByteArray) -> Unit)? = null
@@ -108,6 +118,9 @@ class AudioCaptureManager(
 
             // Initialize audio effects for better call quality
             initializeAudioEffects(audioRecord!!.audioSessionId)
+
+            // Initialize RNNoise AI denoiser
+            initializeDenoiser()
 
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize AudioRecord", e)
@@ -179,6 +192,37 @@ class AudioCaptureManager(
     }
 
     /**
+     * Initialize RNNoise AI noise suppression
+     * Pure Rust neural network - runs on-device, no data leaves the device
+     */
+    private fun initializeDenoiser() {
+        try {
+            denoiserHandle = RustBridge.denoiserCreate()
+            if (denoiserHandle > 0) {
+                denoiserEnabled = true
+                Log.i(TAG, "RNNoise AI denoiser initialized (on-device neural network)")
+            } else {
+                denoiserHandle = 0
+                Log.w(TAG, "RNNoise denoiser creation failed - continuing without AI denoising")
+            }
+        } catch (e: Exception) {
+            denoiserHandle = 0
+            Log.e(TAG, "RNNoise initialization error (continuing without it)", e)
+        }
+    }
+
+    /**
+     * Enable/disable RNNoise AI denoising at runtime
+     */
+    fun setDenoiserEnabled(enabled: Boolean) {
+        denoiserEnabled = enabled
+        if (denoiserHandle != 0L) {
+            RustBridge.denoiserSetEnabled(denoiserHandle, enabled)
+        }
+        Log.d(TAG, "RNNoise denoiser: ${if (enabled) "ON" else "OFF"}")
+    }
+
+    /**
      * Start capturing audio from microphone
      * Runs on background coroutine
      */
@@ -245,6 +289,34 @@ class AudioCaptureManager(
                 // If muted, send silence instead of real audio
                 if (isMuted) {
                     pcmSamples.fill(0)
+                }
+
+                // Apply RNNoise AI noise suppression before Opus encoding
+                var finalPcmBytes: ByteArray? = null
+                if (!isMuted && denoiserHandle != 0L && denoiserEnabled) {
+                    try {
+                        // Convert pcmSamples (ShortArray) to ByteArray for denoiser
+                        val pcmBytesForDenoise = ByteArray(pcmSamples.size * 2)
+                        val denoiseBuf = ByteBuffer.wrap(pcmBytesForDenoise).order(ByteOrder.LITTLE_ENDIAN)
+                        for (s in pcmSamples) { denoiseBuf.putShort(s) }
+
+                        val denoisedBytes = RustBridge.denoiserProcess(denoiserHandle, pcmBytesForDenoise)
+                        if (denoisedBytes != null && denoisedBytes.size == pcmBytesForDenoise.size) {
+                            // Convert denoised bytes back to ShortArray
+                            val denoisedBuf = ByteBuffer.wrap(denoisedBytes).order(ByteOrder.LITTLE_ENDIAN)
+                            for (i in pcmSamples.indices) {
+                                pcmSamples[i] = denoisedBuf.getShort()
+                            }
+
+                            // Update VAD probability
+                            lastVADProbability = RustBridge.denoiserGetVAD(denoiserHandle)
+                        }
+                    } catch (e: Exception) {
+                        // Denoising failed - continue with original audio
+                        if (capturedFrameCount % 250 == 0L) {
+                            Log.w(TAG, "RNNoise processing failed: ${e.message}")
+                        }
+                    }
                 }
 
                 // Encode PCM to Opus
@@ -332,6 +404,13 @@ class AudioCaptureManager(
 
             automaticGainControl?.release()
             automaticGainControl = null
+
+            // Release RNNoise denoiser
+            if (denoiserHandle != 0L) {
+                RustBridge.denoiserDestroy(denoiserHandle)
+                denoiserHandle = 0
+                Log.d(TAG, "RNNoise denoiser released")
+            }
 
             Log.d(TAG, "Audio effects released")
         } catch (e: Exception) {

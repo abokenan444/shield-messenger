@@ -59,6 +59,9 @@ console_error_panic_hook = { version = "0.1", optional = true }
 # Audio codec - Opus for voice calling (not available on WASM)
 opus = { version = "0.3", optional = true }
 
+# AI noise suppression - pure Rust port of RNNoise (no C deps, ~200KB model)
+nnnoiseless = { version = "0.5", optional = true }
+
 # Error handling
 thiserror = "1.0"
 anyhow = "1.0"
@@ -95,7 +98,7 @@ hex-literal = "0.4"
 default = ["std", "native"]
 std = []
 native = ["tokio", "tokio-util", "bytes", "ciborium", "bulletproofs", "curve25519-dalek", "merlin", "shield-protocol/zkproofs"]
-audio-codec = ["opus"]
+audio-codec = ["opus", "nnnoiseless"]
 android = ["native", "jni", "android_logger"]
 ios = ["native"]
 wasm = ["wasm-bindgen", "console_error_panic_hook", "getrandom/js", "shield-protocol/wasm"]

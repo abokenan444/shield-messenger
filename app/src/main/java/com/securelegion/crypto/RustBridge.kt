@@ -858,6 +858,77 @@ object RustBridge {
      */
     external fun getOpusVersion(): String
 
+    // ========== AI Noise Suppression (RNNoise) ==========
+
+    /**
+     * Create RNNoise denoiser instance for AI-powered noise suppression
+     * Runs entirely on-device using a neural network (~200KB model)
+     * @return Handle or -1 on error
+     */
+    external fun denoiserCreate(): Long
+
+    /**
+     * Destroy denoiser instance
+     */
+    external fun denoiserDestroy(handle: Long)
+
+    /**
+     * Process PCM audio frame through RNNoise neural network
+     * @param handle Denoiser handle
+     * @param pcmData 16-bit PCM samples (3840 bytes = 1920 samples at 48kHz)
+     * @return Denoised PCM samples or null on error
+     */
+    external fun denoiserProcess(handle: Long, pcmData: ByteArray): ByteArray?
+
+    /**
+     * Get Voice Activity Detection probability from last frame
+     * @return 0.0-1.0 (0=noise/silence, 1=speech)
+     */
+    external fun denoiserGetVAD(handle: Long): Float
+
+    /**
+     * Enable/disable denoising at runtime
+     */
+    external fun denoiserSetEnabled(handle: Long, enabled: Boolean)
+
+    /**
+     * Set denoise mix ratio (0.0=full denoise, 1.0=bypass)
+     */
+    external fun denoiserSetMixRatio(handle: Long, ratio: Float)
+
+    // ========== Adaptive Codec Controller ==========
+
+    /**
+     * Create adaptive codec controller for dynamic bitrate/quality adjustment
+     * @return Handle
+     */
+    external fun adaptiveCodecCreate(): Long
+
+    /**
+     * Destroy adaptive codec controller
+     */
+    external fun adaptiveCodecDestroy(handle: Long)
+
+    /**
+     * Update adaptive controller with network metrics and apply to encoder
+     * @param handle Adaptive controller handle
+     * @param encoderHandle Opus encoder handle
+     * @param lossRate Packet loss rate 0.0-1.0
+     * @param rttMs Round-trip time in ms
+     * @param jitterMs Jitter in ms
+     * @return Quality tier (0=LOW, 1=MEDIUM, 2=HIGH), -1 on error
+     */
+    external fun adaptiveCodecUpdate(
+        handle: Long, encoderHandle: Long,
+        lossRate: Float, rttMs: Float, jitterMs: Float
+    ): Int
+
+    /**
+     * Get estimated MOS score from adaptive controller
+     * @return MOS score 1.0-5.0
+     */
+    external fun adaptiveCodecGetMOS(handle: Long): Float
+
     // ========== Voice Streaming (v2.0) ==========
 
     /**

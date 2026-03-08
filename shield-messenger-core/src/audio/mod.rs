@@ -1,3 +1,5 @@
+pub mod adaptive_codec;
+pub mod denoise;
 pub mod loss_adaptive_fec;
 pub mod opus;
 pub mod opus_ctl;

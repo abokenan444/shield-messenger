@@ -128,6 +128,10 @@ class AudioPlaybackManager(
     // Telemetry integration (v2)
     private var telemetry: CallQualityTelemetry? = null
 
+    // NetEQ-like: last decoded PCM for time-stretching PLC
+    private var lastDecodedPCM: ShortArray? = null
+    private var secondLastDecodedPCM: ShortArray? = null
+
     /**
      * Buffered frame with timestamp for jitter adaptation
      */
@@ -385,6 +389,10 @@ class AudioPlaybackManager(
                     consecutivePLCFrames = 0 // Reset PLC counter on successful frame
                     try {
                         val pcmSamples = opusCodec.decode(frame.opusFrame)
+
+                        // Track last 2 decoded frames for time-stretching PLC (NetEQ-like)
+                        secondLastDecodedPCM = lastDecodedPCM
+                        lastDecodedPCM = pcmSamples.copyOf()
 
                         audioTrack.write(
                             pcmSamples,
@@ -664,10 +672,18 @@ class AudioPlaybackManager(
 
     /**
      * Play packet loss concealment (PLC) frame
+     * Uses NetEQ-like approach:
+     * 1. Try Opus native PLC (uses decoder internal state)
+     * 2. If that fails, use time-stretching interpolation from last 2 frames
+     * 3. If all fails, play silence
      */
     private fun playPLC(audioTrack: AudioTrack) {
         try {
             val plcSamples = opusCodec.decodePLC()
+
+            // Track for future interpolation
+            secondLastDecodedPCM = lastDecodedPCM
+            lastDecodedPCM = plcSamples.copyOf()
 
             audioTrack.write(
                 plcSamples,
@@ -677,11 +693,47 @@ class AudioPlaybackManager(
             )
 
         } catch (e: Exception) {
-            Log.e(TAG, "PLC error, playing silence", e)
-            // Fallback: play silence
-            val silence = ShortArray(FRAME_SIZE_SAMPLES) { 0 }
-            audioTrack.write(silence, 0, FRAME_SIZE_SAMPLES, AudioTrack.WRITE_BLOCKING)
+            // Opus PLC failed - try time-stretching interpolation (NetEQ-like)
+            val interpolated = timeStretchPLC()
+            if (interpolated != null) {
+                audioTrack.write(interpolated, 0, FRAME_SIZE_SAMPLES, AudioTrack.WRITE_BLOCKING)
+            } else {
+                // Fallback: play attenuated silence (gentle fade)
+                val silence = ShortArray(FRAME_SIZE_SAMPLES) { 0 }
+                audioTrack.write(silence, 0, FRAME_SIZE_SAMPLES, AudioTrack.WRITE_BLOCKING)
+            }
         }
+    }
+
+    /**
+     * Time-stretching PLC: interpolate from last 2 decoded frames (NetEQ-like)
+     * Creates a smooth continuation of audio to hide packet loss artifacts
+     */
+    private fun timeStretchPLC(): ShortArray? {
+        val last = lastDecodedPCM ?: return null
+        val secondLast = secondLastDecodedPCM
+
+        val result = ShortArray(FRAME_SIZE_SAMPLES)
+
+        if (secondLast != null && secondLast.size == FRAME_SIZE_SAMPLES) {
+            // Interpolate between last two frames with fade-out
+            for (i in 0 until FRAME_SIZE_SAMPLES) {
+                val t = i.toFloat() / FRAME_SIZE_SAMPLES
+                // Extrapolate trend from secondLast → last, with attenuation
+                val trend = last[i].toFloat() + (last[i].toFloat() - secondLast[i].toFloat()) * 0.3f
+                // Apply fade-out to reduce artifacts (0.9 → 0.5 over the frame)
+                val fadeout = 0.9f - 0.4f * t
+                result[i] = (trend * fadeout).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+            }
+        } else {
+            // Only one frame available - repeat with fade-out
+            for (i in 0 until FRAME_SIZE_SAMPLES) {
+                val fadeout = 0.85f - 0.35f * (i.toFloat() / FRAME_SIZE_SAMPLES)
+                result[i] = (last[i] * fadeout).toInt().coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt()).toShort()
+            }
+        }
+
+        return result
     }
 
     /**

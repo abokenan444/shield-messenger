@@ -6972,7 +6972,11 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_generateHybridKEMKe
 
             match crate::crypto::generate_hybrid_keypair_from_seed(&seed_array) {
                 Ok(keypair) => {
-                    let serialized = keypair.to_bytes();
+                    let mut serialized = Vec::with_capacity(32 + 32 + keypair.kyber_public.len() + keypair.kyber_secret.len());
+                    serialized.extend_from_slice(&keypair.x25519_public);
+                    serialized.extend_from_slice(&keypair.x25519_secret);
+                    serialized.extend_from_slice(&keypair.kyber_public);
+                    serialized.extend_from_slice(&keypair.kyber_secret);
                     match vec_to_jbytearray(&mut env, &serialized) {
                         Ok(arr) => arr.into_raw(),
                         Err(e) => {
@@ -7047,11 +7051,12 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_hybridEncapsulate(
             kyber_array.copy_from_slice(&kyber_pub);
 
             match crate::crypto::hybrid_encapsulate(&x25519_array, &kyber_array) {
-                Ok((combined_secret, ciphertext)) => {
-                    // Serialize: [combined_secret:64][ciphertext]
-                    let mut result = Vec::with_capacity(64 + ciphertext.to_bytes().len());
-                    result.extend_from_slice(&combined_secret);
-                    result.extend_from_slice(&ciphertext.to_bytes());
+                Ok(hybrid_ct) => {
+                    // Serialize: [shared_secret][x25519_ephemeral:32][kyber_ciphertext]
+                    let mut result = Vec::with_capacity(hybrid_ct.shared_secret.len() + 32 + hybrid_ct.kyber_ciphertext.len());
+                    result.extend_from_slice(&hybrid_ct.shared_secret);
+                    result.extend_from_slice(&hybrid_ct.x25519_ephemeral_public);
+                    result.extend_from_slice(&hybrid_ct.kyber_ciphertext);
 
                     match vec_to_jbytearray(&mut env, &result) {
                         Ok(arr) => arr.into_raw(),
@@ -7144,18 +7149,11 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_hybridDecapsulate(
             let mut kyber_array = [0u8; 3168];
             kyber_array.copy_from_slice(&kyber_sec);
 
-            let hybrid_ct = match crate::crypto::HybridCiphertext::from_bytes(&ct) {
-                Ok(ct) => ct,
-                Err(e) => {
-                    let _ = env.throw_new(
-                        "java/lang/IllegalArgumentException",
-                        format!("Invalid ciphertext: {}", e),
-                    );
-                    return std::ptr::null_mut();
-                }
-            };
+            // ciphertext format: [x25519_ephemeral:32][kyber_ciphertext:1568]
+            let x25519_ephemeral = &ct[..32];
+            let kyber_ciphertext = &ct[32..];
 
-            match crate::crypto::hybrid_decapsulate(&x25519_array, &kyber_array, &hybrid_ct) {
+            match crate::crypto::hybrid_decapsulate(x25519_ephemeral, kyber_ciphertext, &x25519_array, &kyber_array) {
                 Ok(combined_secret) => match vec_to_jbytearray(&mut env, &combined_secret) {
                     Ok(arr) => arr.into_raw(),
                     Err(e) => {

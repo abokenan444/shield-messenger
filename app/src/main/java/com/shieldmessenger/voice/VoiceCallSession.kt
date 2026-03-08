@@ -81,6 +81,19 @@ class VoiceCallSession(
     // Adaptive circuit scheduler (replaces round-robin in v2)
     private val circuitScheduler = CircuitScheduler(numCircuits, telemetry)
 
+    // Adaptive codec controller (dynamic bitrate/quality adjustment for Tor)
+    private var adaptiveCodecHandle: Long = 0
+
+    // Real-time quality monitoring
+    @Volatile
+    var currentQualityTier: Int = 2 // 0=LOW, 1=MEDIUM, 2=HIGH
+        private set
+    @Volatile
+    var estimatedMOS: Float = 4.0f // Mean Opinion Score 1.0-5.0
+        private set
+    // Quality monitoring job
+    private var qualityMonitorJob: Job? = null
+
     // Pending speaker state (for setting speaker before AudioPlaybackManager is initialized)
     private var pendingSpeakerEnabled: Boolean? = null
 
@@ -221,8 +234,14 @@ class VoiceCallSession(
             telemetry.start(callScope)
             audioPlaybackManager.setTelemetry(telemetry)
 
+            // Initialize adaptive codec controller for dynamic bitrate adjustment
+            initAdaptiveCodec()
+
             // Start periodic stats feedback (every 500ms as per spec)
             startStatsFeedback()
+
+            // Start real-time quality monitoring (MOS estimation + adaptive bitrate)
+            startQualityMonitoring()
 
             // Mark call start time for duration tracking
             callStartTime = System.currentTimeMillis()
@@ -324,8 +343,14 @@ class VoiceCallSession(
             telemetry.start(callScope)
             audioPlaybackManager.setTelemetry(telemetry)
 
+            // Initialize adaptive codec controller for dynamic bitrate adjustment
+            initAdaptiveCodec()
+
             // Start periodic stats feedback (every 500ms as per spec)
             startStatsFeedback()
+
+            // Start real-time quality monitoring (MOS estimation + adaptive bitrate)
+            startQualityMonitoring()
 
             // Mark call start time for duration tracking
             callStartTime = System.currentTimeMillis()
@@ -377,12 +402,15 @@ class VoiceCallSession(
                     val aad = frame.encodeAAD()
                     val encrypted = crypto.encryptFrame(opusFrame, key, nonce, aad)
 
+                    val sendStart = System.nanoTime()
                     val success = RustBridge.sendAudioPacket(
                         callId, currentSeq.toInt(), timestamp, encrypted, circuit, 0x01
                     )
+                    val sendDurationMs = (System.nanoTime() - sendStart) / 1_000_000
 
                     if (success) {
                         circuitScheduler.reportSendSuccess(circuit)
+                        circuitScheduler.reportSendDuration(circuit, sendDurationMs)
                         telemetry.reportFrameSent(circuit)
                         // Periodic send stats (every 50 frames = ~2s at 40ms/frame)
                         if (currentSeq % 50 == 0L) {
@@ -403,6 +431,75 @@ class VoiceCallSession(
         }
     }
 
+
+    /**
+     * Initialize adaptive codec controller for dynamic bitrate/quality adjustment
+     */
+    private fun initAdaptiveCodec() {
+        try {
+            adaptiveCodecHandle = RustBridge.adaptiveCodecCreate()
+            Log.i(TAG, "Adaptive codec controller initialized (tiers: LOW=12kbps, MEDIUM=16kbps, HIGH=24kbps)")
+        } catch (e: Exception) {
+            adaptiveCodecHandle = 0
+            Log.e(TAG, "Failed to create adaptive codec controller", e)
+        }
+    }
+
+    /**
+     * Start real-time quality monitoring
+     * Runs every 2 seconds: measures network quality, adjusts bitrate, reports MOS
+     */
+    private fun startQualityMonitoring() {
+        qualityMonitorJob = callScope.launch {
+            delay(5000) // Wait 5 seconds for call to stabilize
+
+            while (isActive && callState == CallState.ACTIVE) {
+                try {
+                    // Get current telemetry snapshot
+                    val snapshot = telemetry.getSnapshot()
+                    // Compute average loss from per-circuit missing%
+                    val avgMissingPct = if (snapshot.perCircuitStats.isNotEmpty()) {
+                        snapshot.perCircuitStats
+                            .filter { it.framesSent > 0 }
+                            .map { it.missingPercent }
+                            .average().takeIf { !it.isNaN() } ?: 0.0
+                    } else 0.0
+                    val lossRate = (avgMissingPct / 100.0).toFloat().coerceIn(0f, 1f)
+                    // Estimate RTT from jitter buffer depth (proxy)
+                    val rttMs = (snapshot.jitterBufferMs * 2.0).toFloat().coerceAtLeast(100f)
+                    val jitterMs = (snapshot.latePercent * 10.0).toFloat().coerceAtLeast(10f)
+
+                    // Update adaptive codec controller
+                    if (adaptiveCodecHandle != 0L) {
+                        val encoderHandle = opusCodec.getEncoderHandle()
+                        if (encoderHandle != 0L) {
+                            val tier = RustBridge.adaptiveCodecUpdate(
+                                adaptiveCodecHandle, encoderHandle,
+                                lossRate, rttMs, jitterMs
+                            )
+                            if (tier >= 0) {
+                                currentQualityTier = tier
+                            }
+                            estimatedMOS = RustBridge.adaptiveCodecGetMOS(adaptiveCodecHandle)
+                        }
+                    }
+
+                    // Log quality info periodically
+                    val tierName = when (currentQualityTier) {
+                        0 -> "LOW(12kbps)"
+                        1 -> "MEDIUM(16kbps)"
+                        else -> "HIGH(24kbps)"
+                    }
+                    Log.d(TAG, "QUALITY: MOS=${String.format("%.1f", estimatedMOS)} tier=$tierName loss=${String.format("%.1f", lossRate*100)}% rtt=${rttMs.toInt()}ms")
+
+                } catch (e: Exception) {
+                    Log.e(TAG, "Quality monitoring error: ${e.message}")
+                }
+
+                delay(2000) // Check every 2 seconds
+            }
+        }
+    }
 
     /**
      * End the call
@@ -491,6 +588,14 @@ class VoiceCallSession(
 
                     // Stop telemetry and save to database
                     telemetry.stop()
+
+                    // Cleanup adaptive codec controller
+                    if (adaptiveCodecHandle != 0L) {
+                        RustBridge.adaptiveCodecDestroy(adaptiveCodecHandle)
+                        adaptiveCodecHandle = 0
+                    }
+                    qualityMonitorJob?.cancel()
+                    qualityMonitorJob = null
                     if (callStartTime > 0) {
                         val durationSeconds = ((System.currentTimeMillis() - callStartTime) / 1000).toInt()
                         telemetry.saveToDatabase(
