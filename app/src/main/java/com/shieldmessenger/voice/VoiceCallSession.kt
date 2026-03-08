@@ -451,7 +451,7 @@ class VoiceCallSession(
      */
     private fun startQualityMonitoring() {
         qualityMonitorJob = callScope.launch {
-            delay(5000) // Wait 5 seconds for call to stabilize
+            delay(15000) // Wait 15 seconds for call to fully stabilize over Tor
 
             while (isActive && callState == CallState.ACTIVE) {
                 try {
@@ -460,14 +460,15 @@ class VoiceCallSession(
                     // Compute average loss from per-circuit missing%
                     val avgMissingPct = if (snapshot.perCircuitStats.isNotEmpty()) {
                         snapshot.perCircuitStats
-                            .filter { it.framesSent > 0 }
+                            .filter { it.framesSent > 10 } // Need enough samples
                             .map { it.missingPercent }
                             .average().takeIf { !it.isNaN() } ?: 0.0
                     } else 0.0
                     val lossRate = (avgMissingPct / 100.0).toFloat().coerceIn(0f, 1f)
-                    // Estimate RTT from jitter buffer depth (proxy)
-                    val rttMs = (snapshot.jitterBufferMs * 2.0).toFloat().coerceAtLeast(100f)
-                    val jitterMs = (snapshot.latePercent * 10.0).toFloat().coerceAtLeast(10f)
+                    // Don't estimate RTT from jitter buffer - it's wildly inaccurate for Tor.
+                    // Use a fixed reasonable value; real adaptation should be loss-based.
+                    val rttMs = 200f // Fixed nominal value - loss rate drives adaptation, not RTT
+                    val jitterMs = (snapshot.latePercent * 5.0).toFloat().coerceAtLeast(5f)
 
                     // Update adaptive codec controller
                     if (adaptiveCodecHandle != 0L) {
@@ -655,16 +656,26 @@ class VoiceCallSession(
      */
     fun startVideoStream(remoteSurface: android.view.Surface): Boolean {
         if (callState != CallState.ACTIVE) {
-            Log.w(TAG, "Cannot start video stream in state $callState")
+            Log.w(TAG, "Cannot start video stream in state $callState - will retry")
+            // Allow starting in CONNECTING state since VideoCallActivity calls this
+            // from updateCallConnected which may fire slightly before state propagates
+            if (callState != CallState.CONNECTING) {
+                return false
+            }
+        }
+        try {
+            val stream = VideoCallStream(
+                context, callId, callIdBytes, crypto,
+                circuitKeys.toMap(), numCircuits, isOutgoing
+            )
+            videoCallStream = stream
+            stream.start(remoteSurface)
+            Log.i(TAG, "Video stream started successfully (state=$callState)")
+            return true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start video stream", e)
             return false
         }
-        val stream = VideoCallStream(
-            context, callId, callIdBytes, crypto,
-            circuitKeys.toMap(), numCircuits, isOutgoing
-        )
-        videoCallStream = stream
-        stream.start(remoteSurface)
-        return true
     }
 
     /**

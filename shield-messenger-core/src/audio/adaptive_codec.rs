@@ -104,8 +104,8 @@ impl AdaptiveCodecController {
             estimated_mos: 4.0,
             tick: 0,
             stability_count: 0,
-            min_stability_ticks: 50, // 2 seconds at 40ms frames
-            alpha: 0.1,              // Smooth EMA for stability
+            min_stability_ticks: 75, // 3 seconds at 40ms frames
+            alpha: 0.05,              // Very smooth EMA for Tor stability
         }
     }
 
@@ -130,15 +130,15 @@ impl AdaptiveCodecController {
     /// Determine the recommended quality tier based on current metrics
     pub fn recommended_tier(&self) -> QualityTier {
         let loss_pct = self.ema_loss * 100.0;
-        let rtt = self.ema_rtt;
 
-        // Upgrade thresholds (generous - need sustained good quality)
-        // Downgrade thresholds (aggressive - react quickly to degradation)
-        if loss_pct > 15.0 || rtt > 800.0 {
+        // Tor-optimized thresholds: use LOSS ONLY for tier decisions.
+        // RTT is unreliable over Tor (multi-hop relay adds 200-800ms inherently)
+        // and should NOT cause downgrade.
+        if loss_pct > 25.0 {
             QualityTier::Low
-        } else if loss_pct > 8.0 || rtt > 500.0 {
+        } else if loss_pct > 15.0 {
             QualityTier::Medium
-        } else if loss_pct < 5.0 && rtt < 400.0 {
+        } else if loss_pct < 8.0 {
             QualityTier::High
         } else {
             self.current_tier // Stay at current tier (hysteresis zone)

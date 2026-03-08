@@ -322,9 +322,11 @@ class VideoCallActivity : BaseActivity() {
             if (isOutgoing) "Calling $contactName..." else "Connecting video..."
 
         // Set up remote video SurfaceView
-        remoteSurfaceView = SurfaceView(this)
+        remoteSurfaceView = SurfaceView(this).also {
+            it.setZOrderMediaOverlay(true) // Ensure video renders above background
+        }
         val container = findViewById<android.widget.FrameLayout>(R.id.remoteVideoContainer)
-        container.addView(remoteSurfaceView, 0, // Add behind placeholder
+        container.addView(remoteSurfaceView,
             android.widget.FrameLayout.LayoutParams(
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
                 android.widget.FrameLayout.LayoutParams.MATCH_PARENT
