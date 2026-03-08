@@ -2832,7 +2832,8 @@ class ChatActivity : BaseActivity() {
                         ephemeralPublicKey = ephemeralKeypair.publicKey.asBytes,
                         voiceOnion = myVoiceOnion,
                         ourX25519PublicKey = ourX25519PublicKey,
-                        numCircuits = 1
+                        numCircuits = 1,
+                        isVideoCall = true
                     )
                 }
 
@@ -2871,7 +2872,8 @@ class ChatActivity : BaseActivity() {
                                 ephemeralPublicKey = ephemeralKeypair.publicKey.asBytes,
                                 voiceOnion = myVoiceOnion,
                                 ourX25519PublicKey = ourX25519PublicKey,
-                                numCircuits = 1
+                                numCircuits = 1,
+                                isVideoCall = true
                             )
                         }
                     }

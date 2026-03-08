@@ -2767,7 +2767,8 @@ class MessageService(private val context: Context) {
                         contactOnion = callMessage.voiceOnion,
                         contactEd25519PublicKey = contact.ed25519PublicKeyBytes,
                         contactName = contact.displayName,
-                        ephemeralPublicKey = callMessage.ephemeralPublicKey
+                        ephemeralPublicKey = callMessage.ephemeralPublicKey,
+                        isVideoCall = callMessage.isVideoCall
                     )
 
                     // Only launch IncomingCallActivity for NEW calls (not duplicates)
@@ -2783,6 +2784,7 @@ class MessageService(private val context: Context) {
                         intent.putExtra(IncomingCallActivity.EXTRA_CONTACT_ED25519_PUBLIC_KEY, contact.ed25519PublicKeyBytes)
                         intent.putExtra(IncomingCallActivity.EXTRA_CONTACT_X25519_PUBLIC_KEY, contact.x25519PublicKeyBytes)
                         intent.putExtra(IncomingCallActivity.EXTRA_EPHEMERAL_PUBLIC_KEY, callMessage.ephemeralPublicKey)
+                        intent.putExtra(IncomingCallActivity.EXTRA_IS_VIDEO_CALL, callMessage.isVideoCall)
                         context.startActivity(intent)
                     } else {
                         Log.d(TAG, "Duplicate CALL_OFFER - not launching IncomingCallActivity again")

@@ -91,6 +91,7 @@ class VoiceCallManager private constructor(private val context: Context) : RustB
         val contactName: String?,
         val ephemeralPublicKey: ByteArray,
         val timestamp: Long = System.currentTimeMillis(),
+        val isVideoCall: Boolean = false,
         var state: CallState = CallState.RINGING
     )
 
@@ -197,7 +198,8 @@ class VoiceCallManager private constructor(private val context: Context) : RustB
         contactOnion: String,
         contactEd25519PublicKey: ByteArray,
         contactName: String?,
-        ephemeralPublicKey: ByteArray
+        ephemeralPublicKey: ByteArray,
+        isVideoCall: Boolean = false
     ): Boolean {
         Log.i(TAG, "Incoming CALL_OFFER from $contactName ($contactOnion), callId=$callId")
 
@@ -247,6 +249,7 @@ class VoiceCallManager private constructor(private val context: Context) : RustB
             contactEd25519PublicKey = contactEd25519PublicKey,
             contactName = contactName,
             ephemeralPublicKey = ephemeralPublicKey,
+            isVideoCall = isVideoCall,
             state = CallState.RINGING
         )
 

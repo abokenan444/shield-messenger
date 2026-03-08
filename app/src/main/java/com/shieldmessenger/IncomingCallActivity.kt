@@ -49,6 +49,7 @@ class IncomingCallActivity : BaseActivity() {
         const val EXTRA_CONTACT_ED25519_PUBLIC_KEY = "CONTACT_ED25519_PUBLIC_KEY"
         const val EXTRA_CONTACT_X25519_PUBLIC_KEY = "CONTACT_X25519_PUBLIC_KEY"
         const val EXTRA_EPHEMERAL_PUBLIC_KEY = "EPHEMERAL_PUBLIC_KEY"
+        const val EXTRA_IS_VIDEO_CALL = "IS_VIDEO_CALL"
     }
 
     // UI elements
@@ -75,6 +76,7 @@ class IncomingCallActivity : BaseActivity() {
     private var contactEd25519PublicKey: ByteArray = ByteArray(0)
     private var contactX25519PublicKey: ByteArray = ByteArray(0)
     private var theirEphemeralPublicKey: ByteArray = ByteArray(0)
+    private var isVideoCall: Boolean = false
 
     // Call manager
     private lateinit var callManager: VoiceCallManager
@@ -107,6 +109,7 @@ class IncomingCallActivity : BaseActivity() {
         contactEd25519PublicKey = intent.getByteArrayExtra(EXTRA_CONTACT_ED25519_PUBLIC_KEY) ?: ByteArray(0)
         contactX25519PublicKey = intent.getByteArrayExtra(EXTRA_CONTACT_X25519_PUBLIC_KEY) ?: ByteArray(0)
         theirEphemeralPublicKey = intent.getByteArrayExtra(EXTRA_EPHEMERAL_PUBLIC_KEY) ?: ByteArray(0)
+        isVideoCall = intent.getBooleanExtra(EXTRA_IS_VIDEO_CALL, false)
 
         // Initialize UI
         initializeViews()
@@ -117,16 +120,22 @@ class IncomingCallActivity : BaseActivity() {
 
         // Update UI
         contactNameText.text = contactName
-        callStatusText.text = "Incoming Call"
+        callStatusText.text = if (isVideoCall) "Incoming Video Call" else "Incoming Call"
 
         // Start ring rotation animation
         val rotateAnimation = AnimationUtils.loadAnimation(this, R.anim.rotate_ring)
         animatedRing.startAnimation(rotateAnimation)
 
-        // Check RECORD_AUDIO permission early (while activity window is valid)
+        // Check permissions early (while activity window is valid)
+        val permissionsNeeded = mutableListOf<String>()
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            // Request permission immediately when activity starts
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), PERMISSION_REQUEST_CODE)
+            permissionsNeeded.add(Manifest.permission.RECORD_AUDIO)
+        }
+        if (isVideoCall && ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            permissionsNeeded.add(Manifest.permission.CAMERA)
+        }
+        if (permissionsNeeded.isNotEmpty()) {
+            ActivityCompat.requestPermissions(this, permissionsNeeded.toTypedArray(), PERMISSION_REQUEST_CODE)
         }
 
         // Play ringtone
@@ -306,7 +315,15 @@ class IncomingCallActivity : BaseActivity() {
 
         // Check microphone permission (should have been granted in onCreate)
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ThemedToast.show(this, "Microphone permission required for voice calls")
+            ThemedToast.show(this, "Microphone permission required for calls")
+            answerButton.isEnabled = true
+            declineButton.isEnabled = true
+            return
+        }
+
+        // Check camera permission for video calls
+        if (isVideoCall && ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            ThemedToast.show(this, "Camera permission required for video calls")
             answerButton.isEnabled = true
             declineButton.isEnabled = true
             return
@@ -365,17 +382,29 @@ class IncomingCallActivity : BaseActivity() {
         // This prevents onDestroy from rejecting the call
         callWasAnswered = true
 
-        // IMMEDIATELY launch VoiceCallActivity (shows "Connecting" screen)
-        // VoiceCallActivity will handle all the connection logic
-        val intent = Intent(this, VoiceCallActivity::class.java)
-        intent.putExtra(VoiceCallActivity.EXTRA_CONTACT_ID, contactId)
-        intent.putExtra(VoiceCallActivity.EXTRA_CONTACT_NAME, contactName)
-        intent.putExtra(VoiceCallActivity.EXTRA_CALL_ID, callId)
-        intent.putExtra(VoiceCallActivity.EXTRA_IS_OUTGOING, false)
-        intent.putExtra(VoiceCallActivity.EXTRA_THEIR_EPHEMERAL_KEY, theirEphemeralPublicKey)
-        intent.putExtra(VoiceCallActivity.EXTRA_CONTACT_ONION, contactOnion)
-        intent.putExtra(VoiceCallActivity.EXTRA_CONTACT_X25519_PUBLIC_KEY, contactX25519PublicKey)
-        startActivity(intent)
+        // IMMEDIATELY launch the appropriate Activity (shows "Connecting" screen)
+        // The Activity will handle all the connection logic
+        if (isVideoCall) {
+            val intent = Intent(this, VideoCallActivity::class.java)
+            intent.putExtra(VideoCallActivity.EXTRA_CONTACT_ID, contactId)
+            intent.putExtra(VideoCallActivity.EXTRA_CONTACT_NAME, contactName)
+            intent.putExtra(VideoCallActivity.EXTRA_CALL_ID, callId)
+            intent.putExtra(VideoCallActivity.EXTRA_IS_OUTGOING, false)
+            intent.putExtra(VideoCallActivity.EXTRA_THEIR_EPHEMERAL_KEY, theirEphemeralPublicKey)
+            intent.putExtra(VideoCallActivity.EXTRA_CONTACT_ONION, contactOnion)
+            intent.putExtra(VideoCallActivity.EXTRA_CONTACT_X25519_PUBLIC_KEY, contactX25519PublicKey)
+            startActivity(intent)
+        } else {
+            val intent = Intent(this, VoiceCallActivity::class.java)
+            intent.putExtra(VoiceCallActivity.EXTRA_CONTACT_ID, contactId)
+            intent.putExtra(VoiceCallActivity.EXTRA_CONTACT_NAME, contactName)
+            intent.putExtra(VoiceCallActivity.EXTRA_CALL_ID, callId)
+            intent.putExtra(VoiceCallActivity.EXTRA_IS_OUTGOING, false)
+            intent.putExtra(VoiceCallActivity.EXTRA_THEIR_EPHEMERAL_KEY, theirEphemeralPublicKey)
+            intent.putExtra(VoiceCallActivity.EXTRA_CONTACT_ONION, contactOnion)
+            intent.putExtra(VoiceCallActivity.EXTRA_CONTACT_X25519_PUBLIC_KEY, contactX25519PublicKey)
+            startActivity(intent)
+        }
         finish() // Close incoming call screen immediately
     }
 

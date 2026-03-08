@@ -57,7 +57,8 @@ object CallSignaling {
         ephemeralPublicKey: ByteArray,
         voiceOnion: String,
         ourX25519PublicKey: ByteArray,
-        numCircuits: Int = 1
+        numCircuits: Int = 1,
+        isVideoCall: Boolean = false
     ): Boolean {
         return try {
             Log.d(TAG, "sendCallOffer called:")
@@ -72,6 +73,7 @@ object CallSignaling {
                 put("voiceOnion", voiceOnion)
                 put("numCircuits", numCircuits)
                 put("timestamp", System.currentTimeMillis())
+                put("isVideoCall", isVideoCall)
             }
 
             val message = offerJson.toString()
@@ -426,12 +428,14 @@ object CallSignaling {
                     val voiceOnion = json.getString("voiceOnion")
                     val numCircuits = json.getInt("numCircuits")
 
+                    val isVideoCall = json.optBoolean("isVideoCall", false)
                     CallSignalingMessage.CallOffer(
                         callId = callId,
                         ephemeralPublicKey = ephemeralKey,
                         voiceOnion = voiceOnion,
                         numCircuits = numCircuits,
-                        timestamp = timestamp
+                        timestamp = timestamp,
+                        isVideoCall = isVideoCall
                     )
                 }
 
@@ -493,7 +497,8 @@ object CallSignaling {
             val ephemeralPublicKey: ByteArray,
             val voiceOnion: String,
             val numCircuits: Int,
-            val timestamp: Long
+            val timestamp: Long,
+            val isVideoCall: Boolean = false
         ) : CallSignalingMessage() {
             override fun equals(other: Any?): Boolean {
                 if (this === other) return true
@@ -507,6 +512,7 @@ object CallSignaling {
                 if (numCircuits != other.numCircuits) return false
                 if (timestamp != other.timestamp) return false
 
+                if (isVideoCall != other.isVideoCall) return false
                 return true
             }
 
@@ -517,6 +523,7 @@ object CallSignaling {
                 result = 31 * result + numCircuits
                 result = 31 * result + timestamp.hashCode()
                 return result
+                result = 31 * result + isVideoCall.hashCode()
             }
         }
 
