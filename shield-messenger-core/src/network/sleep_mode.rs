@@ -55,11 +55,11 @@ impl Default for SleepConfig {
     fn default() -> Self {
         Self {
             maintenance_interval: Duration::from_secs(15 * 60), // 15 minutes
-            maintenance_duration: Duration::from_secs(60),       // 1 minute
-            idle_timeout: Duration::from_secs(5 * 60),           // 5 minutes
+            maintenance_duration: Duration::from_secs(60),      // 1 minute
+            idle_timeout: Duration::from_secs(5 * 60),          // 5 minutes
             cover_traffic_enabled: true,
-            cover_traffic_interval: Duration::from_secs(30),     // Every 30 seconds
-            circuit_max_idle: Duration::from_secs(10 * 60),      // 10 minutes
+            cover_traffic_interval: Duration::from_secs(30), // Every 30 seconds
+            circuit_max_idle: Duration::from_secs(10 * 60),  // 10 minutes
             reduce_timer_precision: true,
         }
     }
@@ -159,10 +159,8 @@ impl SleepModeManager {
         // Track sleep time
         if self.state == SleepState::Sleeping {
             let sleep_duration = self.state_entered_at.elapsed();
-            self.total_sleep_us.fetch_add(
-                sleep_duration.as_micros() as u64,
-                Ordering::Relaxed,
-            );
+            self.total_sleep_us
+                .fetch_add(sleep_duration.as_micros() as u64, Ordering::Relaxed);
         }
 
         // Update maintenance timestamp
@@ -241,7 +239,10 @@ impl SleepModeManager {
             return false;
         }
         // Send cover traffic in all states to maintain consistent traffic pattern
-        matches!(self.state, SleepState::Sleeping | SleepState::Awake | SleepState::MaintenanceWake)
+        matches!(
+            self.state,
+            SleepState::Sleeping | SleepState::Awake | SleepState::MaintenanceWake
+        )
     }
 }
 
@@ -262,7 +263,10 @@ static GLOBAL_SLEEP_ACTIVE: AtomicBool = AtomicBool::new(false);
 /// Set global sleep mode enabled state (called from JNI)
 pub fn set_sleep_mode_enabled(enabled: bool) {
     GLOBAL_SLEEP_ENABLED.store(enabled, Ordering::SeqCst);
-    log::info!("SleepMode globally {}", if enabled { "enabled" } else { "disabled" });
+    log::info!(
+        "SleepMode globally {}",
+        if enabled { "enabled" } else { "disabled" }
+    );
 }
 
 /// Check if sleep mode is globally enabled
