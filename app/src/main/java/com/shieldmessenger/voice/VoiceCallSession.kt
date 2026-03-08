@@ -438,7 +438,7 @@ class VoiceCallSession(
     private fun initAdaptiveCodec() {
         try {
             adaptiveCodecHandle = RustBridge.adaptiveCodecCreate()
-            Log.i(TAG, "Adaptive codec controller initialized (tiers: LOW=12kbps, MEDIUM=16kbps, HIGH=24kbps)")
+            Log.i(TAG, "Adaptive codec controller initialized (tiers: LOW=16kbps, MEDIUM=24kbps, HIGH=32kbps)")
         } catch (e: Exception) {
             adaptiveCodecHandle = 0
             Log.e(TAG, "Failed to create adaptive codec controller", e)
@@ -483,9 +483,9 @@ class VoiceCallSession(
 
                     // Log quality info periodically
                     val tierName = when (currentQualityTier) {
-                        0 -> "LOW(12kbps)"
-                        1 -> "MEDIUM(16kbps)"
-                        else -> "HIGH(24kbps)"
+                        0 -> "LOW(16kbps)"
+                        1 -> "MEDIUM(24kbps)"
+                        else -> "HIGH(32kbps)"
                     }
                     Log.d(TAG, "QUALITY: MOS=${String.format("%.1f", estimatedMOS)} tier=$tierName plc=${String.format("%.1f", plcPct)}% late=${String.format("%.1f", snapshot.latePercent)}%")
 

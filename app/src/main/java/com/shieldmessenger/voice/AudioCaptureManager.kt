@@ -129,12 +129,20 @@ class AudioCaptureManager(
     }
 
     /**
-     * Initialize audio effects (AEC, NS, AGC) if supported by device
-     * These greatly improve call quality by removing echo, background noise, and normalizing volume
+     * Initialize audio effects for call quality.
+     *
+     * IMPORTANT: Only AEC (Acoustic Echo Canceler) is enabled.
+     * - NoiseSuppressor is DISABLED: RNNoise handles denoising. Running both causes
+     *   double-denoise artifacts (tinny/metallic voice) because RNNoise treats
+     *   NS-processed speech overtones as noise and suppresses them further.
+     * - AGC is DISABLED: Causes pumping/breathing artifacts when combined with
+     *   FEC-induced bitrate variation. Users can adjust device volume instead.
      */
     private fun initializeAudioEffects(audioSessionId: Int) {
         try {
             // Acoustic Echo Canceler (AEC) - Removes echo from speaker playback
+            // This is the ONLY hardware effect we enable - it's essential and
+            // does NOT interfere with RNNoise (operates on different signal path)
             if (AcousticEchoCanceler.isAvailable()) {
                 acousticEchoCanceler = AcousticEchoCanceler.create(audioSessionId)
                 if (acousticEchoCanceler != null) {
@@ -147,47 +155,25 @@ class AudioCaptureManager(
                 Log.w(TAG, "Acoustic Echo Canceler not available on this device")
             }
 
-            // Noise Suppressor (NS) - Removes background noise (traffic, keyboard, etc)
-            if (NoiseSuppressor.isAvailable()) {
-                noiseSuppressor = NoiseSuppressor.create(audioSessionId)
-                if (noiseSuppressor != null) {
-                    noiseSuppressor?.enabled = true
-                    Log.i(TAG, "Noise Suppressor enabled")
-                } else {
-                    Log.w(TAG, "NoiseSuppressor.create returned null")
-                }
-            } else {
-                Log.w(TAG, "Noise Suppressor not available on this device")
-            }
+            // NoiseSuppressor DISABLED - RNNoise provides denoising.
+            // Running both causes double-denoise: over-suppressed, tinny voice.
+            Log.i(TAG, "NoiseSuppressor DISABLED (RNNoise handles denoising)")
 
-            // Automatic Gain Control (AGC) - Normalizes audio volume
-            if (AutomaticGainControl.isAvailable()) {
-                automaticGainControl = AutomaticGainControl.create(audioSessionId)
-                if (automaticGainControl != null) {
-                    automaticGainControl?.enabled = true
-                    Log.i(TAG, "Automatic Gain Control enabled")
-                } else {
-                    Log.w(TAG, "AutomaticGainControl.create returned null")
-                }
-            } else {
-                Log.w(TAG, "Automatic Gain Control not available on this device")
-            }
+            // AGC DISABLED - causes pumping artifacts with FEC bitrate variation.
+            Log.i(TAG, "AGC DISABLED (prevents pumping artifacts)")
 
             val enabledEffects = listOfNotNull(
-                if (acousticEchoCanceler?.enabled == true) "AEC" else null,
-                if (noiseSuppressor?.enabled == true) "NS" else null,
-                if (automaticGainControl?.enabled == true) "AGC" else null
+                if (acousticEchoCanceler?.enabled == true) "AEC" else null
             )
 
             if (enabledEffects.isNotEmpty()) {
-                Log.i(TAG, "Audio effects enabled: ${enabledEffects.joinToString(", ")}")
+                Log.i(TAG, "Audio effects enabled: ${enabledEffects.joinToString(", ")} (NS/AGC intentionally disabled)")
             } else {
-                Log.w(TAG, "No audio effects available - call quality may be reduced")
+                Log.w(TAG, "No audio effects available")
             }
 
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing audio effects (continuing without them)", e)
-            // Don't throw - we can continue without effects, just with lower quality
         }
     }
 

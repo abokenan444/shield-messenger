@@ -1,16 +1,15 @@
 /// Adaptive Codec Controller for Tor Voice Calls
 ///
-/// Dynamically adjusts Opus encoder parameters based on real-time network quality:
-/// - Bitrate: 12-48 kbps (adapts to bandwidth)
-/// - DTX: Enabled when bandwidth is scarce
-/// - Complexity: Reduced on weak connections to save CPU
+/// Dynamically adjusts Opus encoder parameters based on real-time network quality.
+/// Quality changes are MINIMAL to prevent audible artifacts from codec reconfiguration.
 ///
 /// Quality Tiers:
-///   HIGH:   24 kbps, complexity 10, DTX off (good Tor circuit)
-///   MEDIUM: 16 kbps, complexity 8,  DTX off (moderate loss/latency)
-///   LOW:    12 kbps, complexity 6,  DTX on  (poor circuit, high loss)
+///   HIGH:   32 kbps, complexity 7, DTX off (default - good Tor circuit)
+///   MEDIUM: 24 kbps, complexity 7, DTX off (moderate loss)
+///   LOW:    16 kbps, complexity 6, DTX off (high loss - minimum acceptable)
 ///
-/// Tier transitions use hysteresis to prevent flapping.
+/// Tier transitions use high hysteresis to prevent flapping.
+/// Audio quality is NEVER sacrificed below superwideband.
 use jni::objects::JClass;
 use jni::sys::{jint, jlong};
 use jni::JNIEnv;
@@ -28,16 +27,16 @@ pub enum QualityTier {
 impl QualityTier {
     pub fn bitrate(&self) -> i32 {
         match self {
-            QualityTier::High => 24000,
-            QualityTier::Medium => 16000,
-            QualityTier::Low => 12000,
+            QualityTier::High => 32000,
+            QualityTier::Medium => 24000,
+            QualityTier::Low => 16000,
         }
     }
 
     pub fn complexity(&self) -> i32 {
         match self {
-            QualityTier::High => 10,
-            QualityTier::Medium => 8,
+            QualityTier::High => 7,
+            QualityTier::Medium => 7,
             QualityTier::Low => 6,
         }
     }
@@ -49,10 +48,11 @@ impl QualityTier {
     }
 
     pub fn max_bandwidth(&self) -> i32 {
+        // ALL tiers use SUPERWIDEBAND - never degrade bandwidth
         match self {
             QualityTier::High => 1104,   // SUPERWIDEBAND (12 kHz)
-            QualityTier::Medium => 1104, // SUPERWIDEBAND (12 kHz) - keep quality
-            QualityTier::Low => 1103,    // WIDEBAND (8 kHz) - minimum acceptable
+            QualityTier::Medium => 1104, // SUPERWIDEBAND (12 kHz)
+            QualityTier::Low => 1104,    // SUPERWIDEBAND (12 kHz)
         }
     }
 
@@ -102,8 +102,8 @@ impl AdaptiveCodecController {
             estimated_mos: 4.0,
             tick: 0,
             stability_count: 0,
-            min_stability_ticks: 75, // 3 seconds at 40ms frames
-            alpha: 0.05,             // Very smooth EMA for Tor stability
+            min_stability_ticks: 150, // 6 seconds at 40ms frames (was 3s)
+            alpha: 0.02,              // Very smooth EMA - resist transient spikes
         }
     }
 
@@ -129,14 +129,14 @@ impl AdaptiveCodecController {
     pub fn recommended_tier(&self) -> QualityTier {
         let loss_pct = self.ema_loss * 100.0;
 
-        // Tor-optimized thresholds: use LOSS ONLY for tier decisions.
-        // RTT is unreliable over Tor (multi-hop relay adds 200-800ms inherently)
-        // and should NOT cause downgrade.
-        if loss_pct > 25.0 {
+        // Tor-optimized thresholds: very conservative - prefer stable HIGH quality.
+        // Changing codec settings mid-call causes audible artifacts, so we only
+        // downgrade under SEVERE loss. Opus PLC/FEC handle moderate loss well.
+        if loss_pct > 40.0 {
             QualityTier::Low
-        } else if loss_pct > 15.0 {
+        } else if loss_pct > 30.0 {
             QualityTier::Medium
-        } else if loss_pct < 8.0 {
+        } else if loss_pct < 15.0 {
             QualityTier::High
         } else {
             self.current_tier // Stay at current tier (hysteresis zone)

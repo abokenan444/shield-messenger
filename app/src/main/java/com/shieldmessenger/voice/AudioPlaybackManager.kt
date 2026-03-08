@@ -55,20 +55,19 @@ class AudioPlaybackManager(
         private const val FEC_MAX_RETRIES = 2 // Check for next frame 2 times during grace window
 
         // Reorder grace window (v3 - wait for out-of-order frames before missing)
-        private const val REORDER_GRACE_MS = 60L // Wait 60ms for out-of-order frames
+        private const val REORDER_GRACE_MS = 120L // Wait 120ms for out-of-order frames (Tor needs more)
 
         // Adaptive buffer tuning (more tolerant for Tor jitter)
-        private const val LATE_FRAME_THRESHOLD = 0.10f // If >10% frames late, increase buffer (was 5%)
-        private const val EARLY_FRAME_THRESHOLD = 0.95f // If >95% frames early, decrease buffer (was 90%)
+        private const val LATE_FRAME_THRESHOLD = 0.15f // If >15% frames late, increase buffer
+        private const val EARLY_FRAME_THRESHOLD = 0.95f // If >95% frames early, decrease buffer
 
         // Resynchronization (recover from dead circuits by skipping forward)
-        // This is the ONLY delay control mechanism - latency clamp removed (incompatible with Tor)
-        private const val RESYNC_PLC_THRESHOLD = 15 // Skip forward after 15 consecutive PLC frames (300ms dead)
+        private const val RESYNC_PLC_THRESHOLD = 15 // Skip forward after 15 consecutive PLC frames
 
-        // Buffer adaptation tuning (immediate growth, slow shrinking)
-        private const val UNDERRUN_GROWTH_MS = 100 // Immediate +100ms on underrun
+        // Buffer adaptation tuning (gentler growth, faster shrinking)
+        private const val UNDERRUN_GROWTH_MS = 50 // +50ms on underrun (was 100 - too aggressive)
         private const val SHRINK_STEP_MS = 25 // -25ms shrink steps
-        private const val SHRINK_STABILITY_MS = 5_000L // Wait 5 seconds stable before shrinking
+        private const val SHRINK_STABILITY_MS = 3_000L // Wait 3 seconds stable before shrinking (was 5)
     }
 
     private var audioTrack: AudioTrack? = null

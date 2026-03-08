@@ -67,8 +67,8 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_opusEncoderCreate(
             return -1;
         }
 
-        // Set bitrate (24kbps optimized for Tor - good quality with lower bandwidth)
-        let target_bitrate = if bitrate > 0 { bitrate } else { 24000 };
+        // Set bitrate (32kbps - high quality voice over Tor)
+        let target_bitrate = if bitrate > 0 { bitrate } else { 32000 };
         if let Err(e) = crate::audio::opus_ctl::opus_set_bitrate(encoder_ptr, target_bitrate) {
             log::error!("Failed to set bitrate: error={}", e);
             opus_encoder_destroy(encoder_ptr);
@@ -82,8 +82,11 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_opusEncoderCreate(
             return -1;
         }
 
-        // Set expected packet loss percentage (15% for Tor - balanced FEC)
-        if let Err(e) = crate::audio::opus_ctl::opus_set_packet_loss_perc(encoder_ptr, 15) {
+        // Set expected packet loss percentage (3% - minimal FEC overhead)
+        // Higher values waste bitrate on redundancy. At 15%, ~20-30% of bandwidth goes
+        // to FEC overhead, leaving only ~18kbps for actual audio. At 3%, overhead is
+        // minimal and Opus PLC handles remaining losses well.
+        if let Err(e) = crate::audio::opus_ctl::opus_set_packet_loss_perc(encoder_ptr, 3) {
             log::error!("Failed to set packet loss percentage: error={}", e);
             opus_encoder_destroy(encoder_ptr);
             return -1;
@@ -134,8 +137,9 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_opusEncoderCreate(
             }
         };
 
-        // Set complexity: 10 for best quality (modern phones handle it easily)
-        let complexity_applied = match crate::audio::opus_ctl::opus_set_complexity(encoder_ptr, 10)
+        // Set complexity: 7 for good quality with lower CPU usage
+        // Complexity 10 uses maximum CPU which can cause frame drops on mid-range devices
+        let complexity_applied = match crate::audio::opus_ctl::opus_set_complexity(encoder_ptr, 7)
         {
             Ok(_) => true,
             Err(e) => {
