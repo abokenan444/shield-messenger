@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.util.Size
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -14,6 +15,8 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.TextView
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -34,6 +37,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
+import java.util.concurrent.Executors
 
 /**
  * VideoCallActivity - Video call screen extending voice call with camera.
@@ -113,9 +117,9 @@ class VideoCallActivity : BaseActivity() {
     private var cameraProvider: ProcessCameraProvider? = null
 
     // Video streaming
-    private var videoInputSurface: Surface? = null
     private var remoteSurfaceView: SurfaceView? = null
     private var isVideoStreaming = false
+    private val imageAnalysisExecutor = Executors.newSingleThreadExecutor()
 
     // Timer
     private val timerHandler = Handler(Looper.getMainLooper())
@@ -567,12 +571,12 @@ class VideoCallActivity : BaseActivity() {
             override fun surfaceCreated(holder: SurfaceHolder) {
                 val remoteSurface = holder.surface
                 try {
-                    videoInputSurface = session.startVideoStream(remoteSurface)
-                    if (videoInputSurface != null) {
+                    val started = session.startVideoStream(remoteSurface)
+                    if (started) {
                         isVideoStreaming = true
                         // Hide placeholder, show remote video
                         findViewById<View>(R.id.noVideoPlaceholder).visibility = View.GONE
-                        // Rebind camera with video encoder surface
+                        // Bind camera with ImageAnalysis to feed encoder
                         if (isCameraOn) bindCameraForVideo()
                         Log.i(TAG, "Video streaming started")
                     } else {
@@ -594,7 +598,7 @@ class VideoCallActivity : BaseActivity() {
     }
 
     /**
-     * Bind camera to both local preview and video encoder surface.
+     * Bind camera to both local preview and video encoder via ImageAnalysis.
      */
     private fun bindCameraForVideo() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
@@ -603,9 +607,29 @@ class VideoCallActivity : BaseActivity() {
             cameraProvider = provider
             provider.unbindAll()
 
+            val session = VoiceCallManager.getInstance(this).getActiveCall()
+            val encoderSize = session?.getVideoEncoderSize()
+            val targetWidth = encoderSize?.first ?: 320
+            val targetHeight = encoderSize?.second ?: 240
+
             // Local preview
             val preview = Preview.Builder().build().also {
                 it.surfaceProvider = localCameraPreview.surfaceProvider
+            }
+
+            // ImageAnalysis to capture frames for encoding
+            val imageAnalysis = ImageAnalysis.Builder()
+                .setTargetResolution(Size(targetWidth, targetHeight))
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .build()
+
+            imageAnalysis.setAnalyzer(imageAnalysisExecutor) { imageProxy ->
+                if (isVideoStreaming && isCameraOn) {
+                    val yuvData = imageProxyToNv12(imageProxy)
+                    val pts = imageProxy.imageInfo.timestamp / 1000 // ns to us
+                    session?.feedCameraFrame(yuvData, pts)
+                }
+                imageProxy.close()
             }
 
             val cameraSelector = if (isUsingFrontCamera) {
@@ -615,11 +639,63 @@ class VideoCallActivity : BaseActivity() {
             }
 
             try {
-                provider.bindToLifecycle(this, cameraSelector, preview)
+                provider.bindToLifecycle(this, cameraSelector, preview, imageAnalysis)
             } catch (e: Exception) {
                 Log.e(TAG, "Camera bind failed", e)
             }
         }, ContextCompat.getMainExecutor(this))
+    }
+
+    /**
+     * Convert ImageProxy (YUV_420_888) to NV12 byte array for MediaCodec encoder.
+     */
+    private fun imageProxyToNv12(image: ImageProxy): ByteArray {
+        val yPlane = image.planes[0]
+        val uPlane = image.planes[1]
+        val vPlane = image.planes[2]
+
+        val width = image.width
+        val height = image.height
+        val ySize = width * height
+        val uvSize = width * height / 2
+        val nv12 = ByteArray(ySize + uvSize)
+
+        // Copy Y plane (handle row stride padding)
+        val yBuffer = yPlane.buffer
+        val yRowStride = yPlane.rowStride
+        if (yRowStride == width) {
+            yBuffer.position(0)
+            yBuffer.get(nv12, 0, ySize)
+        } else {
+            for (row in 0 until height) {
+                yBuffer.position(row * yRowStride)
+                yBuffer.get(nv12, row * width, width)
+            }
+        }
+
+        // Copy UV planes
+        val uvPixelStride = uPlane.pixelStride
+        val uvRowStride = uPlane.rowStride
+        val uBuffer = uPlane.buffer
+        val vBuffer = vPlane.buffer
+
+        if (uvPixelStride == 2) {
+            // Semi-planar: U plane already interleaved as UVUV (NV12)
+            uBuffer.position(0)
+            val remaining = minOf(uBuffer.remaining(), uvSize)
+            uBuffer.get(nv12, ySize, remaining)
+        } else {
+            // Planar: manually interleave U and V
+            var uvIdx = ySize
+            for (row in 0 until height / 2) {
+                for (col in 0 until width / 2) {
+                    nv12[uvIdx++] = uBuffer.get(row * uvRowStride + col)
+                    nv12[uvIdx++] = vBuffer.get(row * uvRowStride + col)
+                }
+            }
+        }
+
+        return nv12
     }
 
     private fun endCall(reason: String) {
@@ -635,21 +711,22 @@ class VideoCallActivity : BaseActivity() {
         super.onDestroy()
         activeInstance = null
         VoiceCallManager.getInstance(this).getActiveCall()?.stopVideoStream()
+        imageAnalysisExecutor.shutdown()
     }
 
     override fun onPause() {
         super.onPause()
-        // Pause video when app is backgrounded (battery optimization)
         VoiceCallManager.getInstance(this).getActiveCall()?.setVideoEnabled(false)
+        stopCamera()
     }
 
     override fun onResume() {
         super.onResume()
-        // Resume video when app returns to foreground
         if (isCameraOn && isVideoStreaming) {
             VoiceCallManager.getInstance(this).getActiveCall()?.setVideoEnabled(true)
+            bindCameraForVideo()
+        } else if (isCameraOn) {
+            startCamera()
         }
-        timerHandler.removeCallbacks(timerRunnable)
-        stopCamera()
     }
 }

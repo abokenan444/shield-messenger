@@ -651,19 +651,36 @@ class VoiceCallSession(
     /**
      * Start video streaming (called from VideoCallActivity).
      * @param remoteSurface Surface to render remote video onto
-     * @return input Surface for CameraX to write frames into
+     * @return true if video stream started successfully
      */
-    fun startVideoStream(remoteSurface: android.view.Surface): android.view.Surface? {
+    fun startVideoStream(remoteSurface: android.view.Surface): Boolean {
         if (callState != CallState.ACTIVE) {
             Log.w(TAG, "Cannot start video stream in state $callState")
-            return null
+            return false
         }
         val stream = VideoCallStream(
             context, callId, callIdBytes, crypto,
             circuitKeys.toMap(), numCircuits, isOutgoing
         )
         videoCallStream = stream
-        return stream.start(remoteSurface)
+        stream.start(remoteSurface)
+        return true
+    }
+
+    /**
+     * Feed a camera frame to the video encoder.
+     * Called from VideoCallActivity's ImageAnalysis.
+     */
+    fun feedCameraFrame(yuvData: ByteArray, pts: Long) {
+        videoCallStream?.feedCameraFrame(yuvData, pts)
+    }
+
+    /**
+     * Get the video encoder dimensions (for matching ImageAnalysis resolution).
+     */
+    fun getVideoEncoderSize(): Pair<Int, Int>? {
+        val stream = videoCallStream ?: return null
+        return Pair(stream.getEncoderWidth(), stream.getEncoderHeight())
     }
 
     /**

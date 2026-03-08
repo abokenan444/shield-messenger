@@ -169,4 +169,58 @@ class VideoEncoder(
     }
 
     fun getInputSurface(): Surface? = inputSurface
+
+    /**
+     * Start encoder in byte buffer input mode (for use with CameraX ImageAnalysis).
+     * Feed frames via feedFrame() instead of writing to a Surface.
+     */
+    fun startBufferMode(width: Int = DEFAULT_WIDTH, height: Int = DEFAULT_HEIGHT,
+                        bitrate: Int = DEFAULT_BITRATE, fps: Int = DEFAULT_FPS) {
+        this.width = width
+        this.height = height
+        this.bitrate = bitrate
+        this.fps = fps
+
+        val format = MediaFormat.createVideoFormat(MIME_TYPE, width, height).apply {
+            setInteger(MediaFormat.KEY_COLOR_FORMAT,
+                MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar)
+            setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
+            setInteger(MediaFormat.KEY_FRAME_RATE, fps)
+            setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, DEFAULT_IFRAME_INTERVAL)
+            setInteger(MediaFormat.KEY_BITRATE_MODE,
+                MediaCodecInfo.EncoderCapabilities.BITRATE_MODE_VBR)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                setInteger(MediaFormat.KEY_LOW_LATENCY, 1)
+            }
+        }
+
+        encoder = MediaCodec.createEncoderByType(MIME_TYPE).apply {
+            configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+            start()
+        }
+
+        isRunning.set(true)
+        startDrainLoop()
+        Log.i(TAG, "Encoder started (buffer mode): ${width}x${height} @ ${bitrate/1000}kbps ${fps}fps")
+    }
+
+    /**
+     * Feed a NV12 YUV frame to the encoder (buffer mode only).
+     */
+    fun feedFrame(yuvData: ByteArray, pts: Long) {
+        val enc = encoder ?: return
+        if (!isRunning.get()) return
+
+        try {
+            val index = enc.dequeueInputBuffer(5_000)
+            if (index >= 0) {
+                val inputBuffer = enc.getInputBuffer(index) ?: return
+                inputBuffer.clear()
+                inputBuffer.put(yuvData, 0, minOf(yuvData.size, inputBuffer.capacity()))
+                enc.queueInputBuffer(index, 0, yuvData.size, pts, 0)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Feed frame error: ${e.message}")
+        }
+    }
 }

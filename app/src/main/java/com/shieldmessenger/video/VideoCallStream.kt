@@ -74,9 +74,8 @@ class VideoCallStream(
     /**
      * Start the video stream.
      * @param remoteSurface Surface to render remote video onto
-     * @return the input Surface for CameraX to write frames into
      */
-    fun start(remoteSurface: Surface): Surface {
+    fun start(remoteSurface: Surface) {
         val params = bitrateController.getOptimalParams()
 
         // Start decoder first (for receiving remote video)
@@ -86,8 +85,8 @@ class VideoCallStream(
             it.start(remoteSurface, params.width, params.height)
         }
 
-        // Start encoder (creates input surface for camera)
-        val inputSurface = encoder.start(params.width, params.height, params.bitrate, params.fps)
+        // Start encoder in buffer mode (frames fed via feedCameraFrame)
+        encoder.startBufferMode(params.width, params.height, params.bitrate, params.fps)
 
         isRunning.set(true)
 
@@ -100,8 +99,19 @@ class VideoCallStream(
         }
 
         Log.i(TAG, "Video stream started: ${params.width}x${params.height} @ ${params.bitrate/1000}kbps")
-        return inputSurface
     }
+
+    /**
+     * Feed a camera frame (NV12 YUV) to the encoder.
+     * Called from VideoCallActivity's ImageAnalysis analyzer.
+     */
+    fun feedCameraFrame(yuvData: ByteArray, pts: Long) {
+        if (!isRunning.get() || isPaused.get()) return
+        encoder.feedFrame(yuvData, pts)
+    }
+
+    fun getEncoderWidth(): Int = encoder.width
+    fun getEncoderHeight(): Int = encoder.height
 
     /**
      * Called by VideoEncoder when a frame is encoded.
