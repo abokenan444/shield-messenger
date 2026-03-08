@@ -798,7 +798,8 @@ class VoiceCallSession(
                     }
                     0x03 -> {
                         // VIDEO packet - route to video stream for reassembly and decoding
-                        videoCallStream?.onVideoPacket(sequence, circuitIndex, audioData)
+                        // Pass already-decrypted payload (not raw audioData which is still encrypted)
+                        videoCallStream?.onVideoPacket(sequence, decryptedPayload)
                     }
                     else -> {
                         Log.w(TAG, "Unknown packet type: $ptype")

@@ -171,31 +171,23 @@ class VideoCallStream(
 
     /**
      * Called when a video packet is received from the remote peer.
-     * Decrypts, reassembles, and feeds to decoder.
+     * Data is already decrypted by VoiceCallSession. Reassemble and decode.
      */
-    fun onVideoPacket(sequence: Int, circuitIndex: Byte, audioData: ByteArray) {
+    fun onVideoPacket(sequence: Int, decryptedData: ByteArray) {
         if (!isRunning.get()) return
 
         scope.launch {
             try {
-                val circuitKey = circuitKeys[circuitIndex.toInt()] ?: return@launch
-
-                // Derive nonce and AAD
-                val nonce = crypto.deriveNonce(callIdBytes, sequence.toLong())
-                val aad = java.nio.ByteBuffer.allocate(26)
-                aad.put(callIdBytes)
-                aad.putLong(sequence.toLong())
-                aad.put(if (direction == 0.toByte()) 1.toByte() else 0.toByte())
-                aad.put(circuitIndex)
-
-                val decrypted = crypto.decryptFrame(audioData, circuitKey, nonce, aad.array())
-
                 // Reassemble fragments
-                val reassembled = packetizer.reassemble(decrypted) ?: return@launch
+                val reassembled = packetizer.reassemble(decryptedData) ?: return@launch
 
                 // Feed to decoder
                 decoder?.decode(reassembled.nalData, sequence.toLong() * 1000, reassembled.isKeyframe)
                 framesReceived++
+
+                if (framesReceived % 30 == 0L) {
+                    Log.d(TAG, "Video frames received: $framesReceived")
+                }
 
             } catch (e: Exception) {
                 Log.w(TAG, "Video packet error: seq=$sequence", e)
