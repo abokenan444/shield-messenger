@@ -120,6 +120,7 @@ class VideoCallActivity : BaseActivity() {
     private var remoteSurfaceView: SurfaceView? = null
     private var isVideoStreaming = false
     private val imageAnalysisExecutor = Executors.newSingleThreadExecutor()
+    private var cameraResolutionLogged = false
 
     // Timer
     private val timerHandler = Handler(Looper.getMainLooper())
@@ -642,6 +643,11 @@ class VideoCallActivity : BaseActivity() {
 
             imageAnalysis.setAnalyzer(imageAnalysisExecutor) { imageProxy ->
                 if (isVideoStreaming && isCameraOn) {
+                    // Log actual camera resolution on first frame (CameraX may differ from target)
+                    if (!cameraResolutionLogged) {
+                        Log.i(TAG, "Camera actual: ${imageProxy.width}x${imageProxy.height}, encoder target: ${targetWidth}x${targetHeight}")
+                        cameraResolutionLogged = true
+                    }
                     val yuvData = imageProxyToNv12(imageProxy)
                     val pts = imageProxy.imageInfo.timestamp / 1000 // ns to us
                     session?.feedCameraFrame(yuvData, pts)

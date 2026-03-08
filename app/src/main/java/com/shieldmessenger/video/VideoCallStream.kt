@@ -90,11 +90,26 @@ class VideoCallStream(
 
         isRunning.set(true)
 
-        // Start periodic bitrate adaptation (every 3 seconds)
+        // Request initial keyframe after encoder warms up
+        scope.launch {
+            delay(500)
+            if (isRunning.get()) {
+                encoder.requestKeyframe()
+                Log.i(TAG, "Requested initial keyframe")
+            }
+        }
+
+        // Start periodic bitrate adaptation + keyframe requests for recovery
         bitrateJob = scope.launch {
+            var cycleCount = 0
             while (isActive && isRunning.get()) {
                 delay(3000)
                 adaptBitrate()
+                cycleCount++
+                // Request keyframe every 6 seconds for recovery from Tor packet loss
+                if (cycleCount % 2 == 0) {
+                    encoder.requestKeyframe()
+                }
             }
         }
 
@@ -107,6 +122,14 @@ class VideoCallStream(
      */
     fun feedCameraFrame(yuvData: ByteArray, pts: Long) {
         if (!isRunning.get() || isPaused.get()) return
+        // Validate frame size matches encoder expectations (width * height * 1.5 for NV12)
+        val expectedSize = encoder.width * encoder.height * 3 / 2
+        if (yuvData.size != expectedSize) {
+            if (framesDropped++ % 100 == 0L) {
+                Log.w(TAG, "Frame size mismatch: got ${yuvData.size}B, expected ${expectedSize}B (${encoder.width}x${encoder.height})")
+            }
+            return
+        }
         encoder.feedFrame(yuvData, pts)
     }
 
@@ -185,8 +208,11 @@ class VideoCallStream(
                 decoder?.decode(reassembled.nalData, sequence.toLong() * 1000, reassembled.isKeyframe)
                 framesReceived++
 
+                if (reassembled.isKeyframe) {
+                    Log.i(TAG, "Keyframe received: frame#${reassembled.frameNumber} size=${reassembled.nalData.size}B")
+                }
                 if (framesReceived % 30 == 0L) {
-                    Log.d(TAG, "Video frames received: $framesReceived")
+                    Log.d(TAG, "Video frames received: $framesReceived (sent=$framesSent dropped=$framesDropped)")
                 }
 
             } catch (e: Exception) {

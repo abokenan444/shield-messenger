@@ -36,6 +36,7 @@ class VideoEncoder(
     private var encoder: MediaCodec? = null
     private var inputSurface: Surface? = null
     private val isRunning = AtomicBoolean(false)
+    private var codecConfigData: ByteArray? = null // SPS/PPS for H.264 decoder init
 
     @Volatile var width = DEFAULT_WIDTH; private set
     @Volatile var height = DEFAULT_HEIGHT; private set
@@ -101,11 +102,24 @@ class VideoEncoder(
                 when {
                     index >= 0 -> {
                         val outputBuffer = enc.getOutputBuffer(index) ?: continue
-                        if (bufferInfo.size > 0 && (bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) == 0) {
-                            val nalData = ByteArray(bufferInfo.size)
-                            outputBuffer.get(nalData)
-                            val isKey = (bufferInfo.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0
-                            onEncodedFrame(nalData, isKey, bufferInfo.presentationTimeUs)
+                        if (bufferInfo.size > 0) {
+                            if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                                // Capture SPS/PPS codec config - decoder needs this to initialize
+                                codecConfigData = ByteArray(bufferInfo.size)
+                                outputBuffer.get(codecConfigData!!)
+                                Log.i(TAG, "Captured codec config (SPS/PPS): ${codecConfigData!!.size} bytes")
+                            } else {
+                                val nalData = ByteArray(bufferInfo.size)
+                                outputBuffer.get(nalData)
+                                val isKey = (bufferInfo.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0
+                                // Prepend SPS/PPS to keyframes so remote decoder can always initialize
+                                val finalData = if (isKey && codecConfigData != null) {
+                                    codecConfigData!! + nalData
+                                } else {
+                                    nalData
+                                }
+                                onEncodedFrame(finalData, isKey, bufferInfo.presentationTimeUs)
+                            }
                         }
                         enc.releaseOutputBuffer(index, false)
                     }
@@ -216,8 +230,9 @@ class VideoEncoder(
             if (index >= 0) {
                 val inputBuffer = enc.getInputBuffer(index) ?: return
                 inputBuffer.clear()
-                inputBuffer.put(yuvData, 0, minOf(yuvData.size, inputBuffer.capacity()))
-                enc.queueInputBuffer(index, 0, yuvData.size, pts, 0)
+                val actualSize = minOf(yuvData.size, inputBuffer.capacity())
+                inputBuffer.put(yuvData, 0, actualSize)
+                enc.queueInputBuffer(index, 0, actualSize, pts, 0)
             }
         } catch (e: Exception) {
             Log.w(TAG, "Feed frame error: ${e.message}")
