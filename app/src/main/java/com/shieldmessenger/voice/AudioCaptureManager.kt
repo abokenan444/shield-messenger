@@ -217,6 +217,7 @@ class AudioCaptureManager(
 
         val buffer = ByteArray(FRAME_SIZE_BYTES)
         val pcmSamples = ShortArray(FRAME_SIZE_SAMPLES)
+        var capturedFrameCount = 0L
 
         Log.d(TAG, "Capture loop started")
 
@@ -252,7 +253,12 @@ class AudioCaptureManager(
 
                     // Emit encoded frame
                     onFrameEncoded?.invoke(opusFrame)
+                    capturedFrameCount++
 
+                    // Periodic capture stats (every 50 frames = ~2s)
+                    if (capturedFrameCount % 50 == 0L) {
+                        Log.i(TAG, "AUDIO_CAPTURE: frames=$capturedFrameCount opusSize=${opusFrame.size}B muted=$isMuted")
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "Opus encoding failed", e)
                     // Continue capturing even if one frame fails

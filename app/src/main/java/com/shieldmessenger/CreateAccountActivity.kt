@@ -105,7 +105,7 @@ class CreateAccountActivity : BaseActivity() {
                 0,
                 systemInsets.top,
                 0,
-                if (imeVisible) imeInsets.bottom else 0
+                if (imeVisible) imeInsets.bottom else systemInsets.bottom
             )
 
             // Hide "already have account" text when keyboard is visible

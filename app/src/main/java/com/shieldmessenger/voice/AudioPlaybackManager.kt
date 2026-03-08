@@ -3,6 +3,7 @@ package com.shieldmessenger.voice
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioDeviceInfo
+import android.media.AudioFocusRequest
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
@@ -42,19 +43,19 @@ class AudioPlaybackManager(
         // Jitter buffer configuration (optimized for Tor)
         // Tor has high variance - we prioritize smoothness over low latency
         // Start big, grow immediately on underrun, shrink slowly after long stability
-        private const val MIN_BUFFER_MS = 500 // Minimum target buffer (was 150ms - TOO SMALL for Tor)
-        private const val MAX_BUFFER_MS = 1400 // Maximum target buffer (was 450ms - increased for Tor variance)
-        private const val INITIAL_BUFFER_MS = 700 // Start with 700ms for Tor stability
-        private const val HARD_CAP_MS = 1600 // Hard cap at 1600ms (drop frames beyond)
-        private const val FRAME_DURATION_MS = 20 // CRITICAL FIX: 20ms per frame (matches OpusCodec.FRAME_SIZE_MS)
+        private const val MIN_BUFFER_MS = 200 // Minimum target buffer
+        private const val MAX_BUFFER_MS = 800 // Maximum target buffer
+        private const val INITIAL_BUFFER_MS = 400 // Start with 400ms (balanced latency/stability)
+        private const val HARD_CAP_MS = 1000 // Hard cap at 1000ms (drop frames beyond)
+        private const val FRAME_DURATION_MS = OpusCodec.FRAME_SIZE_MS // 40ms per frame (matches OpusCodec)
         private const val MAX_OUT_OF_ORDER = 10 // Max frames to buffer before considering lost
 
         // FEC grace window (v2 - wait for next packet before PLCing)
-        private const val FEC_GRACE_WINDOW_MS = 60L // Wait 60ms for next packet (3 frames @ 20ms)
+        private const val FEC_GRACE_WINDOW_MS = 50L // Wait 50ms for next packet
         private const val FEC_MAX_RETRIES = 2 // Check for next frame 2 times during grace window
 
         // Reorder grace window (v3 - wait for out-of-order frames before missing)
-        private const val REORDER_GRACE_MS = 80L // Wait 80ms for out-of-order frames (4 frames @ 20ms)
+        private const val REORDER_GRACE_MS = 60L // Wait 60ms for out-of-order frames
 
         // Adaptive buffer tuning (more tolerant for Tor jitter)
         private const val LATE_FRAME_THRESHOLD = 0.10f // If >10% frames late, increase buffer (was 5%)
@@ -65,9 +66,9 @@ class AudioPlaybackManager(
         private const val RESYNC_PLC_THRESHOLD = 15 // Skip forward after 15 consecutive PLC frames (300ms dead)
 
         // Buffer adaptation tuning (immediate growth, slow shrinking)
-        private const val UNDERRUN_GROWTH_MS = 150 // Immediate +150ms on underrun (not gradual)
-        private const val SHRINK_STEP_MS = 20 // Tiny -20ms shrink steps (slow)
-        private const val SHRINK_STABILITY_MS = 20_000L // Wait 20 seconds stable before shrinking
+        private const val UNDERRUN_GROWTH_MS = 100 // Immediate +100ms on underrun
+        private const val SHRINK_STEP_MS = 25 // -25ms shrink steps
+        private const val SHRINK_STABILITY_MS = 10_000L // Wait 10 seconds stable before shrinking
     }
 
     private var audioTrack: AudioTrack? = null
@@ -169,6 +170,24 @@ class AudioPlaybackManager(
                 isSpeakerEnabled = currentSpeakerState
 
                 Log.d(TAG, "AudioPlaybackManager initialized: mode=${am.mode}, speaker=${if (currentSpeakerState) "ON" else "OFF"} (preserved from VoiceCallActivity)")
+
+                // Request audio focus for voice call
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                        .setAudioAttributes(
+                            AudioAttributes.Builder()
+                                .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                                .build()
+                        )
+                        .build()
+                    val focusResult = am.requestAudioFocus(focusRequest)
+                    Log.d(TAG, "Audio focus request result: ${if (focusResult == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) "GRANTED" else "DENIED ($focusResult)"}")
+                } else {
+                    @Suppress("DEPRECATION")
+                    val focusResult = am.requestAudioFocus(null, AudioManager.STREAM_VOICE_CALL, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                    Log.d(TAG, "Audio focus request result: ${if (focusResult == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) "GRANTED" else "DENIED ($focusResult)"}")
+                }
             }
 
             // Calculate buffer size

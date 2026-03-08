@@ -151,6 +151,57 @@ Three separate Tor hidden services per user for defense-in-depth:
 2. **Phase 2** — Post-quantum hybrid acceptance (X25519 + ML-KEM-1024)
 3. **Phase 3** — Mutual acknowledgment with full contact card exchange
 
+```mermaid
+sequenceDiagram
+    participant Alice as Alice (Sender)
+    participant Tor as Tor Network
+    participant Bob as Bob (Recipient)
+
+    Note over Alice, Bob: Phase 1: Initial Request (PIN Encrypted)
+    Alice->>Tor: Send Request (Encrypted with PIN)
+    Tor->>Bob: Deliver to Discovery Onion
+    
+    Note over Bob: Decrypts with PIN & Verifies Identity
+    
+    Note over Alice, Bob: Phase 2: Hybrid KEX (X25519 + ML-KEM)
+    Bob->>Tor: Send Acceptance + Messaging Onion
+    Tor->>Alice: Key Encapsulation Message
+    
+    Note over Alice: Computes Shared Secret (Post-Quantum)
+    
+    Note over Alice, Bob: Phase 3: Mutual Acknowledgment
+    Alice->>Tor: Confirm Session Keys
+    Tor->>Bob: Final Handshake ACK
+    
+    Note over Alice, Bob: Secure P2P Channel Established
+```
+
+### Network Architecture
+
+```mermaid
+graph TD
+    subgraph User_Device ["Shield Messenger Client"]
+        Core["Rust Crypto Core"]
+        DB[("SQLCipher DB")]
+        Keys{"Hardware Keystore"}
+    end
+
+    subgraph Tor_Hidden_Services ["Tor Layer"]
+        HS1["Discovery Service: Port Dynamic"]
+        HS2["Friend Request: Port 9151"]
+        HS3["Messaging/Voice: Port 9150"]
+    end
+
+    User_Device --> HS1
+    User_Device --> HS2
+    User_Device --> HS3
+
+    HS3 <--> Peer["Remote Peer via Tor Circuit"]
+    
+    style User_Device fill:#f9f,stroke:#333,stroke-width:2px
+    style Tor_Hidden_Services fill:#bbf,stroke:#333,stroke-width:2px
+```
+
 ---
 
 ## Secure Pay

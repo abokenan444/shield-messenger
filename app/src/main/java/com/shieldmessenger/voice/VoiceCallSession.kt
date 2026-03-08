@@ -72,7 +72,7 @@ class VoiceCallSession(
     private lateinit var audioPlaybackManager: AudioPlaybackManager
 
     // Network components (Rust handles transport, Kotlin handles encryption)
-    private val numCircuits = 6 // Phase 1: Increased from 3 to 6 circuits
+    private val numCircuits = 3 // 3 circuits (balanced redundancy vs connection speed)
 
     // Call quality telemetry (v2)
     private val telemetry = CallQualityTelemetry()
@@ -380,6 +380,10 @@ class VoiceCallSession(
                     if (success) {
                         circuitScheduler.reportSendSuccess(circuit)
                         telemetry.reportFrameSent(circuit)
+                        // Periodic send stats (every 50 frames = ~2s at 40ms/frame)
+                        if (currentSeq % 50 == 0L) {
+                            Log.i(TAG, "AUDIO_SEND: seq=$currentSeq circuit=$circuit encrypted=${encrypted.size}B")
+                        }
                     } else {
                         circuitScheduler.reportSendFailure(circuit)
                         Log.w(TAG, "Send failed: seq=$currentSeq circuit=$circuit")
@@ -620,6 +624,10 @@ class VoiceCallSession(
                     0x01 -> {
                         // AUDIO packet - add to playback buffer
                         audioPlaybackManager.addFrame(sequence.toLong(), decryptedPayload, circuitIndex.toInt())
+                        // Periodic receive stats (every 50 frames = ~2s at 40ms/frame)
+                        if (sequence % 50 == 0) {
+                            Log.i(TAG, "AUDIO_RECV: seq=$sequence circuit=$circuitIndex decrypted=${decryptedPayload.size}B jitterBuf=${audioPlaybackManager.getStats().framesReceived}")
+                        }
                     }
                     0x02 -> {
                         // CONTROL packet - parse stats and update scheduler

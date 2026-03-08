@@ -1,22 +1,34 @@
 package com.shieldmessenger
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.shieldmessenger.adapters.CallHistoryAdapter
 import com.securelegion.crypto.KeyManager
 import com.shieldmessenger.database.ShieldMessengerDatabase
 import com.shieldmessenger.database.entities.CallHistory
+import com.shieldmessenger.database.entities.ed25519PublicKeyBytes
+import com.shieldmessenger.database.entities.x25519PublicKeyBytes
 import com.shieldmessenger.utils.ThemedToast
-import kotlinx.coroutines.CoroutineScope
+import com.shieldmessenger.voice.CallSignaling
+import com.shieldmessenger.voice.VoiceCallManager
+import com.shieldmessenger.voice.crypto.VoiceCallCrypto
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.UUID
 
 class ContactCallActivity : BaseActivity() {
 
@@ -92,7 +104,7 @@ class ContactCallActivity : BaseActivity() {
     }
 
     private fun loadContactData() {
-        CoroutineScope(Dispatchers.IO).launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val keyManager = KeyManager.getInstance(this@ContactCallActivity)
                 val dbPassphrase = keyManager.getDatabasePassphrase()
@@ -138,38 +150,179 @@ class ContactCallActivity : BaseActivity() {
         BottomNavigationHelper.setupBottomNavigation(this)
     }
 
+    private var isInitiatingCall = false
+
     private fun startCall() {
-        CoroutineScope(Dispatchers.IO).launch {
+        if (isInitiatingCall) {
+            Log.w(TAG, "Call initiation already in progress")
+            return
+        }
+        isInitiatingCall = true
+
+        lifecycleScope.launch {
             try {
+                // Check RECORD_AUDIO permission
+                if (ContextCompat.checkSelfPermission(
+                        this@ContactCallActivity,
+                        Manifest.permission.RECORD_AUDIO
+                    ) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    ActivityCompat.requestPermissions(
+                        this@ContactCallActivity,
+                        arrayOf(Manifest.permission.RECORD_AUDIO),
+                        100
+                    )
+                    isInitiatingCall = false
+                    return@launch
+                }
+
                 val keyManager = KeyManager.getInstance(this@ContactCallActivity)
                 val dbPassphrase = keyManager.getDatabasePassphrase()
                 val database = ShieldMessengerDatabase.getInstance(this@ContactCallActivity, dbPassphrase)
-                val contact = database.contactDao().getContactById(contactId)
-
-                withContext(Dispatchers.Main) {
-                    if (contact == null) {
-                        ThemedToast.show(this@ContactCallActivity, "Contact not found")
-                        return@withContext
-                    }
-
-                    if (contact.voiceOnion.isNullOrEmpty()) {
-                        ThemedToast.show(this@ContactCallActivity, "${contact.displayName} doesn't have a voice address")
-                        return@withContext
-                    }
-
-                    val intent = Intent(this@ContactCallActivity, VoiceCallActivity::class.java).apply {
-                        putExtra("CONTACT_ID", contact.id)
-                        putExtra("CONTACT_NAME", contact.displayName)
-                        putExtra("VOICE_ONION", contact.voiceOnion)
-                        putExtra("IS_OUTGOING", true)
-                    }
-                    startActivity(intent)
+                val contact = withContext(Dispatchers.IO) {
+                    database.contactDao().getContactById(contactId)
                 }
+
+                if (contact == null) {
+                    ThemedToast.show(this@ContactCallActivity, "Contact not found")
+                    isInitiatingCall = false
+                    return@launch
+                }
+
+                if (contact.voiceOnion.isNullOrEmpty()) {
+                    ThemedToast.show(this@ContactCallActivity, "${contact.displayName} doesn't have a voice address")
+                    isInitiatingCall = false
+                    return@launch
+                }
+
+                if (contact.messagingOnion == null) {
+                    ThemedToast.show(this@ContactCallActivity, "Contact has no messaging address")
+                    isInitiatingCall = false
+                    return@launch
+                }
+
+                // Generate call ID and ephemeral keypair
+                val callId = UUID.randomUUID().toString()
+                val crypto = VoiceCallCrypto()
+                val ephemeralKeypair = crypto.generateEphemeralKeypair()
+
+                // Launch VoiceCallActivity immediately (shows "Calling..." UI)
+                val intent = Intent(this@ContactCallActivity, VoiceCallActivity::class.java).apply {
+                    putExtra(VoiceCallActivity.EXTRA_CONTACT_ID, contactId)
+                    putExtra(VoiceCallActivity.EXTRA_CONTACT_NAME, contactName)
+                    putExtra(VoiceCallActivity.EXTRA_CALL_ID, callId)
+                    putExtra(VoiceCallActivity.EXTRA_IS_OUTGOING, true)
+                    putExtra(VoiceCallActivity.EXTRA_OUR_EPHEMERAL_SECRET_KEY, ephemeralKeypair.secretKey.asBytes)
+                }
+                startActivity(intent)
+
+                // Get our voice onion and X25519 public key
+                val torManager = com.shieldmessenger.crypto.TorManager.getInstance(this@ContactCallActivity)
+                val myVoiceOnion = torManager.getVoiceOnionAddress() ?: ""
+                val ourX25519PublicKey = keyManager.getEncryptionPublicKey()
+
+                // Send CALL_OFFER via HTTP POST to recipient's voice .onion
+                Log.i(TAG, "CALL_OFFER_SEND attempt=1 call_id=$callId")
+                val success = withContext(Dispatchers.IO) {
+                    CallSignaling.sendCallOffer(
+                        recipientX25519PublicKey = contact.x25519PublicKeyBytes,
+                        recipientOnion = contact.voiceOnion!!,
+                        callId = callId,
+                        ephemeralPublicKey = ephemeralKeypair.publicKey.asBytes,
+                        voiceOnion = myVoiceOnion,
+                        ourX25519PublicKey = ourX25519PublicKey,
+                        numCircuits = 1
+                    )
+                }
+
+                if (!success) {
+                    ThemedToast.show(this@ContactCallActivity, "Failed to send call offer")
+                    isInitiatingCall = false
+                    return@launch
+                }
+
+                // Register pending call with VoiceCallManager
+                val callManager = VoiceCallManager.getInstance(this@ContactCallActivity)
+
+                val timeoutJob = lifecycleScope.launch {
+                    while (isActive) {
+                        delay(1000)
+                        callManager.checkPendingCallTimeouts()
+                    }
+                }
+
+                // CALL_OFFER retry: resend every 2s for up to 25s
+                val setupStartTime = System.currentTimeMillis()
+                var offerAttemptNum = 1
+
+                val offerRetryJob = lifecycleScope.launch {
+                    while (isActive) {
+                        delay(2000L)
+                        val elapsed = System.currentTimeMillis() - setupStartTime
+                        if (elapsed >= 25000L) break
+
+                        offerAttemptNum++
+                        Log.i(TAG, "CALL_OFFER_SEND attempt=$offerAttemptNum call_id=$callId (retry)")
+                        withContext(Dispatchers.IO) {
+                            CallSignaling.sendCallOffer(
+                                recipientX25519PublicKey = contact.x25519PublicKeyBytes,
+                                recipientOnion = contact.voiceOnion!!,
+                                callId = callId,
+                                ephemeralPublicKey = ephemeralKeypair.publicKey.asBytes,
+                                voiceOnion = myVoiceOnion,
+                                ourX25519PublicKey = ourX25519PublicKey,
+                                numCircuits = 1
+                            )
+                        }
+                    }
+                }
+
+                callManager.registerPendingOutgoingCall(
+                    callId = callId,
+                    contactOnion = contact.voiceOnion!!,
+                    contactEd25519PublicKey = contact.ed25519PublicKeyBytes,
+                    contactName = contactName,
+                    ourEphemeralPublicKey = ephemeralKeypair.publicKey.asBytes,
+                    onAnswered = { theirEphemeralKey ->
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            timeoutJob.cancel()
+                            offerRetryJob.cancel()
+                            VoiceCallActivity.onCallAnswered(callId, theirEphemeralKey)
+                            isInitiatingCall = false
+                        }
+                    },
+                    onRejected = { reason ->
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            timeoutJob.cancel()
+                            offerRetryJob.cancel()
+                            VoiceCallActivity.onCallRejected(callId, reason)
+                            isInitiatingCall = false
+                        }
+                    },
+                    onBusy = {
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            timeoutJob.cancel()
+                            offerRetryJob.cancel()
+                            VoiceCallActivity.onCallBusy(callId)
+                            isInitiatingCall = false
+                        }
+                    },
+                    onTimeout = {
+                        lifecycleScope.launch(Dispatchers.Main) {
+                            timeoutJob.cancel()
+                            offerRetryJob.cancel()
+                            VoiceCallActivity.onCallTimeout(callId)
+                            isInitiatingCall = false
+                        }
+                    }
+                )
+
+                Log.i(TAG, "Voice call initiated to $contactName with call ID: $callId")
+
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to start call", e)
-                withContext(Dispatchers.Main) {
-                    ThemedToast.show(this@ContactCallActivity, "Failed to start call")
-                }
+                ThemedToast.show(this@ContactCallActivity, "Failed to start call: ${e.message}")
+                isInitiatingCall = false
             }
         }
     }

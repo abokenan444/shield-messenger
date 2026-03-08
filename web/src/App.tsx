@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import { useAuthStore } from './lib/store/authStore';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -18,6 +19,8 @@ import { PrivacyPage } from './pages/landing/PrivacyPage';
 import { TermsPage } from './pages/landing/TermsPage';
 import { TransparencyPage } from './pages/landing/TransparencyPage';
 
+const WhitepaperPage = lazy(() => import('./pages/landing/WhitepaperPage').then(m => ({ default: m.WhitepaperPage })));
+
 export function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
@@ -33,6 +36,7 @@ export function App() {
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/transparency" element={<TransparencyPage />} />
+        <Route path="/whitepaper" element={<Suspense fallback={<div className="flex justify-center py-32"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-400" /></div>}><WhitepaperPage /></Suspense>} />
       </Route>
 
       {/* Auth pages */}

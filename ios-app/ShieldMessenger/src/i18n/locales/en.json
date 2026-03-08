@@ -2,19 +2,16 @@
   "app_name": "Shield Messenger",
   "tagline": "Post-Quantum Encrypted Messaging",
   "tagline_lock": "End-to-End Encrypted over Tor",
-  
   "welcome": "Welcome",
   "create_account": "Create Account",
   "restore_from_backup": "Restore from Backup",
   "no_phone_required": "No phone number or email required",
-  
   "feature_mlkem": "ML-KEM + Double Ratchet",
   "feature_mlkem_desc": "Quantum-resistant end-to-end encryption",
   "feature_tor": "Tor Network",
   "feature_tor_desc": "All traffic routed through onion services",
   "feature_wallet": "Crypto Wallet",
   "feature_wallet_desc": "Private cryptocurrency built in",
-  
   "enter_password": "Enter password",
   "unlock": "Unlock",
   "use_biometric": "Use Face ID / Touch ID",
@@ -27,7 +24,6 @@
   "connecting_to_tor": "Connecting to Tor...",
   "connected_to_tor": "Connected to Tor",
   "tor_disconnected": "Tor Disconnected",
-  
   "chats": "Chats",
   "contacts": "Contacts",
   "settings": "Settings",
@@ -36,7 +32,6 @@
   "no_conversations": "No conversations yet",
   "start_chatting": "Start a new conversation to begin chatting",
   "new_chat": "New Chat",
-  
   "online": "Online",
   "offline": "Offline",
   "typing": "typing...",
@@ -54,7 +49,6 @@
   "self_destruct": "Self-Destruct Timer",
   "self_destruct_set": "Messages will disappear after %s",
   "encrypted_message": "Messages are end-to-end encrypted",
-  
   "voice_call": "Voice Call",
   "video_call": "Video Call",
   "calling": "Calling...",
@@ -76,7 +70,6 @@
   "outgoing_call": "Outgoing Call",
   "incoming": "Incoming",
   "new_call": "New Call",
-  
   "add_friend": "Add Friend",
   "friend_requests": "Friend Requests",
   "pending": "Pending",
@@ -96,7 +89,6 @@
   "verified": "Verified",
   "unverified": "Unverified",
   "trust_level": "Trust Level",
-  
   "create_group": "Create Group",
   "group_name": "Group Name",
   "group_members": "Members",
@@ -104,7 +96,6 @@
   "leave_group": "Leave Group",
   "group_info": "Group Info",
   "admin": "Admin",
-  
   "wallet": "Wallet",
   "balance": "Balance",
   "send_money": "Send",
@@ -132,7 +123,6 @@
   "enter_amount": "Enter amount",
   "confirm_send": "Confirm Send",
   "swap": "Swap",
-  
   "security": "Security",
   "biometric_unlock": "Biometric Unlock",
   "screenshot_protection": "Screenshot Protection",
@@ -151,7 +141,6 @@
   "wipe_account": "Wipe Account",
   "wipe_warning": "This will permanently delete all your data. This action cannot be undone.",
   "confirm_wipe": "Confirm Wipe",
-  
   "network_privacy": "Network & Privacy",
   "tor_status": "Tor Status",
   "tor_bridges": "Tor Bridges",
@@ -165,12 +154,10 @@
   "new_identity": "New Identity",
   "new_identity_desc": "Get a new Tor circuit and onion address",
   "communication_mode": "Communication Mode",
-  
   "notifications": "Notifications",
   "message_notifications": "Message Notifications",
   "call_notifications": "Call Notifications",
   "notification_sound": "Notification Sound",
-  
   "about": "About",
   "version": "Version",
   "privacy_policy": "Privacy Policy",
@@ -178,40 +165,33 @@
   "developer_mode": "Developer Mode",
   "system_log": "System Log",
   "clear_logs": "Clear Logs",
-  
   "backup_restore": "Backup & Restore",
   "create_backup": "Create Backup",
   "restore_backup": "Restore Backup",
   "backup_encrypted": "Backup is encrypted with AES-256-GCM",
-  
   "delete_account": "Delete Account",
   "delete_account_warning": "This will permanently delete your account and all data. This cannot be undone.",
   "confirm_delete": "Confirm Delete",
   "type_delete": "Type DELETE to confirm",
-  
   "subscription": "Subscription",
   "free_plan": "Free",
   "supporter_plan": "Supporter",
   "enterprise_plan": "Enterprise",
   "current_plan": "Current Plan",
   "upgrade": "Upgrade",
-  
   "two_factor": "Two-Factor Authentication",
   "enable_2fa": "Enable 2FA",
   "disable_2fa": "Disable 2FA",
   "scan_totp_qr": "Scan this QR code with your authenticator app",
   "enter_totp_code": "Enter 6-digit code",
   "totp_verified": "2FA enabled successfully",
-  
   "file_sharing": "File Sharing",
   "send_file": "Send File",
   "file_size_limit": "Maximum file size: 10MB",
   "file_sent": "File sent",
   "file_received": "File received",
-  
   "read_receipts": "Read Receipts",
   "read_receipts_desc": "Let others know when you've read their messages",
-  
   "language": "Language",
   "select_language": "Select Language",
   "english": "English",
@@ -231,7 +211,6 @@
   "hindi": "हिन्दी",
   "indonesian": "Bahasa Indonesia",
   "dutch": "Nederlands",
-  
   "cancel": "Cancel",
   "save": "Save",
   "done": "Done",
@@ -255,19 +234,15 @@
   "success": "Success",
   "warning": "Warning",
   "info": "Info",
-  
   "profile": "Profile",
   "display_name": "Display Name",
   "status": "Status",
   "danger_zone": "Danger Zone",
-  
   "mesh_networking": "SecureMesh",
   "mesh_desc": "LoRa mesh networking for off-grid communication",
-  
   "identity_rotation": "Identity Rotation",
   "rotate_identity": "Rotate Identity",
   "identity_rotated": "Identity rotated successfully",
-  
   "seconds": "seconds",
   "minutes": "minutes",
   "hours": "hours",
@@ -275,43 +250,35 @@
   "immediately": "Immediately",
   "off": "Off",
   "on": "On",
-  
   "1_minute": "1 minute",
   "5_minutes": "5 minutes",
   "15_minutes": "15 minutes",
   "30_minutes": "30 minutes",
   "1_hour": "1 hour",
-  
   "camera_permission": "Camera permission is required to scan QR codes",
   "microphone_permission": "Microphone permission is required for voice calls",
   "grant_permission": "Grant Permission",
-  
   "connection_error": "Connection error. Please check your network.",
   "try_again": "Try Again",
   "no_internet": "No internet connection",
-  
   "account_created": "Account Created",
   "account_created_desc": "Your secure identity has been generated",
   "your_onion_address": "Your Onion Address",
   "save_backup": "Save Backup",
   "get_started": "Get Started",
-  
   "restore_account": "Restore Account",
   "enter_seed_phrase": "Enter your 24-word seed phrase",
   "restore": "Restore",
   "invalid_seed": "Invalid seed phrase",
-  
   "password_hint": "Password must be at least 8 characters with uppercase, lowercase, and numbers",
   "username": "Username",
   "choose_username": "Choose a username",
-  
   "time_ago_now": "Just now",
   "time_ago_minutes": "%sm ago",
   "time_ago_hours": "%sh ago",
   "time_ago_days": "%sd ago",
   "yesterday": "Yesterday",
   "today": "Today",
-  
   "add_new_contact": "Add new contact",
   "connected_via_tor": "Connected via Tor",
   "add_friend_start": "Add a friend to start messaging securely",
@@ -569,7 +536,6 @@
   "to": "to",
   "build": "Build",
   "transaction_id": "Transaction ID",
-
   "wipe_final_warning_desc": "This will permanently destroy ALL data. Your keys, messages, wallet, and contacts will be unrecoverable. This action cannot be undone.",
   "wipe_everything": "WIPE EVERYTHING",
   "wipe_warning_text": "This will securely wipe all data from this device using cryptographic erasure. There is no recovery.",
@@ -583,7 +549,6 @@
   "type_wipe_to_confirm": "Type WIPE to confirm",
   "type_wipe": "Type WIPE",
   "your_current_password": "Your current password",
-
   "standard_desc": "For everyday private communication",
   "high_security_desc": "For sensitive communications",
   "maximum_security_desc": "For high-risk situations",
@@ -602,18 +567,15 @@
   "tor_bridges_required": "Tor bridges required",
   "auto_lock_immediate": "Auto-lock (immediate)",
   "no_media_storage": "No media storage",
-
   "tor_network": "Tor Network",
   "tor_version": "Tor Version",
   "bootstrap": "Bootstrap",
-
   "use_bridges_desc": "Enable if Tor is blocked in your region",
   "obfs4_desc": "Recommended. Disguises traffic as random noise",
   "meek_desc": "Routes through Microsoft CDN. Slow but hard to block",
   "snowflake_desc": "Uses WebRTC peers as bridges",
   "custom_bridge_desc": "Enter your own bridge address",
   "about_bridges_desc": "Tor bridges are unlisted relays that help you connect to Tor when direct connections are blocked. Use bridges if you're in a censored region.",
-
   "tor_only_desc": "All traffic routed through Tor onion services. Maximum privacy but may be slower.",
   "direct_p2p_desc": "Direct peer-to-peer connection. Fastest but reveals IP addresses.",
   "hybrid_desc": "Use Tor for initial handshake, then negotiate direct connection when safe.",
@@ -632,12 +594,10 @@
   "adaptive_performance": "Adaptive performance",
   "some_metadata_exposure": "Some metadata exposure",
   "more_complex": "More complex",
-
   "transaction_notif": "Transaction notifications",
   "show_content_preview_desc": "Display message text in notifications (less private)",
   "show_sender_desc": "Display who sent the message",
   "notifications_local_only": "Notifications are processed locally. No notification metadata is sent to Apple or Google servers.",
-
   "security_warning": "Security Warning",
   "seed_reveal_warning": "Make sure no one can see your screen. Never screenshot or copy your seed phrase digitally.",
   "i_understand": "I Understand",
@@ -649,21 +609,18 @@
   "write_on_paper": "Write it on paper and store offline",
   "consider_metal_plate": "Consider using a metal seed plate",
   "ive_written_it_down": "I've Written It Down",
-
   "developer": "Developer",
   "debug_logging_desc": "Enable verbose console logging",
   "mock_rust_desc": "Use JavaScript mock instead of native FFI",
   "tor_debug_desc": "Show circuit details in logs",
   "export_database": "Export Database (Encrypted)",
   "run_crypto_self_test": "Run Crypto Self-Test",
-
   "key_exchange": "Key Exchange",
   "signatures": "Signatures",
   "ratchet": "Ratchet",
   "symmetric": "Symmetric",
   "security_audit_report": "Security Audit Report",
   "built_with_footer": "Built with Rust, React Native, and Tor\nNo tracking · No metadata · No compromises",
-
   "shield_privacy_policy": "Shield Messenger Privacy Policy",
   "privacy_data_collection_title": "1. Data Collection",
   "privacy_data_collection": "Shield Messenger collects NO user data. We do not have access to your messages, contacts, keys, or metadata. All data is encrypted locally on your device using SQLCipher with an Argon2id-derived key.",
@@ -680,28 +637,22 @@
   "privacy_duress_title": "7. Duress Protection",
   "privacy_duress": "The duress PIN feature securely wipes all data when activated. This uses cryptographic erasure to ensure data is permanently destroyed and unrecoverable.",
   "no_tracking_footer": "Shield Messenger — No tracking · No metadata · No compromises",
-
   "licenses": "Licenses",
   "licenses_subtitle": "Shield Messenger uses the following open source components",
   "license_footer": "Shield Messenger itself is licensed under GPL-3.0.\nFull license texts available in the source repository.",
-
   "monero_address_or_onion": "Monero address or .onion",
   "monero_stealth_info": "Monero uses stealth addresses — each transaction creates a unique one-time address, preserving your privacy.",
   "no_transactions_yet": "No transactions yet",
   "monero_ringct_info": "Monero transactions use RingCT and stealth addresses. The actual amounts and addresses are hidden on the blockchain.",
-
   "create_wallet_subtitle": "Generate a new private Monero wallet integrated with Shield Messenger",
   "keys_in_secure_enclave": "Keys stored in secure enclave",
   "transactions_via_tor": "All transactions routed through Tor",
   "ringct_privacy": "RingCT for transaction privacy",
   "send_xmr_in_chats": "Send XMR directly in chats",
-
   "monero_25_word_seed": "Monero 25-Word Seed",
   "enter_25_word_seed": "Enter your 25-word mnemonic seed...",
   "restore_height_optional": "Restore Height (optional)",
   "seed_encrypted_locally": "Your seed phrase will be encrypted and stored locally. Never share it with anyone.",
-
   "remove_wallet_warning": "This will delete the wallet from this device. Make sure you have your seed phrase backed up.",
-  "remove": "Remove",
-  "uptime": "Uptime"
+  "remove": "Remove"
 }

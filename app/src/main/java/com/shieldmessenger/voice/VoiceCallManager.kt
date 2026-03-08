@@ -528,8 +528,8 @@ class VoiceCallManager private constructor(private val context: Context) : RustB
             // Forward packet to the active session's callback
             session.onVoicePacket(callId, sequence, timestamp, circuitIndex, ptype, audioData)
 
-            // Calculate audio amplitude for waveform visualization (only for audio packets, not FEC)
-            if (ptype.toInt() == 0 && audioData.isNotEmpty()) {
+            // Calculate audio amplitude for waveform visualization (only for audio packets)
+            if (ptype.toInt() == 0x01 && audioData.isNotEmpty()) {
                 val amplitude = calculateAudioAmplitude(audioData)
                 onAudioAmplitude?.invoke(amplitude)
             }

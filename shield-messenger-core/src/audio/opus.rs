@@ -67,8 +67,8 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_opusEncoderCreate(
             return -1;
         }
 
-        // Set bitrate (32kbps CBR for high quality over Tor)
-        let target_bitrate = if bitrate > 0 { bitrate } else { 32000 };
+        // Set bitrate (48kbps for high quality voice over Tor)
+        let target_bitrate = if bitrate > 0 { bitrate } else { 48000 };
         if let Err(e) = crate::audio::opus_ctl::opus_set_bitrate(encoder_ptr, target_bitrate) {
             log::error!("Failed to set bitrate: error={}", e);
             opus_encoder_destroy(encoder_ptr);
@@ -82,8 +82,8 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_opusEncoderCreate(
             return -1;
         }
 
-        // Set expected packet loss percentage (25% for Tor - aggressive FEC)
-        if let Err(e) = crate::audio::opus_ctl::opus_set_packet_loss_perc(encoder_ptr, 25) {
+        // Set expected packet loss percentage (15% for Tor - balanced FEC)
+        if let Err(e) = crate::audio::opus_ctl::opus_set_packet_loss_perc(encoder_ptr, 15) {
             log::error!("Failed to set packet loss percentage: error={}", e);
             opus_encoder_destroy(encoder_ptr);
             return -1;
@@ -120,10 +120,10 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_opusEncoderCreate(
             }
         };
 
-        // Cap max bandwidth to WIDEBAND (8 kHz) for voice - saves bits
+        // Allow up to SUPERWIDEBAND (12 kHz) for richer voice quality
         let bandwidth_applied = match crate::audio::opus_ctl::opus_set_max_bandwidth(
             encoder_ptr,
-            1103, // OPUS_BANDWIDTH_WIDEBAND
+            1104, // OPUS_BANDWIDTH_SUPERWIDEBAND (12 kHz)
         ) {
             Ok(_) => true,
             Err(e) => {
@@ -132,8 +132,8 @@ pub extern "C" fn Java_com_shieldmessenger_crypto_RustBridge_opusEncoderCreate(
             }
         };
 
-        // Set complexity: 8 is mobile-safe (0-10 scale)
-        let complexity_applied = match crate::audio::opus_ctl::opus_set_complexity(encoder_ptr, 8) {
+        // Set complexity: 10 for best quality (modern phones handle it easily)
+        let complexity_applied = match crate::audio::opus_ctl::opus_set_complexity(encoder_ptr, 10) {
             Ok(_) => true,
             Err(e) => {
                 log::warn!("Failed to set complexity: error={} (non-fatal)", e);

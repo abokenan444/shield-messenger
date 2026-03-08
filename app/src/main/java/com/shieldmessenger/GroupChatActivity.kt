@@ -269,10 +269,11 @@ class GroupChatActivity : BaseActivity() {
             )
 
             // Apply bottom inset to message input container
+            // Use IME inset when keyboard is visible, otherwise use system nav bar inset
             currentBottomInset = if (imeVisible) {
                 imeInsets.bottom
             } else {
-                0
+                systemInsets.bottom
             }
 
             messageInputContainer.setPadding(

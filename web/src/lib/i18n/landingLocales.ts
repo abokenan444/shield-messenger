@@ -168,6 +168,66 @@ export interface LandingT {
   tr_section3_body: string;
   tr_report_title: string;
   tr_report_body: string;
+
+  // Whitepaper page
+  wp_title: string;
+  wp_version: string;
+  wp_intro: string;
+  wp_arch_title: string;
+  wp_arch_body: string;
+  wp_diagram_title: string;
+  wp_transmission_title: string;
+  wp_transmission_body: string;
+  wp_transmission_b1: string;
+  wp_transmission_b2: string;
+  wp_transmission_b3: string;
+  wp_transmission_b4: string;
+  wp_storage_title: string;
+  wp_storage_body: string;
+  wp_storage_b1: string;
+  wp_storage_b2: string;
+  wp_storage_b3: string;
+  wp_storage_b4: string;
+  wp_server_stores_title: string;
+  wp_server_stores_body: string;
+  wp_server_stat1_label: string;
+  wp_server_stat1_value: string;
+  wp_server_stat2_label: string;
+  wp_server_stat2_value: string;
+  wp_server_stat3_label: string;
+  wp_server_stat3_value: string;
+  wp_admin_title: string;
+  wp_admin_body: string;
+  wp_admin_b1: string;
+  wp_admin_b2: string;
+  wp_admin_b3: string;
+  wp_admin_b4: string;
+  wp_admin_b5: string;
+  wp_calls_title: string;
+  wp_calls_body: string;
+  wp_calls_b1: string;
+  wp_calls_b2: string;
+  wp_calls_b3: string;
+  wp_calls_b4: string;
+  wp_crypto_title: string;
+  wp_crypto_body: string;
+  wp_crypto_col_purpose: string;
+  wp_crypto_col_algorithm: string;
+  wp_crypto_row1_purpose: string;
+  wp_crypto_row1_algo: string;
+  wp_crypto_row2_purpose: string;
+  wp_crypto_row2_algo: string;
+  wp_crypto_row3_purpose: string;
+  wp_crypto_row3_algo: string;
+  wp_crypto_row4_purpose: string;
+  wp_crypto_row4_algo: string;
+  wp_crypto_row5_purpose: string;
+  wp_crypto_row5_algo: string;
+  wp_crypto_row6_purpose: string;
+  wp_crypto_row6_algo: string;
+  wp_closing: string;
+  wp_diagram_handshake_title: string;
+  wp_diagram_network_title: string;
 }
 
 /* ═══ Arabic ═══ */
@@ -326,6 +386,56 @@ const ar: LandingT = {
   tr_section3_body: 'أي طلب حكومي يجب أن يأتي عبر قنوات قانونية سليمة. سنقاوم الطلبات الواسعة أو غير القانونية بكل الوسائل القانونية المتاحة.',
   tr_report_title: 'تقارير الشفافية',
   tr_report_body: 'حتى الآن: 0 طلبات حكومية — 0 بيانات مُسلّمة. سنحدّث هذا القسم كل ستة أشهر.',
+
+  wp_title: 'الورقة البيضاء التقنية',
+  wp_version: 'الإصدار 1.0 — يونيو 2025',
+  wp_intro: 'يوضح هذا الملف التقني كيف يعمل Shield Messenger تحت الغطاء: كيف تُنقل بياناتك، أين تُخزّن رسائلك، ولماذا لا يستطيع أي شخص — بما في ذلك نحن — قراءة محادثاتك.',
+  wp_arch_title: '1. نظرة عامة على البنية',
+  wp_arch_body: 'Shield Messenger مصمم وفق مبدأ المعرفة الصفرية (Zero-Knowledge). لا يوجد خادم مركزي يخزّن الرسائل. التواصل يتم مباشرة بين الأجهزة عبر خدمات Tor المخفية (.onion). المفاتيح الخاصة لا تغادر جهازك أبداً.',
+  wp_diagram_title: 'مخطط تدفق الرسالة',
+  wp_transmission_title: '2. كيف يتم نقل البيانات؟',
+  wp_transmission_body: 'كل رسالة تمر بعدة طبقات من الحماية قبل أن تصل إلى المستقبل:',
+  wp_transmission_b1: 'تشفير الرسالة على جهازك باستخدام XChaCha20-Poly1305 مع مفتاح مشتق من X25519 + ML-KEM-1024 (مقاوم للحوسبة الكمومية).',
+  wp_transmission_b2: 'تغليف الرسالة المشفّرة داخل دائرة Tor (3 عقد ترحيل: الحارس → الوسيط → المخرج) لإخفاء عنوان IP الخاص بك.',
+  wp_transmission_b3: 'توصيل الرسالة إلى خدمة .onion مخفية على جهاز المستقبل مباشرة — لا خادم وسيط.',
+  wp_transmission_b4: 'فك التشفير يتم حصرياً على جهاز المستقبل باستخدام مفتاحه الخاص الذي لا يغادر جهازه.',
+  wp_storage_title: '3. أين تُخزّن الرسائل؟ (تخزين محلي فقط)',
+  wp_storage_body: 'الرسائل تُخزّن فقط على أجهزة المرسل والمستقبل. لا يوجد خادم مركزي يحتفظ بنسخ من رسائلك:',
+  wp_storage_b1: 'قاعدة بيانات محلية مشفّرة بـ SQLCipher (AES-256-CBC) على كل جهاز.',
+  wp_storage_b2: 'مفتاح قاعدة البيانات مشتق من كلمة المرور الخاصة بك ولا يُخزّن في أي مكان آخر.',
+  wp_storage_b3: 'عند حذف التطبيق، تُحذف جميع الرسائل نهائياً — لا توجد نسخة سحابية.',
+  wp_storage_b4: 'ميزة النسخ الاحتياطي متاحة لكنها مشفّرة بالكامل ولا يمكن لأحد غيرك فك تشفيرها.',
+  wp_server_stores_title: 'ماذا يُخزّن الخادم؟',
+  wp_server_stores_body: 'الخادم الوحيد الذي نشغّله هو لاكتشاف المستخدمين (DHT) ولا يخزّن أي محتوى رسائل:',
+  wp_server_stat1_label: 'رسائل مخزنة', wp_server_stat1_value: '0',
+  wp_server_stat2_label: 'مفاتيح تشفير', wp_server_stat2_value: '0',
+  wp_server_stat3_label: 'بيانات وصفية', wp_server_stat3_value: '0',
+  wp_admin_title: '4. لماذا لا يمكن للمشرف قراءة رسائلك؟',
+  wp_admin_body: 'هذا ليس وعداً — إنها حقيقة تقنية. حتى لو أراد مطور التطبيق الوصول إلى رسائلك، لا يمكنه ذلك لأن:',
+  wp_admin_b1: 'مفاتيح التشفير تُولّد على جهازك ولا تُرسل إلى أي خادم.',
+  wp_admin_b2: 'لا يوجد خادم مركزي يمر عبره محتوى الرسائل — الاتصال مباشر بين الأجهزة.',
+  wp_admin_b3: 'بروتوكول التشفير الهجين (X25519 + ML-KEM-1024) يضمن أن فك التشفير ممكن فقط لمن يملك المفتاح الخاص.',
+  wp_admin_b4: 'حتى البيانات الوصفية (من يتحدث مع من) مخفية خلف شبكة Tor.',
+  wp_admin_b5: 'الكود مفتوح المصدر بالكامل — يمكن لأي خبير أمني التحقق من هذه الادعاءات.',
+  wp_calls_title: '5. المكالمات الصوتية والمرئية',
+  wp_calls_body: 'المكالمات تتبع نفس مبادئ الأمان:',
+  wp_calls_b1: 'تبادل مفاتيح مؤقتة (X25519 ephemeral) لكل مكالمة — حتى لو اختُرقت مكالمة واحدة، لا يمكن فك تشفير المكالمات الأخرى.',
+  wp_calls_b2: 'تشفير الصوت بـ XChaCha20-Poly1305 AEAD مع كودك Opus (48 كيلوهرتز، 40 مللي ثانية لكل إطار).',
+  wp_calls_b3: 'نقل الصوت عبر 6 دوائر Tor متوازية مع جدولة تكيّفية لتحسين الجودة.',
+  wp_calls_b4: 'لا يمر أي صوت عبر خوادمنا — الاتصال مباشر بين الجهازين عبر Tor.',
+  wp_crypto_title: '6. الخوارزميات المستخدمة',
+  wp_crypto_body: 'نستخدم أحدث خوارزميات التشفير المعتمدة عالمياً:',
+  wp_crypto_col_purpose: 'الغرض',
+  wp_crypto_col_algorithm: 'الخوارزمية',
+  wp_crypto_row1_purpose: 'تبادل المفاتيح', wp_crypto_row1_algo: 'X25519 + ML-KEM-1024',
+  wp_crypto_row2_purpose: 'تشفير الرسائل', wp_crypto_row2_algo: 'XChaCha20-Poly1305',
+  wp_crypto_row3_purpose: 'اشتقاق المفاتيح', wp_crypto_row3_algo: 'HKDF-SHA256',
+  wp_crypto_row4_purpose: 'تشفير قاعدة البيانات', wp_crypto_row4_algo: 'SQLCipher (AES-256-CBC)',
+  wp_crypto_row5_purpose: 'إخفاء الهوية', wp_crypto_row5_algo: 'Tor Hidden Services (.onion)',
+  wp_crypto_row6_purpose: 'تشفير المكالمات', wp_crypto_row6_algo: 'XChaCha20-Poly1305 AEAD',
+  wp_closing: 'Shield Messenger مبني على مبدأ بسيط: بياناتك ملكك أنت فقط. لا نجمعها، لا نخزّنها، ولا نستطيع قراءتها حتى لو أردنا. هذا ليس وعداً تسويقياً — إنه واقع تقني يمكن لأي خبير التحقق منه في الكود المفتوح المصدر.',
+  wp_diagram_handshake_title: 'مخطط عملية التعارف الثلاثية (Hybrid Handshake)',
+  wp_diagram_network_title: 'مخطط عمارة الشبكة (Network Architecture)',
 };
 
 /* ═══ English ═══ */
@@ -484,6 +594,56 @@ const en: LandingT = {
   tr_section3_body: 'Any government request must come through proper legal channels. We will challenge broad or illegal requests through all available legal means.',
   tr_report_title: 'Transparency Reports',
   tr_report_body: 'To date: 0 government requests — 0 data disclosed. We will update this section every six months.',
+
+  wp_title: 'Technical Whitepaper',
+  wp_version: 'Version 1.0 — June 2025',
+  wp_intro: 'This technical document explains how Shield Messenger works under the hood: how your data is transmitted, where your messages are stored, and why no one — including us — can read your conversations.',
+  wp_arch_title: '1. Architecture Overview',
+  wp_arch_body: 'Shield Messenger is designed around a Zero-Knowledge architecture. There is no central server storing messages. Communication happens directly between devices via Tor Hidden Services (.onion). Private keys never leave your device.',
+  wp_diagram_title: 'Message Flow Diagram',
+  wp_transmission_title: '2. How Is Data Transmitted?',
+  wp_transmission_body: 'Every message passes through multiple layers of protection before reaching the recipient:',
+  wp_transmission_b1: 'Message is encrypted on your device using XChaCha20-Poly1305 with a key derived from X25519 + ML-KEM-1024 (quantum-resistant).',
+  wp_transmission_b2: 'The encrypted message is wrapped in a Tor circuit (3 relay nodes: Guard → Middle → Exit) to hide your IP address.',
+  wp_transmission_b3: 'The message is delivered to a .onion hidden service running on the recipient\'s device directly — no intermediary server.',
+  wp_transmission_b4: 'Decryption happens exclusively on the recipient\'s device using their private key, which never leaves their device.',
+  wp_storage_title: '3. Where Are Messages Stored? (Local Only)',
+  wp_storage_body: 'Messages are stored only on the sender\'s and recipient\'s devices. There is no central server keeping copies of your messages:',
+  wp_storage_b1: 'Locally encrypted database using SQLCipher (AES-256-CBC) on each device.',
+  wp_storage_b2: 'The database key is derived from your password and is not stored anywhere else.',
+  wp_storage_b3: 'When you delete the app, all messages are permanently deleted — there is no cloud backup.',
+  wp_storage_b4: 'Backup feature is available but fully encrypted — only you can decrypt it.',
+  wp_server_stores_title: 'What Does the Server Store?',
+  wp_server_stores_body: 'The only server we operate is for user discovery (DHT) and stores zero message content:',
+  wp_server_stat1_label: 'Messages Stored', wp_server_stat1_value: '0',
+  wp_server_stat2_label: 'Encryption Keys', wp_server_stat2_value: '0',
+  wp_server_stat3_label: 'Metadata', wp_server_stat3_value: '0',
+  wp_admin_title: '4. Why Can\'t the Admin Read Your Messages?',
+  wp_admin_body: 'This is not a promise — it\'s a technical reality. Even if the app developer wanted to access your messages, they cannot because:',
+  wp_admin_b1: 'Encryption keys are generated on your device and are never sent to any server.',
+  wp_admin_b2: 'There is no central server through which message content passes — connection is direct between devices.',
+  wp_admin_b3: 'The hybrid encryption protocol (X25519 + ML-KEM-1024) ensures decryption is only possible by the holder of the private key.',
+  wp_admin_b4: 'Even metadata (who talks to whom) is hidden behind the Tor network.',
+  wp_admin_b5: 'The code is fully open source — any security expert can verify these claims.',
+  wp_calls_title: '5. Voice & Video Calls',
+  wp_calls_body: 'Calls follow the same security principles:',
+  wp_calls_b1: 'Ephemeral key exchange (X25519) for each call — even if one call is compromised, other calls remain secure.',
+  wp_calls_b2: 'Audio encrypted with XChaCha20-Poly1305 AEAD using Opus codec (48 kHz, 40ms per frame).',
+  wp_calls_b3: 'Audio transported over 6 parallel Tor circuits with adaptive scheduling for quality optimization.',
+  wp_calls_b4: 'No audio passes through our servers — connection is direct between devices over Tor.',
+  wp_crypto_title: '6. Cryptographic Primitives',
+  wp_crypto_body: 'We use the latest globally recognized encryption algorithms:',
+  wp_crypto_col_purpose: 'Purpose',
+  wp_crypto_col_algorithm: 'Algorithm',
+  wp_crypto_row1_purpose: 'Key Exchange', wp_crypto_row1_algo: 'X25519 + ML-KEM-1024',
+  wp_crypto_row2_purpose: 'Message Encryption', wp_crypto_row2_algo: 'XChaCha20-Poly1305',
+  wp_crypto_row3_purpose: 'Key Derivation', wp_crypto_row3_algo: 'HKDF-SHA256',
+  wp_crypto_row4_purpose: 'Database Encryption', wp_crypto_row4_algo: 'SQLCipher (AES-256-CBC)',
+  wp_crypto_row5_purpose: 'Identity Concealment', wp_crypto_row5_algo: 'Tor Hidden Services (.onion)',
+  wp_crypto_row6_purpose: 'Call Encryption', wp_crypto_row6_algo: 'XChaCha20-Poly1305 AEAD',
+  wp_closing: 'Shield Messenger is built on a simple principle: your data belongs to you alone. We don\'t collect it, we don\'t store it, and we can\'t read it even if we wanted to. This isn\'t a marketing promise — it\'s a technical reality that any expert can verify in our open-source code.',
+  wp_diagram_handshake_title: 'Three-Phase Friend Request (Hybrid Handshake)',
+  wp_diagram_network_title: 'Network Architecture',
 };
 
 /* ═══ Français ═══ */
@@ -642,6 +802,56 @@ const fr: LandingT = {
   tr_section3_body: 'Toute demande gouvernementale doit passer par les voies légales appropriées.',
   tr_report_title: 'Rapports de transparence',
   tr_report_body: 'À ce jour : 0 demandes gouvernementales — 0 données divulguées.',
+
+  wp_title: 'Livre blanc technique',
+  wp_version: 'Version 1.0 — Juin 2025',
+  wp_intro: 'Ce document technique explique le fonctionnement interne de Shield Messenger : comment vos données sont transmises, où vos messages sont stockés, et pourquoi personne — y compris nous — ne peut lire vos conversations.',
+  wp_arch_title: '1. Vue d\'ensemble de l\'architecture',
+  wp_arch_body: 'Shield Messenger est conçu autour d\'une architecture Zero-Knowledge. Il n\'y a pas de serveur central stockant les messages. La communication se fait directement entre les appareils via les services cachés Tor (.onion). Les clés privées ne quittent jamais votre appareil.',
+  wp_diagram_title: 'Diagramme du flux de messages',
+  wp_transmission_title: '2. Comment les données sont-elles transmises ?',
+  wp_transmission_body: 'Chaque message passe par plusieurs couches de protection avant d\'atteindre le destinataire :',
+  wp_transmission_b1: 'Le message est chiffré sur votre appareil avec XChaCha20-Poly1305 et une clé dérivée de X25519 + ML-KEM-1024 (résistant au quantique).',
+  wp_transmission_b2: 'Le message chiffré est encapsulé dans un circuit Tor (3 nœuds relais : Garde → Milieu → Sortie) pour masquer votre adresse IP.',
+  wp_transmission_b3: 'Le message est livré directement au service caché .onion de l\'appareil du destinataire — aucun serveur intermédiaire.',
+  wp_transmission_b4: 'Le déchiffrement se fait exclusivement sur l\'appareil du destinataire avec sa clé privée.',
+  wp_storage_title: '3. Où sont stockés les messages ? (Local uniquement)',
+  wp_storage_body: 'Les messages sont stockés uniquement sur les appareils de l\'expéditeur et du destinataire :',
+  wp_storage_b1: 'Base de données locale chiffrée avec SQLCipher (AES-256-CBC) sur chaque appareil.',
+  wp_storage_b2: 'La clé de la base de données est dérivée de votre mot de passe et n\'est stockée nulle part ailleurs.',
+  wp_storage_b3: 'Quand vous supprimez l\'application, tous les messages sont définitivement supprimés.',
+  wp_storage_b4: 'La fonction de sauvegarde est disponible mais entièrement chiffrée — vous seul pouvez la déchiffrer.',
+  wp_server_stores_title: 'Que stocke le serveur ?',
+  wp_server_stores_body: 'Le seul serveur que nous exploitons est pour la découverte d\'utilisateurs (DHT) et ne stocke aucun contenu de message :',
+  wp_server_stat1_label: 'Messages stockés', wp_server_stat1_value: '0',
+  wp_server_stat2_label: 'Clés de chiffrement', wp_server_stat2_value: '0',
+  wp_server_stat3_label: 'Métadonnées', wp_server_stat3_value: '0',
+  wp_admin_title: '4. Pourquoi l\'administrateur ne peut-il pas lire vos messages ?',
+  wp_admin_body: 'Ce n\'est pas une promesse — c\'est une réalité technique :',
+  wp_admin_b1: 'Les clés de chiffrement sont générées sur votre appareil et ne sont jamais envoyées à un serveur.',
+  wp_admin_b2: 'Aucun serveur central ne voit le contenu des messages — la connexion est directe entre les appareils.',
+  wp_admin_b3: 'Le protocole de chiffrement hybride (X25519 + ML-KEM-1024) garantit que seul le détenteur de la clé privée peut déchiffrer.',
+  wp_admin_b4: 'Même les métadonnées sont cachées derrière le réseau Tor.',
+  wp_admin_b5: 'Le code est entièrement open source — tout expert en sécurité peut vérifier ces affirmations.',
+  wp_calls_title: '5. Appels vocaux et vidéo',
+  wp_calls_body: 'Les appels suivent les mêmes principes de sécurité :',
+  wp_calls_b1: 'Échange de clés éphémères (X25519) pour chaque appel — la compromission d\'un appel n\'affecte pas les autres.',
+  wp_calls_b2: 'Audio chiffré avec XChaCha20-Poly1305 AEAD et codec Opus (48 kHz, 40 ms par trame).',
+  wp_calls_b3: 'Transport audio via 6 circuits Tor parallèles avec ordonnancement adaptatif.',
+  wp_calls_b4: 'Aucun audio ne passe par nos serveurs — connexion directe entre appareils via Tor.',
+  wp_crypto_title: '6. Primitives cryptographiques',
+  wp_crypto_body: 'Nous utilisons les algorithmes de chiffrement les plus récents et reconnus mondialement :',
+  wp_crypto_col_purpose: 'Objectif',
+  wp_crypto_col_algorithm: 'Algorithme',
+  wp_crypto_row1_purpose: 'Échange de clés', wp_crypto_row1_algo: 'X25519 + ML-KEM-1024',
+  wp_crypto_row2_purpose: 'Chiffrement des messages', wp_crypto_row2_algo: 'XChaCha20-Poly1305',
+  wp_crypto_row3_purpose: 'Dérivation des clés', wp_crypto_row3_algo: 'HKDF-SHA256',
+  wp_crypto_row4_purpose: 'Chiffrement de la base', wp_crypto_row4_algo: 'SQLCipher (AES-256-CBC)',
+  wp_crypto_row5_purpose: 'Anonymisation', wp_crypto_row5_algo: 'Tor Hidden Services (.onion)',
+  wp_crypto_row6_purpose: 'Chiffrement des appels', wp_crypto_row6_algo: 'XChaCha20-Poly1305 AEAD',
+  wp_closing: 'Shield Messenger repose sur un principe simple : vos données vous appartiennent. Nous ne les collectons pas, ne les stockons pas, et ne pouvons pas les lire. C\'est une réalité technique vérifiable dans notre code open source.',
+  wp_diagram_handshake_title: 'Processus de demande d\'ami en trois phases (Handshake hybride)',
+  wp_diagram_network_title: 'Architecture réseau',
 };
 
 /* ═══ Español ═══ */
@@ -953,6 +1163,56 @@ const nl: LandingT = {
   tr_section3_body: 'Elk overheidsverzoek moet via de juiste juridische kanalen komen. We zullen brede of onwettige verzoeken aanvechten met alle beschikbare juridische middelen.',
   tr_report_title: 'Transparantierapporten',
   tr_report_body: 'Tot op heden: 0 overheidsverzoeken — 0 gegevens verstrekt. We werken dit gedeelte elke zes maanden bij.',
+
+  wp_title: 'Technisch Witboek',
+  wp_version: 'Versie 1.0 — Juni 2025',
+  wp_intro: 'Dit technisch document legt uit hoe Shield Messenger onder de motorkap werkt: hoe uw gegevens worden verzonden, waar uw berichten worden opgeslagen, en waarom niemand — inclusief wij — uw gesprekken kan lezen.',
+  wp_arch_title: '1. Architectuuroverzicht',
+  wp_arch_body: 'Shield Messenger is ontworpen rond een Zero-Knowledge architectuur. Er is geen centrale server die berichten opslaat. Communicatie vindt direct plaats tussen apparaten via Tor Hidden Services (.onion). Privésleutels verlaten nooit uw apparaat.',
+  wp_diagram_title: 'Berichtenstroomdiagram',
+  wp_transmission_title: '2. Hoe worden gegevens verzonden?',
+  wp_transmission_body: 'Elk bericht doorloopt meerdere beschermingslagen voordat het de ontvanger bereikt:',
+  wp_transmission_b1: 'Bericht wordt versleuteld op uw apparaat met XChaCha20-Poly1305 en een sleutel afgeleid van X25519 + ML-KEM-1024 (kwantumbestendig).',
+  wp_transmission_b2: 'Het versleutelde bericht wordt verpakt in een Tor-circuit (3 relay-knooppunten: Guard → Middle → Exit) om uw IP-adres te verbergen.',
+  wp_transmission_b3: 'Het bericht wordt direct afgeleverd bij de .onion hidden service op het apparaat van de ontvanger — geen tussenliggende server.',
+  wp_transmission_b4: 'Ontsleuteling vindt uitsluitend plaats op het apparaat van de ontvanger met hun privésleutel.',
+  wp_storage_title: '3. Waar worden berichten opgeslagen? (Alleen lokaal)',
+  wp_storage_body: 'Berichten worden alleen opgeslagen op de apparaten van verzender en ontvanger:',
+  wp_storage_b1: 'Lokaal versleutelde database met SQLCipher (AES-256-CBC) op elk apparaat.',
+  wp_storage_b2: 'De databasesleutel is afgeleid van uw wachtwoord en wordt nergens anders opgeslagen.',
+  wp_storage_b3: 'Wanneer u de app verwijdert, worden alle berichten permanent verwijderd.',
+  wp_storage_b4: 'Back-upfunctie is beschikbaar maar volledig versleuteld — alleen u kunt het ontsleutelen.',
+  wp_server_stores_title: 'Wat slaat de server op?',
+  wp_server_stores_body: 'De enige server die we beheren is voor gebruikersontdekking (DHT) en slaat geen berichtinhoud op:',
+  wp_server_stat1_label: 'Opgeslagen berichten', wp_server_stat1_value: '0',
+  wp_server_stat2_label: 'Versleutelingssleutels', wp_server_stat2_value: '0',
+  wp_server_stat3_label: 'Metadata', wp_server_stat3_value: '0',
+  wp_admin_title: '4. Waarom kan de beheerder uw berichten niet lezen?',
+  wp_admin_body: 'Dit is geen belofte — het is een technische realiteit:',
+  wp_admin_b1: 'Versleutelingssleutels worden op uw apparaat gegenereerd en worden nooit naar een server verzonden.',
+  wp_admin_b2: 'Er is geen centrale server die berichtinhoud ziet — de verbinding is direct tussen apparaten.',
+  wp_admin_b3: 'Het hybride versleutelingsprotocol (X25519 + ML-KEM-1024) garandeert dat alleen de houder van de privésleutel kan ontsleutelen.',
+  wp_admin_b4: 'Zelfs metadata is verborgen achter het Tor-netwerk.',
+  wp_admin_b5: 'De code is volledig open source — elke beveiligingsexpert kan deze claims verifiëren.',
+  wp_calls_title: '5. Spraak- en videogesprekken',
+  wp_calls_body: 'Gesprekken volgen dezelfde beveiligingsprincipes:',
+  wp_calls_b1: 'Kortstondige sleuteluitwisseling (X25519) voor elk gesprek — compromittering van één gesprek heeft geen invloed op andere.',
+  wp_calls_b2: 'Audio versleuteld met XChaCha20-Poly1305 AEAD met Opus-codec (48 kHz, 40 ms per frame).',
+  wp_calls_b3: 'Audiotransport via 6 parallelle Tor-circuits met adaptieve planning.',
+  wp_calls_b4: 'Geen audio gaat via onze servers — directe verbinding tussen apparaten via Tor.',
+  wp_crypto_title: '6. Cryptografische primitieven',
+  wp_crypto_body: 'We gebruiken de nieuwste wereldwijd erkende versleutelingsalgoritmen:',
+  wp_crypto_col_purpose: 'Doel',
+  wp_crypto_col_algorithm: 'Algoritme',
+  wp_crypto_row1_purpose: 'Sleuteluitwisseling', wp_crypto_row1_algo: 'X25519 + ML-KEM-1024',
+  wp_crypto_row2_purpose: 'Berichtversleuteling', wp_crypto_row2_algo: 'XChaCha20-Poly1305',
+  wp_crypto_row3_purpose: 'Sleutelafleiding', wp_crypto_row3_algo: 'HKDF-SHA256',
+  wp_crypto_row4_purpose: 'Databaseversleuteling', wp_crypto_row4_algo: 'SQLCipher (AES-256-CBC)',
+  wp_crypto_row5_purpose: 'Identiteitsverberging', wp_crypto_row5_algo: 'Tor Hidden Services (.onion)',
+  wp_crypto_row6_purpose: 'Gespreksversleuteling', wp_crypto_row6_algo: 'XChaCha20-Poly1305 AEAD',
+  wp_closing: 'Shield Messenger is gebouwd op een eenvoudig principe: uw gegevens zijn alleen van u. We verzamelen ze niet, slaan ze niet op, en kunnen ze niet lezen. Dit is een technische realiteit die elke expert kan verifiëren in onze open-source code.',
+  wp_diagram_handshake_title: 'Driefasen vriendschapsverzoek (Hybride Handshake)',
+  wp_diagram_network_title: 'Netwerkarchitectuur',
 };
 
 /* ═══ Locale map ═══ */
