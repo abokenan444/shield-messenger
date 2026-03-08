@@ -249,4 +249,9 @@
     <string name="warnings">警告</string>
     <string name="wipe_account">清除帐户</string>
     <string name="your_assets">您的资产</string>
+    <string name="biometric_or">或</string>
+    <string name="biometric_touch_to_unlock">触摸指纹传感器解锁</string>
+    <string name="biometric_unlock_desc">使用生物识别解锁</string>
+    <string name="biometric_setup_required">点击设置生物识别解锁</string>
+    <string name="biometric_not_enrolled">请在设备设置中设置指纹</string>
 </resources>

@@ -113,4 +113,9 @@
     <string name="wallet_settings">Portemonnee instellingen</string>
     <string name="warnings">Waarschuwingen</string>
     <string name="wipe_account">Account wissen</string>
+    <string name="biometric_or">of</string>
+    <string name="biometric_touch_to_unlock">Raak de vingerafdruksensor aan om te ontgrendelen</string>
+    <string name="biometric_unlock_desc">Ontgrendel met biometrie</string>
+    <string name="biometric_setup_required">Tik om biometrische ontgrendeling in te stellen</string>
+    <string name="biometric_not_enrolled">Stel vingerafdruk in bij apparaatinstellingen</string>
 </resources>

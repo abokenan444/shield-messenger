@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Shield Messenger</string>
 
@@ -243,4 +243,9 @@
     <string name="warnings">Avertissements</string>
     <string name="wipe_account">Effacer le compte</string>
     <string name="your_assets">Vos actifs</string>
+    <string name="biometric_or">ou</string>
+    <string name="biometric_touch_to_unlock">Touchez le capteur d\'empreinte pour déverrouiller</string>
+    <string name="biometric_unlock_desc">Déverrouiller avec biométrie</string>
+    <string name="biometric_setup_required">Appuyez pour configurer le déverrouillage biométrique</string>
+    <string name="biometric_not_enrolled">Configurez l\'empreinte dans les paramètres de l\'appareil</string>
 </resources>

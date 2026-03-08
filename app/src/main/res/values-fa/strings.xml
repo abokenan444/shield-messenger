@@ -125,4 +125,9 @@
     <string name="wallet_settings">تنظیمات کیف پول</string>
     <string name="warnings">هشدارها</string>
     <string name="wipe_account">پاک کردن حساب</string>
+    <string name="biometric_or">یا</string>
+    <string name="biometric_touch_to_unlock">برای باز کردن سنسور اثر انگشت را لمس کنید</string>
+    <string name="biometric_unlock_desc">باز کردن با بیومتریک</string>
+    <string name="biometric_setup_required">برای تنظیم قفل بیومتریک ضربه بزنید</string>
+    <string name="biometric_not_enrolled">اثر انگشت را در تنظیمات دستگاه تنظیم کنید</string>
 </resources>

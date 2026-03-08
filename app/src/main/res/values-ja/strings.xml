@@ -153,4 +153,9 @@
     <string name="wallet_settings">ウォレット設定</string>
     <string name="warnings">警告</string>
     <string name="wipe_account">アカウント消去</string>
+    <string name="biometric_or">または</string>
+    <string name="biometric_touch_to_unlock">指紋センサーをタッチしてロック解除</string>
+    <string name="biometric_unlock_desc">生体認証でロック解除</string>
+    <string name="biometric_setup_required">タップして生体認証ロック解除を設定</string>
+    <string name="biometric_not_enrolled">デバイス設定で指紋を設定してください</string>
 </resources>

@@ -77,4 +77,9 @@
     <string name="today">आज</string>
     <string name="unlock">अनलॉक</string>
     <string name="wallet">वॉलेट</string>
+    <string name="biometric_or">या</string>
+    <string name="biometric_touch_to_unlock">अनलॉक करने के लिए फ़िंगरप्रिंट सेंसर को टच करें</string>
+    <string name="biometric_unlock_desc">बायोमेट्रिक से अनलॉक करें</string>
+    <string name="biometric_setup_required">बायोमेट्रिक अनलॉक सेटअप करने के लिए टैप करें</string>
+    <string name="biometric_not_enrolled">डिवाइस सेटिंग्स में फ़िंगरप्रिंट सेटअप करें</string>
 </resources>

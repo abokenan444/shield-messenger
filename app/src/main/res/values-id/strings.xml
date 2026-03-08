@@ -112,4 +112,9 @@
     <string name="wallet_settings">Pengaturan dompet</string>
     <string name="warnings">Peringatan</string>
     <string name="wipe_account">Hapus akun</string>
+    <string name="biometric_or">atau</string>
+    <string name="biometric_touch_to_unlock">Sentuh sensor sidik jari untuk membuka</string>
+    <string name="biometric_unlock_desc">Buka dengan biometrik</string>
+    <string name="biometric_setup_required">Ketuk untuk mengatur pembukaan biometrik</string>
+    <string name="biometric_not_enrolled">Atur sidik jari di pengaturan perangkat</string>
 </resources>

@@ -248,4 +248,9 @@
     <string name="warnings">Предупреждения</string>
     <string name="wipe_account">Очистить аккаунт</string>
     <string name="your_assets">Ваши активы</string>
+    <string name="biometric_or">или</string>
+    <string name="biometric_touch_to_unlock">Коснитесь датчика отпечатков для разблокировки</string>
+    <string name="biometric_unlock_desc">Разблокировка биометрией</string>
+    <string name="biometric_setup_required">Нажмите для настройки биометрической разблокировки</string>
+    <string name="biometric_not_enrolled">Настройте отпечаток пальца в настройках устройства</string>
 </resources>

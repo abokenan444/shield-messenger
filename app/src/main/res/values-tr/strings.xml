@@ -132,4 +132,9 @@
     <string name="wallet_settings">Cuzdan ayarlari</string>
     <string name="warnings">Uyarilar</string>
     <string name="wipe_account">Hesabi sil</string>
+    <string name="biometric_or">veya</string>
+    <string name="biometric_touch_to_unlock">Kilit açmak için parmak izi sensörüne dokunun</string>
+    <string name="biometric_unlock_desc">Biyometrik ile kilidi aç</string>
+    <string name="biometric_setup_required">Biyometrik kilit kurulumu için dokunun</string>
+    <string name="biometric_not_enrolled">Cihaz ayarlarında parmak izini ayarlayın</string>
 </resources>
