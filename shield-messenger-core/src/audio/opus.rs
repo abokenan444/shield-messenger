@@ -82,11 +82,11 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_opusEncoderCreate(
             return -1;
         }
 
-        // Set expected packet loss percentage (3% - minimal FEC overhead)
-        // Higher values waste bitrate on redundancy. At 15%, ~20-30% of bandwidth goes
-        // to FEC overhead, leaving only ~18kbps for actual audio. At 3%, overhead is
-        // minimal and Opus PLC handles remaining losses well.
-        if let Err(e) = crate::audio::opus_ctl::opus_set_packet_loss_perc(encoder_ptr, 3) {
+        // Set expected packet loss percentage (15% for Tor network conditions)
+        // Tor introduces significant jitter and packet loss. 15% gives Opus enough
+        // FEC redundancy to recover lost frames without requiring PLC, while keeping
+        // overhead reasonable at 32kbps bitrate.
+        if let Err(e) = crate::audio::opus_ctl::opus_set_packet_loss_perc(encoder_ptr, 15) {
             log::error!("Failed to set packet loss percentage: error={}", e);
             opus_encoder_destroy(encoder_ptr);
             return -1;
@@ -163,7 +163,7 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_opusEncoderCreate(
         crate::audio::opus_ctl::log_encoder_config(encoder_ptr);
 
         log::info!(
-            "Opus encoder created: {}kbps | FEC=true | loss=25% | DTX={} | signal={} | VBR={} | BW=wideband | complexity={}",
+            "Opus encoder created: {}kbps | FEC=true | loss=15% | DTX={} | signal={} | VBR={} | BW=wideband | complexity={}",
             target_bitrate / 1000,
             if dtx_applied { "ON" } else { "OFF" },
             if signal_applied { "VOICE" } else { "AUTO" },

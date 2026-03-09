@@ -522,8 +522,8 @@ object CallSignaling {
                 result = 31 * result + voiceOnion.hashCode()
                 result = 31 * result + numCircuits
                 result = 31 * result + timestamp.hashCode()
-                return result
                 result = 31 * result + isVideoCall.hashCode()
+                return result
             }
         }
 

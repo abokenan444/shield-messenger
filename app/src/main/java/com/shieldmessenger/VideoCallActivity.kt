@@ -156,6 +156,11 @@ class VideoCallActivity : BaseActivity() {
                 }
             }
         }
+
+        // Check if call is already active (e.g. incoming call answered before activity started)
+        if (manager.getActiveCall()?.getState() == VoiceCallSession.Companion.CallState.ACTIVE) {
+            updateCallConnected()
+        }
     }
 
     private fun initViews() {
@@ -356,7 +361,7 @@ class VideoCallActivity : BaseActivity() {
                     val srcCol = (col * scaleX).toInt().coerceAtMost(halfImageW - 1)
                     val dstIndex = uvOffset + row * targetW + col * 2
                     val srcUIndex = srcRow * uvRowStride + srcCol * uvPixelStride
-                    val srcVIndex = srcRow * uvRowStride + srcCol * uvPixelStride
+                    val srcVIndex = srcRow * uvRowStride + srcCol * uvPixelStride + 1
                     if (srcUIndex < uBuffer.capacity() && srcVIndex < vBuffer.capacity() && dstIndex + 1 < nv12.size) {
                         nv12[dstIndex] = uBuffer.get(srcUIndex)
                         nv12[dstIndex + 1] = vBuffer.get(srcVIndex)
@@ -370,8 +375,8 @@ class VideoCallActivity : BaseActivity() {
                 for (col in 0 until halfTargetW) {
                     val srcCol = (col * scaleX).toInt().coerceAtMost(halfImageW - 1)
                     val dstIndex = uvOffset + row * targetW + col * 2
-                    val srcUIndex = srcRow * uvRowStride + srcCol * uvPixelStride
-                    val srcVIndex = srcRow * uvRowStride + srcCol * uvPixelStride
+                    val srcUIndex = srcRow * uvRowStride + srcCol
+                    val srcVIndex = srcRow * uvRowStride + srcCol
                     if (srcUIndex < uBuffer.capacity() && srcVIndex < vBuffer.capacity() && dstIndex + 1 < nv12.size) {
                         nv12[dstIndex] = uBuffer.get(srcUIndex)
                         nv12[dstIndex + 1] = vBuffer.get(srcVIndex)

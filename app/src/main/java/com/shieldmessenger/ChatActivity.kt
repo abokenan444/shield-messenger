@@ -373,12 +373,11 @@ class ChatActivity : BaseActivity() {
             )
 
             // Apply bottom inset to message input container
-            // Use IME inset when keyboard is visible, otherwise use system nav bar inset
-            // so the input pill doesn't get hidden behind the system navigation bar
+            // Only apply IME inset when keyboard is visible (floating pill handles its own bottom margin)
             currentBottomInset = if (imeVisible) {
                 imeInsets.bottom
             } else {
-                systemInsets.bottom
+                0
             }
 
             messageInputContainer.setPadding(

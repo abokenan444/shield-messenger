@@ -25,7 +25,7 @@ class OpusCodec {
         // Opus configuration constants (40ms frames for Tor)
         const val SAMPLE_RATE = 48000 // 48 kHz (Opus native)
         const val CHANNELS = 1 // Mono
-        const val FRAME_SIZE_MS = 40 // 40ms frames (better for Tor latency)
+        const val FRAME_SIZE_MS = 40 // 40ms frames (better for Tor, FEC loss=15% latency)
         const val FRAME_SIZE_SAMPLES = 1920 // 40ms at 48kHz = 1920 samples
         const val BITRATE = 32000 // 32 kbps (high quality voice over Tor)
         const val MAX_PACKET_SIZE = 4000 // Maximum Opus packet size

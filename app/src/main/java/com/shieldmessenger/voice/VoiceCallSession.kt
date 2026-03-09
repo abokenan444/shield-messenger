@@ -132,6 +132,7 @@ class VoiceCallSession(
 
     // Sequence tracking
     private var sendSeqNum: Long = 0
+    private var controlSeqNum: Long = 0  // Separate counter for CONTROL packets (avoid phantom gaps)
     private var direction: Byte = if (isOutgoing) 0 else 1
 
     // Coroutine scope for call session
@@ -867,16 +868,19 @@ class VoiceCallSession(
                 val circuitIndex = circuitScheduler.selectCircuit()
                 val circuitKey = circuitKeys[circuitIndex] ?: return@launch
 
-                // Get current sequence and increment
-                val currentSeq = sendSeqNum++
+                // Use separate sequence counter for CONTROL packets
+                // to avoid creating phantom gaps in the audio sequence space
+                val currentControlSeq = controlSeqNum++
+                // Map to a high range that won't collide with audio sequences
+                val wireSeq = Long.MAX_VALUE / 2 + currentControlSeq
 
                 // Derive nonce
-                val nonce = crypto.deriveNonce(callIdBytes, currentSeq)
+                val nonce = crypto.deriveNonce(callIdBytes, wireSeq)
 
                 // Build AAD for CONTROL packet
                 val frame = VoiceFrame(
                     callId = callIdBytes,
-                    sequenceNumber = currentSeq,
+                    sequenceNumber = wireSeq,
                     direction = direction,
                     circuitIndex = circuitIndex,
                     encryptedPayload = ByteArray(0)
@@ -887,10 +891,10 @@ class VoiceCallSession(
                 val encryptedPayload = crypto.encryptFrame(payload, circuitKey, nonce, aad)
 
                 // Send CONTROL packet
-                val timestamp = currentSeq * 20
+                val timestamp = currentControlSeq * 500
                 val success = RustBridge.sendAudioPacket(
                     callId,
-                    currentSeq.toInt(),
+                    wireSeq.toInt(),
                     timestamp,
                     encryptedPayload,
                     circuitIndex,

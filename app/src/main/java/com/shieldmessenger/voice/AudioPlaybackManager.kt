@@ -497,7 +497,7 @@ class AudioPlaybackManager(
 
                 // Periodically check if we can shrink buffer (slow shrinking)
                 playbackFrameCount++
-                if (playbackFrameCount % 250 == 0L) { // Every 5 seconds (250 frames * 20ms)
+                if (playbackFrameCount % 125 == 0L) { // Every 5 seconds (125 frames * 40ms)
                     adaptJitterBuffer()
                     telemetry?.updateJitterBuffer(jitterBufferMs)
                 }
