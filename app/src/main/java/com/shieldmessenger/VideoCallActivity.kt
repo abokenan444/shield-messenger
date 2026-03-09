@@ -7,12 +7,12 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import android.util.Size
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
@@ -22,20 +22,10 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.lifecycleScope
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.securelegion.crypto.KeyManager
-import com.shieldmessenger.crypto.TorManager
-import com.shieldmessenger.database.entities.ed25519PublicKeyBytes
-import com.shieldmessenger.database.entities.x25519PublicKeyBytes
 import com.shieldmessenger.utils.ThemedToast
-import com.shieldmessenger.voice.CallSignaling
 import com.shieldmessenger.voice.VoiceCallManager
 import com.shieldmessenger.voice.VoiceCallSession
-import com.shieldmessenger.voice.crypto.VoiceCallCrypto
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.util.Locale
 import java.util.concurrent.Executors
 
@@ -105,22 +95,15 @@ class VideoCallActivity : BaseActivity() {
     private var isMuted = false
     private var isCameraOn = true
     private var isUsingFrontCamera = true
-    private var waitingForAnswer = false
-
-    // Call data
-    private var theirEphemeralKey: ByteArray? = null
-    private var ourEphemeralSecretKey: ByteArray? = null
-    private var contactOnion: String = ""
-    private var contactX25519PublicKey: ByteArray? = null
 
     // Camera
     private var cameraProvider: ProcessCameraProvider? = null
+    private val cameraExecutor = Executors.newSingleThreadExecutor()
 
-    // Video streaming
+    // Remote video rendering
     private var remoteSurfaceView: SurfaceView? = null
-    private var isVideoStreaming = false
-    private val imageAnalysisExecutor = Executors.newSingleThreadExecutor()
-    private var cameraResolutionLogged = false
+    private var remoteSurface: Surface? = null
+    private var videoStarted = false
 
     // Timer
     private val timerHandler = Handler(Looper.getMainLooper())
@@ -147,10 +130,6 @@ class VideoCallActivity : BaseActivity() {
         contactName = intent.getStringExtra(EXTRA_CONTACT_NAME) ?: "Unknown"
         callId = intent.getStringExtra(EXTRA_CALL_ID) ?: ""
         isOutgoing = intent.getBooleanExtra(EXTRA_IS_OUTGOING, true)
-        theirEphemeralKey = intent.getByteArrayExtra(EXTRA_THEIR_EPHEMERAL_KEY)
-        ourEphemeralSecretKey = intent.getByteArrayExtra(EXTRA_OUR_EPHEMERAL_SECRET_KEY)
-        contactOnion = intent.getStringExtra(EXTRA_CONTACT_ONION) ?: ""
-        contactX25519PublicKey = intent.getByteArrayExtra(EXTRA_CONTACT_X25519_PUBLIC_KEY)
 
         activeInstance = this
 
@@ -163,7 +142,7 @@ class VideoCallActivity : BaseActivity() {
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
         audioManager.isSpeakerphoneOn = true
 
-        // Monitor call state from VoiceCallManager
+        // Monitor call state from VoiceCallManager (audio session is managed by ChatActivity)
         val manager = VoiceCallManager.getInstance(this)
         manager.getActiveCall()?.onCallStateChanged = { state ->
             runOnUiThread {
@@ -176,133 +155,6 @@ class VideoCallActivity : BaseActivity() {
                     else -> {}
                 }
             }
-        }
-
-        if (isOutgoing) {
-            // Outgoing call: wait for CALL_ANSWER
-            waitingForAnswer = true
-        } else {
-            // Incoming call: start answering flow
-            answerIncomingCall()
-        }
-    }
-
-    private fun answerIncomingCall() {
-        val callManager = VoiceCallManager.getInstance(this)
-        callStatusText.text = "Connecting..."
-
-        lifecycleScope.launch {
-            try {
-                // Look up contact from database
-                val keyManager = KeyManager.getInstance(this@VideoCallActivity)
-                val dbPassphrase = keyManager.getDatabasePassphrase()
-                val db = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@VideoCallActivity, dbPassphrase)
-
-                val contact = withContext(Dispatchers.IO) {
-                    db.contactDao().getContactById(contactId)
-                }
-                if (contact == null) {
-                    Log.e(TAG, "Contact not found for incoming video call")
-                    handleCallEnded("Contact not found")
-                    return@launch
-                }
-
-                if (contact.messagingOnion == null) {
-                    Log.e(TAG, "Contact has no messaging address")
-                    handleCallEnded("Contact has no messaging address")
-                    return@launch
-                }
-
-                val contactVoiceOnion = contact.voiceOnion ?: ""
-                if (contactVoiceOnion.isEmpty()) {
-                    Log.e(TAG, "Contact has no voice onion - cannot answer")
-                    val x25519Key = contactX25519PublicKey ?: ByteArray(0)
-                    val ourX25519PublicKey = keyManager.getEncryptionPublicKey()
-                    CallSignaling.sendCallReject(x25519Key, contactOnion, callId, "Voice onion not available", ourX25519PublicKey)
-                    handleCallEnded("Contact's voice address missing")
-                    return@launch
-                }
-
-                // Generate ephemeral keypair
-                val crypto = VoiceCallCrypto()
-                val ourEphemeralKeypair = crypto.generateEphemeralKeypair()
-
-                // Get our voice onion
-                val torManager = TorManager.getInstance(this@VideoCallActivity)
-                val myVoiceOnion = torManager.getVoiceOnionAddress() ?: ""
-
-                val x25519Key = contactX25519PublicKey ?: ByteArray(0)
-                val ourX25519PublicKey = keyManager.getEncryptionPublicKey()
-
-                // Send CALL_ANSWER immediately
-                runOnUiThread { callStatusText.text = "Sending call response..." }
-                val success = withContext(Dispatchers.IO) {
-                    CallSignaling.sendCallAnswer(
-                        x25519Key,
-                        contactOnion,
-                        callId,
-                        ourEphemeralKeypair.publicKey.asBytes,
-                        myVoiceOnion,
-                        ourX25519PublicKey
-                    )
-                }
-
-                if (!success) {
-                    Log.e(TAG, "Failed to send CALL_ANSWER")
-                    handleCallEnded("Failed to establish connection")
-                    return@launch
-                }
-
-                // Answer call in call manager (creates Tor circuits)
-                runOnUiThread { callStatusText.text = "Establishing secure connection..." }
-                val result = callManager.answerCall(
-                    callId = callId,
-                    contactVoiceOnion = contactVoiceOnion,
-                    ourEphemeralSecretKey = ourEphemeralKeypair.secretKey.asBytes,
-                    contactX25519PublicKey = x25519Key,
-                    contactMessagingOnion = contact.messagingOnion!!,
-                    ourEphemeralPublicKey = ourEphemeralKeypair.publicKey.asBytes,
-                    myVoiceOnion = myVoiceOnion
-                )
-
-                if (result.isFailure) {
-                    Log.e(TAG, "Failed to answer call: ${result.exceptionOrNull()?.message}")
-                    CallSignaling.sendCallReject(x25519Key, contactOnion, callId, "Failed to establish call", ourX25519PublicKey)
-                    handleCallEnded("Failed to answer call: ${result.exceptionOrNull()?.message}")
-                    return@launch
-                }
-
-                // Monitor the new active call session
-                callManager.getActiveCall()?.onCallStateChanged = { state ->
-                    runOnUiThread {
-                        when (state) {
-                            VoiceCallSession.Companion.CallState.ACTIVE -> updateCallConnected()
-                            VoiceCallSession.Companion.CallState.ENDED -> {
-                                ThemedToast.show(this@VideoCallActivity, "Call ended")
-                                finish()
-                            }
-                            else -> {}
-                        }
-                    }
-                }
-
-                Log.i(TAG, "Incoming video call answered successfully")
-                runOnUiThread { updateCallConnected() }
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Error answering incoming video call", e)
-                if (callManager.hasActiveCall()) {
-                    callManager.endCall("Error during setup")
-                }
-                handleCallEnded("Error: ${e.message}")
-            }
-        }
-    }
-
-    private fun handleCallEnded(reason: String) {
-        runOnUiThread {
-            ThemedToast.show(this, reason)
-            finish()
         }
     }
 
@@ -320,17 +172,6 @@ class VideoCallActivity : BaseActivity() {
         callStatusText.text = if (isOutgoing) "Calling..." else "Connecting..."
         findViewById<TextView>(R.id.placeholderText).text =
             if (isOutgoing) "Calling $contactName..." else "Connecting video..."
-
-        // Set up remote video SurfaceView
-        remoteSurfaceView = SurfaceView(this).also {
-            it.setZOrderMediaOverlay(true) // Ensure video renders above background
-        }
-        val container = findViewById<android.widget.FrameLayout>(R.id.remoteVideoContainer)
-        container.addView(remoteSurfaceView,
-            android.widget.FrameLayout.LayoutParams(
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
-                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
-            ))
     }
 
     private fun setupControls() {
@@ -349,16 +190,15 @@ class VideoCallActivity : BaseActivity() {
             isCameraOn = !isCameraOn
             if (isCameraOn) {
                 startCamera()
+                VoiceCallManager.getInstance(this).getActiveCall()?.setVideoEnabled(true)
                 cameraToggleButton.setImageResource(R.drawable.ic_videocam)
                 cameraToggleButton.backgroundTintList = android.content.res.ColorStateList.valueOf(0x44FFFFFF)
                 findViewById<View>(R.id.localVideoCard).visibility = View.VISIBLE
-                VoiceCallManager.getInstance(this).getActiveCall()?.setVideoEnabled(true)
             } else {
                 stopCamera()
                 cameraToggleButton.setImageResource(R.drawable.ic_videocam_off)
                 cameraToggleButton.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFFFF6B6B.toInt())
                 findViewById<View>(R.id.localVideoCard).visibility = View.GONE
-                VoiceCallManager.getInstance(this).getActiveCall()?.setVideoEnabled(false)
             }
         }
 
@@ -391,12 +231,6 @@ class VideoCallActivity : BaseActivity() {
     }
 
     private fun startCamera() {
-        if (isVideoStreaming) {
-            // When video streaming is active, use bindCameraForVideo
-            // which includes both Preview and ImageAnalysis
-            bindCameraForVideo()
-            return
-        }
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
         cameraProviderFuture.addListener({
             cameraProvider = cameraProviderFuture.get()
@@ -418,120 +252,148 @@ class VideoCallActivity : BaseActivity() {
             CameraSelector.DEFAULT_BACK_CAMERA
         }
 
-        try {
-            provider.bindToLifecycle(this, cameraSelector, preview)
-        } catch (e: Exception) {
-            Log.e(TAG, "Camera bind failed", e)
+        // If video stream is active, add ImageAnalysis to capture frames for encoding
+        if (videoStarted) {
+            val imageAnalysis = ImageAnalysis.Builder()
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .build()
+
+            imageAnalysis.setAnalyzer(cameraExecutor) { imageProxy ->
+                try {
+                    val manager = VoiceCallManager.getInstance(this)
+                    val session = manager.getActiveCall()
+                    if (session != null) {
+                        val nv12 = imageProxyToNv12(imageProxy, session)
+                        if (nv12 != null) {
+                            session.feedCameraFrame(nv12, imageProxy.imageInfo.timestamp / 1000)
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Silently continue - frame drops are acceptable
+                } finally {
+                    imageProxy.close()
+                }
+            }
+
+            try {
+                provider.bindToLifecycle(this, cameraSelector, preview, imageAnalysis)
+                Log.i(TAG, "Camera bound with preview + ImageAnalysis (feeding video encoder)")
+            } catch (e: Exception) {
+                Log.e(TAG, "Camera bind with ImageAnalysis failed, falling back to preview only", e)
+                try {
+                    provider.unbindAll()
+                    provider.bindToLifecycle(this, cameraSelector, preview)
+                } catch (e2: Exception) {
+                    Log.e(TAG, "Camera bind failed entirely", e2)
+                }
+            }
+        } else {
+            // No video stream yet, just show preview
+            try {
+                provider.bindToLifecycle(this, cameraSelector, preview)
+            } catch (e: Exception) {
+                Log.e(TAG, "Camera bind failed", e)
+            }
         }
+    }
+
+    /**
+     * Convert CameraX ImageProxy (YUV_420_888) to NV12 byte array matching encoder dimensions.
+     * NV12 = Y plane followed by interleaved UV (semi-planar).
+     */
+    private fun imageProxyToNv12(imageProxy: ImageProxy, session: VoiceCallSession): ByteArray? {
+        val encoderSize = session.getVideoEncoderSize() ?: return null
+        val targetW = encoderSize.first
+        val targetH = encoderSize.second
+
+        val yPlane = imageProxy.planes[0]
+        val uPlane = imageProxy.planes[1]
+        val vPlane = imageProxy.planes[2]
+
+        val imageW = imageProxy.width
+        val imageH = imageProxy.height
+
+        // Allocate NV12 buffer: Y (w*h) + UV interleaved (w*h/2)
+        val nv12Size = targetW * targetH * 3 / 2
+        val nv12 = ByteArray(nv12Size)
+
+        val yBuffer = yPlane.buffer
+        val uBuffer = uPlane.buffer
+        val vBuffer = vPlane.buffer
+
+        val yRowStride = yPlane.rowStride
+        val uvRowStride = uPlane.rowStride
+        val uvPixelStride = uPlane.pixelStride
+
+        // Scale factors (simple nearest-neighbor for speed)
+        val scaleX = imageW.toFloat() / targetW
+        val scaleY = imageH.toFloat() / targetH
+
+        // Copy Y plane with scaling
+        for (row in 0 until targetH) {
+            val srcRow = (row * scaleY).toInt().coerceAtMost(imageH - 1)
+            for (col in 0 until targetW) {
+                val srcCol = (col * scaleX).toInt().coerceAtMost(imageW - 1)
+                val srcIndex = srcRow * yRowStride + srcCol
+                if (srcIndex < yBuffer.capacity()) {
+                    nv12[row * targetW + col] = yBuffer.get(srcIndex)
+                }
+            }
+        }
+
+        // Copy UV planes (interleaved as NV12: U, V, U, V, ...)
+        val uvOffset = targetW * targetH
+        val halfTargetH = targetH / 2
+        val halfTargetW = targetW / 2
+        val halfImageH = imageH / 2
+        val halfImageW = imageW / 2
+
+        if (uvPixelStride == 2) {
+            // Already semi-planar (NV12 or NV21) — most common on Android
+            for (row in 0 until halfTargetH) {
+                val srcRow = (row * scaleY).toInt().coerceAtMost(halfImageH - 1)
+                for (col in 0 until halfTargetW) {
+                    val srcCol = (col * scaleX).toInt().coerceAtMost(halfImageW - 1)
+                    val dstIndex = uvOffset + row * targetW + col * 2
+                    val srcUIndex = srcRow * uvRowStride + srcCol * uvPixelStride
+                    val srcVIndex = srcRow * uvRowStride + srcCol * uvPixelStride
+                    if (srcUIndex < uBuffer.capacity() && srcVIndex < vBuffer.capacity() && dstIndex + 1 < nv12.size) {
+                        nv12[dstIndex] = uBuffer.get(srcUIndex)
+                        nv12[dstIndex + 1] = vBuffer.get(srcVIndex)
+                    }
+                }
+            }
+        } else {
+            // Planar format — need to interleave U and V
+            for (row in 0 until halfTargetH) {
+                val srcRow = (row * scaleY).toInt().coerceAtMost(halfImageH - 1)
+                for (col in 0 until halfTargetW) {
+                    val srcCol = (col * scaleX).toInt().coerceAtMost(halfImageW - 1)
+                    val dstIndex = uvOffset + row * targetW + col * 2
+                    val srcUIndex = srcRow * uvRowStride + srcCol * uvPixelStride
+                    val srcVIndex = srcRow * uvRowStride + srcCol * uvPixelStride
+                    if (srcUIndex < uBuffer.capacity() && srcVIndex < vBuffer.capacity() && dstIndex + 1 < nv12.size) {
+                        nv12[dstIndex] = uBuffer.get(srcUIndex)
+                        nv12[dstIndex + 1] = vBuffer.get(srcVIndex)
+                    }
+                }
+            }
+        }
+
+        return nv12
     }
 
     private fun stopCamera() {
         cameraProvider?.unbindAll()
+        // Pause video when camera is turned off (audio continues)
+        val manager = VoiceCallManager.getInstance(this)
+        manager.getActiveCall()?.setVideoEnabled(false)
     }
 
-    private fun handleCallAnswered(answeredCallId: String, receivedTheirEphemeralKey: ByteArray) {
-        if (answeredCallId != callId) {
-            Log.w(TAG, "Received CALL_ANSWER for different call ID: $answeredCallId (expected $callId)")
-            return
-        }
-        if (!waitingForAnswer) {
-            Log.w(TAG, "Received CALL_ANSWER but not waiting for answer")
-            return
-        }
-
-        Log.i(TAG, "Received CALL_ANSWER for our outgoing video call")
-        waitingForAnswer = false
-        theirEphemeralKey = receivedTheirEphemeralKey
-
-        runOnUiThread {
-            callStatusText.text = "Connecting..."
-            startOutgoingCall()
-        }
-    }
-
-    private fun startOutgoingCall() {
-        val callManager = VoiceCallManager.getInstance(this)
-
-        lifecycleScope.launch {
-            try {
-                val keyManager = KeyManager.getInstance(this@VideoCallActivity)
-                val dbPassphrase = keyManager.getDatabasePassphrase()
-                val db = com.shieldmessenger.database.ShieldMessengerDatabase.getInstance(this@VideoCallActivity, dbPassphrase)
-
-                val contact = withContext(Dispatchers.IO) {
-                    db.contactDao().getContactById(contactId)
-                }
-                if (contact == null) {
-                    Log.e(TAG, "Contact not found for outgoing video call")
-                    handleCallEnded("Contact not found")
-                    return@launch
-                }
-                if (contact.messagingOnion == null) {
-                    Log.e(TAG, "Contact has no messaging address")
-                    handleCallEnded("Contact has no messaging address")
-                    return@launch
-                }
-
-                val theirEphKey = theirEphemeralKey
-                if (theirEphKey == null) {
-                    Log.e(TAG, "No their ephemeral key available")
-                    handleCallEnded("Missing encryption key")
-                    return@launch
-                }
-
-                val contactVoiceOnion = contact.voiceOnion ?: ""
-                if (contactVoiceOnion.isEmpty()) {
-                    Log.e(TAG, "Contact has no voice onion address")
-                    handleCallEnded("Contact has no voice address")
-                    return@launch
-                }
-
-                val ourEphSecret = ourEphemeralSecretKey
-                if (ourEphSecret == null) {
-                    Log.e(TAG, "No our ephemeral secret key")
-                    handleCallEnded("Missing encryption key")
-                    return@launch
-                }
-
-                val result = callManager.startCall(
-                    contactOnion = contact.messagingOnion!!,
-                    contactVoiceOnion = contactVoiceOnion,
-                    contactEd25519PublicKey = contact.ed25519PublicKeyBytes,
-                    contactName = contact.displayName,
-                    theirEphemeralPublicKey = theirEphKey,
-                    ourEphemeralSecretKey = ourEphSecret,
-                    callId = callId,
-                    contactX25519PublicKey = contact.x25519PublicKeyBytes
-                )
-
-                if (result.isFailure) {
-                    Log.e(TAG, "Failed to start video call", result.exceptionOrNull())
-                    handleCallEnded("Failed to connect: ${result.exceptionOrNull()?.message}")
-                } else {
-                    Log.i(TAG, "Outgoing video call started successfully")
-                    // Monitor the session
-                    callManager.getActiveCall()?.onCallStateChanged = { state ->
-                        runOnUiThread {
-                            when (state) {
-                                VoiceCallSession.Companion.CallState.ACTIVE -> updateCallConnected()
-                                VoiceCallSession.Companion.CallState.ENDED -> {
-                                    ThemedToast.show(this@VideoCallActivity, "Call ended")
-                                    finish()
-                                }
-                                else -> {}
-                            }
-                        }
-                    }
-                    runOnUiThread { updateCallConnected() }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error starting outgoing video call", e)
-                if (callManager.hasActiveCall()) {
-                    callManager.endCall("Error during setup")
-                }
-                handleCallEnded("Error: ${e.message}")
-            }
-        }
+    private fun handleCallAnswered(answeredCallId: String, theirEphemeralKey: ByteArray) {
+        if (answeredCallId != callId) return
+        Log.i(TAG, "Call answered")
+        runOnUiThread { callStatusText.text = "Connecting..." }
     }
 
     private fun handleCallTimeout(timedOutCallId: String) {
@@ -564,180 +426,100 @@ class VideoCallActivity : BaseActivity() {
         callStartTime = System.currentTimeMillis()
         timerHandler.post(timerRunnable)
 
-        // Start video streaming with delay to ensure call state is fully ACTIVE
-        timerHandler.postDelayed({ startVideoStreaming() }, 1000)
+        // Start the video stream
+        startVideoStreaming()
     }
 
-    private var videoRetryCount = 0
-
     /**
-     * Start the video streaming pipeline once the call is active.
-     * Uses hardware H.264 encoder → Tor circuits → hardware H.264 decoder → SurfaceView
+     * Create a SurfaceView for remote video, wait for the Surface to be ready,
+     * then start the video pipeline (encoder + decoder + Tor transport).
      */
     private fun startVideoStreaming() {
-        val session = VoiceCallManager.getInstance(this).getActiveCall() ?: return
-        val surfaceView = remoteSurfaceView ?: return
+        if (videoStarted) return
+
+        val container = findViewById<FrameLayout>(R.id.remoteVideoContainer)
+
+        // Create SurfaceView for remote video rendering
+        val surfaceView = SurfaceView(this)
+        surfaceView.setZOrderMediaOverlay(true) // Render above the background
+        remoteSurfaceView = surfaceView
 
         surfaceView.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceCreated(holder: SurfaceHolder) {
-                startVideoStreamWithSurface(session, holder.surface)
+                Log.i(TAG, "Remote video surface created")
+                remoteSurface = holder.surface
+                activateVideoStream(holder.surface)
             }
 
-            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
+            override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+                Log.d(TAG, "Remote video surface changed: ${width}x${height}")
+            }
+
             override fun surfaceDestroyed(holder: SurfaceHolder) {
-                isVideoStreaming = false
-                session.stopVideoStream()
+                Log.i(TAG, "Remote video surface destroyed")
+                remoteSurface = null
             }
         })
 
-        // Surface may already be created (SurfaceView was added in initViews).
-        // If so, the callback above will never fire — start immediately.
-        val surface = surfaceView.holder.surface
-        if (surface != null && surface.isValid) {
-            startVideoStreamWithSurface(session, surface)
-        }
-    }
+        // Hide placeholder, add SurfaceView
+        val placeholder = findViewById<View>(R.id.noVideoPlaceholder)
+        placeholder.visibility = View.GONE
+        container.addView(surfaceView, 0,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT))
 
-    private fun startVideoStreamWithSurface(session: VoiceCallSession, remoteSurface: Surface) {
-        if (isVideoStreaming) return // Already started
-        try {
-            val started = session.startVideoStream(remoteSurface)
-            if (started) {
-                isVideoStreaming = true
-                // Hide placeholder, show remote video
-                findViewById<View>(R.id.noVideoPlaceholder).visibility = View.GONE
-                // Bind camera with ImageAnalysis to feed encoder
-                if (isCameraOn) bindCameraForVideo()
-                Log.i(TAG, "Video streaming started successfully")
-            } else {
-                Log.w(TAG, "Failed to start video stream (attempt ${videoRetryCount + 1})")
-                // Retry up to 5 times with increasing delay
-                if (videoRetryCount < 5) {
-                    videoRetryCount++
-                    val delayMs = (videoRetryCount * 1000).toLong()
-                    Log.i(TAG, "Retrying video stream in ${delayMs}ms...")
-                    timerHandler.postDelayed({
-                        startVideoStreamWithSurface(session, remoteSurface)
-                    }, delayMs)
-                } else {
-                    findViewById<TextView>(R.id.placeholderText).text =
-                        "$contactName\nAudio only"
-                }
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error starting video stream", e)
+        // If surface is already valid (rare but possible)
+        if (surfaceView.holder.surface?.isValid == true) {
+            remoteSurface = surfaceView.holder.surface
+            activateVideoStream(surfaceView.holder.surface)
         }
     }
 
     /**
-     * Bind camera to both local preview and video encoder via ImageAnalysis.
+     * Actually start the video stream once the Surface is ready.
      */
-    private fun bindCameraForVideo() {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
-        cameraProviderFuture.addListener({
-            val provider = cameraProviderFuture.get()
-            cameraProvider = provider
-            provider.unbindAll()
+    private fun activateVideoStream(surface: Surface) {
+        if (videoStarted) return
 
-            val session = VoiceCallManager.getInstance(this).getActiveCall()
-            val encoderSize = session?.getVideoEncoderSize()
-            val targetWidth = encoderSize?.first ?: 320
-            val targetHeight = encoderSize?.second ?: 240
+        val manager = VoiceCallManager.getInstance(this)
+        val session = manager.getActiveCall()
 
-            // Local preview
-            val preview = Preview.Builder().build().also {
-                it.surfaceProvider = localCameraPreview.surfaceProvider
-            }
-
-            // ImageAnalysis to capture frames for encoding
-            val imageAnalysis = ImageAnalysis.Builder()
-                .setTargetResolution(Size(targetWidth, targetHeight))
-                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                .build()
-
-            imageAnalysis.setAnalyzer(imageAnalysisExecutor) { imageProxy ->
-                if (isVideoStreaming && isCameraOn) {
-                    // Log actual camera resolution on first frame (CameraX may differ from target)
-                    if (!cameraResolutionLogged) {
-                        Log.i(TAG, "Camera actual: ${imageProxy.width}x${imageProxy.height}, encoder target: ${targetWidth}x${targetHeight}")
-                        cameraResolutionLogged = true
-                    }
-                    val yuvData = imageProxyToNv12(imageProxy)
-                    val pts = imageProxy.imageInfo.timestamp / 1000 // ns to us
-                    session?.feedCameraFrame(yuvData, pts)
+        if (session == null) {
+            Log.w(TAG, "No active call session — will retry in 1s")
+            Handler(Looper.getMainLooper()).postDelayed({
+                val s = remoteSurface
+                if (s != null && s.isValid && !videoStarted) {
+                    activateVideoStream(s)
                 }
-                imageProxy.close()
-            }
-
-            val cameraSelector = if (isUsingFrontCamera) {
-                CameraSelector.DEFAULT_FRONT_CAMERA
-            } else {
-                CameraSelector.DEFAULT_BACK_CAMERA
-            }
-
-            try {
-                provider.bindToLifecycle(this, cameraSelector, preview, imageAnalysis)
-            } catch (e: Exception) {
-                Log.e(TAG, "Camera bind failed", e)
-            }
-        }, ContextCompat.getMainExecutor(this))
-    }
-
-    /**
-     * Convert ImageProxy (YUV_420_888) to NV12 byte array for MediaCodec encoder.
-     */
-    private fun imageProxyToNv12(image: ImageProxy): ByteArray {
-        val yPlane = image.planes[0]
-        val uPlane = image.planes[1]
-        val vPlane = image.planes[2]
-
-        val width = image.width
-        val height = image.height
-        val ySize = width * height
-        val uvSize = width * height / 2
-        val nv12 = ByteArray(ySize + uvSize)
-
-        // Copy Y plane (handle row stride padding)
-        val yBuffer = yPlane.buffer
-        val yRowStride = yPlane.rowStride
-        if (yRowStride == width) {
-            yBuffer.position(0)
-            yBuffer.get(nv12, 0, ySize)
-        } else {
-            for (row in 0 until height) {
-                yBuffer.position(row * yRowStride)
-                yBuffer.get(nv12, row * width, width)
-            }
+            }, 1000)
+            return
         }
 
-        // Copy UV planes
-        val uvPixelStride = uPlane.pixelStride
-        val uvRowStride = uPlane.rowStride
-        val uBuffer = uPlane.buffer
-        val vBuffer = vPlane.buffer
-
-        if (uvPixelStride == 2) {
-            // Semi-planar: U plane already interleaved as UVUV (NV12)
-            uBuffer.position(0)
-            val remaining = minOf(uBuffer.remaining(), uvSize)
-            uBuffer.get(nv12, ySize, remaining)
-        } else {
-            // Planar: manually interleave U and V
-            var uvIdx = ySize
-            for (row in 0 until height / 2) {
-                for (col in 0 until width / 2) {
-                    nv12[uvIdx++] = uBuffer.get(row * uvRowStride + col)
-                    nv12[uvIdx++] = vBuffer.get(row * uvRowStride + col)
-                }
+        val started = session.startVideoStream(surface)
+        if (started) {
+            videoStarted = true
+            Log.i(TAG, "Video stream activated — rebinding camera with ImageAnalysis")
+            // Rebind camera to include ImageAnalysis for frame capture
+            if (isCameraOn) {
+                startCamera()
             }
+        } else {
+            Log.w(TAG, "startVideoStream returned false — will retry in 2s")
+            Handler(Looper.getMainLooper()).postDelayed({
+                val s = remoteSurface
+                if (s != null && s.isValid && !videoStarted) {
+                    activateVideoStream(s)
+                }
+            }, 2000)
         }
-
-        return nv12
     }
 
     private fun endCall(reason: String) {
         try {
-            VoiceCallManager.getInstance(this).endCall(reason)
+            val manager = VoiceCallManager.getInstance(this)
+            manager.getActiveCall()?.stopVideoStream()
+            manager.endCall(reason)
         } catch (e: Exception) {
             Log.e(TAG, "Error ending call", e)
         }
@@ -747,23 +529,14 @@ class VideoCallActivity : BaseActivity() {
     override fun onDestroy() {
         super.onDestroy()
         activeInstance = null
-        VoiceCallManager.getInstance(this).getActiveCall()?.stopVideoStream()
-        imageAnalysisExecutor.shutdown()
-    }
-
-    override fun onPause() {
-        super.onPause()
-        VoiceCallManager.getInstance(this).getActiveCall()?.setVideoEnabled(false)
+        timerHandler.removeCallbacks(timerRunnable)
         stopCamera()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (isCameraOn && isVideoStreaming) {
-            VoiceCallManager.getInstance(this).getActiveCall()?.setVideoEnabled(true)
-            bindCameraForVideo()
-        } else if (isCameraOn) {
-            startCamera()
+        cameraExecutor.shutdown()
+        try {
+            VoiceCallManager.getInstance(this).getActiveCall()?.stopVideoStream()
+        } catch (e: Exception) {
+            Log.w(TAG, "Error stopping video stream on destroy", e)
         }
+        videoStarted = false
     }
 }
