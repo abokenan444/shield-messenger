@@ -1687,4 +1687,39 @@ object RustBridge {
     external fun setSleepModeEnabled(enabled: Boolean)
     external fun setSleepActive(active: Boolean)
     external fun isSleepActive(): Boolean
+
+    // ===== AetherNet Multi-Transport Mesh Networking =====
+
+    /** Initialize AetherNet with user's Ed25519 public key and master encryption key. */
+    external fun aethernetInit(publicKey: ByteArray, masterKey: ByteArray): Boolean
+
+    /** Start all available transports (Tor, I2P, Mesh). */
+    external fun aethernetStart(): Boolean
+
+    /** Stop all transports gracefully. */
+    external fun aethernetStop(): Boolean
+
+    /** Activate crisis mode. trigger: 0=Manual, 1=NetworkTampering, 2=TrafficAnalysis */
+    external fun aethernetActivateCrisis(trigger: Int): Boolean
+
+    /** Deactivate crisis mode. */
+    external fun aethernetDeactivateCrisis(): Boolean
+
+    /** Check if crisis mode is currently active. */
+    external fun aethernetIsCrisisActive(): Boolean
+
+    /** Enable solidarity relay (voluntary bandwidth sharing for others). */
+    external fun aethernetEnableSolidarity(): Boolean
+
+    /** Get AetherNet status as JSON string. */
+    external fun aethernetGetStatus(): String?
+
+    /** Trigger periodic maintenance (call every ~30s). */
+    external fun aethernetTick()
+
+    /** Get the number of pending store-and-forward messages. */
+    external fun aethernetPendingCount(): Int
+
+    /** Get trust score for a peer (0-100). */
+    external fun aethernetTrustScore(peerPubkey: ByteArray): Int
 }

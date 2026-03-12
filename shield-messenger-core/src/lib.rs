@@ -33,6 +33,8 @@ pub mod ffi;
 pub mod network;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod nlx402;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod aethernet;
 
 // ── Re-export main types (backward-compatible) ─────────────────────────────
 pub use crypto::{

@@ -10647,3 +10647,311 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_isSleepActive(
         JNI_FALSE
     }
 }
+
+// ==================== AETHERNET MULTI-TRANSPORT MESH NETWORKING ====================
+
+static AETHERNET: once_cell::sync::OnceCell<Mutex<crate::aethernet::AetherNet>> =
+    once_cell::sync::OnceCell::new();
+
+fn get_aethernet() -> Option<&'static Mutex<crate::aethernet::AetherNet>> {
+    AETHERNET.get()
+}
+
+/// Initialize AetherNet with user's Ed25519 public key and master encryption key.
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_aethernetInit(
+    mut env: JNIEnv,
+    _class: JClass,
+    public_key: JByteArray,
+    master_key: JByteArray,
+) -> jboolean {
+    catch_panic!(
+        env,
+        {
+            let pk = match jbytearray_to_vec(&mut env, public_key) {
+                Ok(v) if v.len() == 32 => {
+                    let mut arr = [0u8; 32];
+                    arr.copy_from_slice(&v);
+                    arr
+                }
+                _ => {
+                    let _ = env.throw_new(
+                        "java/lang/IllegalArgumentException",
+                        "public_key must be 32 bytes",
+                    );
+                    return JNI_FALSE;
+                }
+            };
+
+            let mk = match jbytearray_to_vec(&mut env, master_key) {
+                Ok(v) if v.len() == 32 => {
+                    let mut arr = [0u8; 32];
+                    arr.copy_from_slice(&v);
+                    arr
+                }
+                _ => {
+                    let _ = env.throw_new(
+                        "java/lang/IllegalArgumentException",
+                        "master_key must be 32 bytes",
+                    );
+                    return JNI_FALSE;
+                }
+            };
+
+            let aethernet = crate::aethernet::AetherNet::new(pk, mk);
+            match AETHERNET.set(Mutex::new(aethernet)) {
+                Ok(()) => {
+                    log::info!("[AetherNet/JNI] Initialized");
+                    JNI_TRUE
+                }
+                Err(_) => {
+                    log::warn!("[AetherNet/JNI] Already initialized");
+                    JNI_TRUE
+                }
+            }
+        },
+        JNI_FALSE
+    )
+}
+
+/// Start all AetherNet transports.
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_aethernetStart(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jboolean {
+    catch_panic!(
+        env,
+        {
+            if let Some(an) = get_aethernet() {
+                if let Ok(an) = an.lock() {
+                    an.start();
+                    return JNI_TRUE;
+                }
+            }
+            JNI_FALSE
+        },
+        JNI_FALSE
+    )
+}
+
+/// Stop all AetherNet transports.
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_aethernetStop(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jboolean {
+    catch_panic!(
+        env,
+        {
+            if let Some(an) = get_aethernet() {
+                if let Ok(an) = an.lock() {
+                    an.stop();
+                    return JNI_TRUE;
+                }
+            }
+            JNI_FALSE
+        },
+        JNI_FALSE
+    )
+}
+
+/// Activate crisis mode. trigger: 0=Manual, 1=NetworkTampering, 2=TrafficAnalysis
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_aethernetActivateCrisis(
+    mut env: JNIEnv,
+    _class: JClass,
+    trigger: jint,
+) -> jboolean {
+    catch_panic!(
+        env,
+        {
+            if let Some(an) = get_aethernet() {
+                if let Ok(an) = an.lock() {
+                    let t = match trigger {
+                        0 => crate::aethernet::CrisisTrigger::Manual,
+                        1 => crate::aethernet::CrisisTrigger::NetworkTampering,
+                        2 => crate::aethernet::CrisisTrigger::TrafficAnalysis,
+                        _ => crate::aethernet::CrisisTrigger::Manual,
+                    };
+                    an.activate_crisis(t);
+                    return JNI_TRUE;
+                }
+            }
+            JNI_FALSE
+        },
+        JNI_FALSE
+    )
+}
+
+/// Deactivate crisis mode.
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_aethernetDeactivateCrisis(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jboolean {
+    catch_panic!(
+        env,
+        {
+            if let Some(an) = get_aethernet() {
+                if let Ok(an) = an.lock() {
+                    an.deactivate_crisis();
+                    return JNI_TRUE;
+                }
+            }
+            JNI_FALSE
+        },
+        JNI_FALSE
+    )
+}
+
+/// Check if crisis mode is active.
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_aethernetIsCrisisActive(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jboolean {
+    catch_panic!(
+        env,
+        {
+            if let Some(an) = get_aethernet() {
+                if let Ok(an) = an.lock() {
+                    return if an.crisis.is_active() {
+                        JNI_TRUE
+                    } else {
+                        JNI_FALSE
+                    };
+                }
+            }
+            JNI_FALSE
+        },
+        JNI_FALSE
+    )
+}
+
+/// Enable solidarity relay.
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_aethernetEnableSolidarity(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jboolean {
+    catch_panic!(
+        env,
+        {
+            if let Some(an) = get_aethernet() {
+                if let Ok(an) = an.lock() {
+                    an.enable_solidarity();
+                    return JNI_TRUE;
+                }
+            }
+            JNI_FALSE
+        },
+        JNI_FALSE
+    )
+}
+
+/// Get AetherNet status as JSON string.
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_aethernetGetStatus(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jstring {
+    catch_panic!(
+        env,
+        {
+            if let Some(an) = get_aethernet() {
+                if let Ok(an) = an.lock() {
+                    let status = an.status();
+                    let json = format!(
+                        r#"{{"tor_available":{},"i2p_available":{},"mesh_available":{},"crisis_active":{},"threat_level":"{:?}","pending_messages":{},"mesh_peers":{},"mesh_clusters":{},"solidarity_enabled":{},"trust_peers":{}}}"#,
+                        status.tor_available,
+                        status.i2p_available,
+                        status.mesh_available,
+                        status.crisis_active,
+                        status.threat_level,
+                        status.pending_messages,
+                        status.mesh_peers,
+                        status.mesh_clusters,
+                        status.solidarity_enabled,
+                        status.trust_peers,
+                    );
+                    match string_to_jstring(&mut env, &json) {
+                        Ok(s) => return s.into_raw(),
+                        Err(_) => {}
+                    }
+                }
+            }
+            std::ptr::null_mut()
+        },
+        std::ptr::null_mut()
+    )
+}
+
+/// Trigger AetherNet periodic maintenance.
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_aethernetTick(
+    mut env: JNIEnv,
+    _class: JClass,
+) {
+    catch_panic!(
+        env,
+        {
+            if let Some(an) = get_aethernet() {
+                if let Ok(an) = an.lock() {
+                    an.tick();
+                }
+            }
+        },
+        ()
+    )
+}
+
+/// Get the number of pending store-and-forward messages.
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_aethernetPendingCount(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jint {
+    catch_panic!(
+        env,
+        {
+            if let Some(an) = get_aethernet() {
+                if let Ok(an) = an.lock() {
+                    return an.store_forward.pending_count() as jint;
+                }
+            }
+            0
+        },
+        0
+    )
+}
+
+/// Get the trust score for a peer (0.0-1.0 scaled to 0-100).
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_aethernetTrustScore(
+    mut env: JNIEnv,
+    _class: JClass,
+    peer_pubkey: JByteArray,
+) -> jint {
+    catch_panic!(
+        env,
+        {
+            let pk = match jbytearray_to_vec(&mut env, peer_pubkey) {
+                Ok(v) if v.len() == 32 => {
+                    let mut arr = [0u8; 32];
+                    arr.copy_from_slice(&v);
+                    arr
+                }
+                _ => return 0,
+            };
+
+            if let Some(an) = get_aethernet() {
+                if let Ok(an) = an.lock() {
+                    return (an.trust_map.trust_score(&pk) * 100.0) as jint;
+                }
+            }
+            0
+        },
+        0
+    )
+}
