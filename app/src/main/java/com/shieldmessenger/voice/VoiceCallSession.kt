@@ -3,7 +3,6 @@ package com.shieldmessenger.voice
 import android.content.Context
 import android.util.Log
 import com.securelegion.crypto.RustBridge
-import com.shieldmessenger.video.VideoCallStream
 import com.shieldmessenger.voice.crypto.VoiceCallCrypto
 import kotlinx.coroutines.*
 import java.util.UUID
@@ -96,9 +95,6 @@ class VoiceCallSession(
 
     // Pending speaker state (for setting speaker before AudioPlaybackManager is initialized)
     private var pendingSpeakerEnabled: Boolean? = null
-
-    // Video stream (initialized only for video calls)
-    private var videoCallStream: VideoCallStream? = null
 
     init {
         // Set up circuit rebuild callback
@@ -551,10 +547,6 @@ class VoiceCallSession(
                         audioPlaybackManager.stopPlayback()
                     }
 
-                    // Stop video stream
-                    videoCallStream?.stop()
-                    videoCallStream = null
-
                     // End voice session via Rust (blocking JNI call)
                     try {
                         RustBridge.endVoiceSession(callId)
@@ -644,66 +636,6 @@ class VoiceCallSession(
             pendingSpeakerEnabled = enabled
             Log.d(TAG, "Saved pending speaker state: $enabled (will apply when call connects)")
         }
-    }
-
-    /**
-     * Start video streaming (called from VideoCallActivity).
-     * @param remoteSurface Surface to render remote video onto
-     * @return true if video stream started successfully
-     */
-    fun startVideoStream(remoteSurface: android.view.Surface): Boolean {
-        if (callState != CallState.ACTIVE) {
-            Log.w(TAG, "Cannot start video stream in state $callState - will retry")
-            // Allow starting in CONNECTING state since VideoCallActivity calls this
-            // from updateCallConnected which may fire slightly before state propagates
-            if (callState != CallState.CONNECTING) {
-                return false
-            }
-        }
-        try {
-            val stream = VideoCallStream(
-                context, callId, callIdBytes, crypto,
-                circuitKeys.toMap(), numCircuits, isOutgoing
-            )
-            videoCallStream = stream
-            stream.start(remoteSurface)
-            Log.i(TAG, "Video stream started successfully (state=$callState)")
-            return true
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to start video stream", e)
-            return false
-        }
-    }
-
-    /**
-     * Feed a camera frame to the video encoder.
-     * Called from VideoCallActivity's ImageAnalysis.
-     */
-    fun feedCameraFrame(yuvData: ByteArray, pts: Long) {
-        videoCallStream?.feedCameraFrame(yuvData, pts)
-    }
-
-    /**
-     * Get the video encoder dimensions (for matching ImageAnalysis resolution).
-     */
-    fun getVideoEncoderSize(): Pair<Int, Int>? {
-        val stream = videoCallStream ?: return null
-        return Pair(stream.getEncoderWidth(), stream.getEncoderHeight())
-    }
-
-    /**
-     * Stop video streaming (audio continues).
-     */
-    fun stopVideoStream() {
-        videoCallStream?.stop()
-        videoCallStream = null
-    }
-
-    /**
-     * Pause/resume video (e.g., camera toggle or app background).
-     */
-    fun setVideoEnabled(enabled: Boolean) {
-        videoCallStream?.setCameraEnabled(enabled)
     }
 
     /**
@@ -803,11 +735,6 @@ class VoiceCallSession(
                     0x02 -> {
                         // CONTROL packet - parse stats and update scheduler
                         handleControlPacket(decryptedPayload)
-                    }
-                    0x03 -> {
-                        // VIDEO packet - route to video stream for reassembly and decoding
-                        // Pass already-decrypted payload (not raw audioData which is still encrypted)
-                        videoCallStream?.onVideoPacket(sequence, decryptedPayload)
                     }
                     else -> {
                         Log.w(TAG, "Unknown packet type: $ptype")

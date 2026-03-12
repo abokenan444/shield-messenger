@@ -24,7 +24,6 @@
   "delivered": "配信済み",
   "read": "既読",
   "voice_call": "音声通話",
-  "video_call": "ビデオ通話",
   "calling": "発信中...",
   "call_ended": "通話終了",
   "incoming_call": "着信",

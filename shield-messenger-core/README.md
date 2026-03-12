@@ -1,4 +1,4 @@
-# Shield Messenger Core Library (Rust)
+﻿# Shield Messenger Core Library (Rust)
 
 **Privacy-focused cryptography and messaging core for Shield Messenger**
 
@@ -142,7 +142,7 @@ let kem_ct = ratchet.kem_ratchet_send(&peer_x25519_pub, &peer_kyber_pub)?;
 ```rust
 use shieldmessenger::network::padding::*;
 
-// Configure packet size for voice/video
+// Configure packet size for voice
 set_fixed_packet_size(8192);
 
 // Pad message to fixed size

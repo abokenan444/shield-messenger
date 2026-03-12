@@ -42,7 +42,6 @@
   "self_destruct": "自毁定时器",
   "encrypted_message": "消息已端到端加密",
   "voice_call": "语音通话",
-  "video_call": "视频通话",
   "calling": "呼叫中...",
   "ringing": "响铃中...",
   "connected": "已连接",

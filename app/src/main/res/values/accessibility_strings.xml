@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Accessibility content descriptions for screen readers (TalkBack) -->
     <!-- These strings provide meaningful descriptions for UI elements -->
@@ -20,7 +20,6 @@
     <string name="cd_emoji_picker">Open emoji picker</string>
     <string name="cd_message_input">Type a message</string>
     <string name="cd_voice_call">Start voice call</string>
-    <string name="cd_video_call">Start video call</string>
     <string name="cd_contact_info">View contact info</string>
     <string name="cd_message_status_sent">Message sent</string>
     <string name="cd_message_status_delivered">Message delivered</string>

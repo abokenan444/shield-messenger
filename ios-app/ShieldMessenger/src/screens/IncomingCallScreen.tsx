@@ -4,7 +4,7 @@ import {Colors, Spacing, FontSize, BorderRadius} from '../theme/colors';
 import {t} from '../i18n';
 
 const IncomingCallScreen: React.FC<{route: any; navigation: any}> = ({route, navigation}) => {
-  const {contactName, contactId, isVideo} = route.params || {contactName: 'Khalid', contactId: 'u1', isVideo: false};
+  const {contactName, contactId} = route.params || {contactName: 'Khalid', contactId: 'u1'};
   const [callState, setCallState] = useState<'ringing' | 'connecting'>('ringing');
 
   useEffect(() => {
@@ -30,7 +30,7 @@ const IncomingCallScreen: React.FC<{route: any; navigation: any}> = ({route, nav
           <Text style={styles.avatarText}>{contactName[0]}</Text>
         </View>
         <Text style={styles.callerName}>{contactName}</Text>
-        <Text style={styles.callType}>{isVideo ? t('incoming_video_call') : t('incoming_voice_call')}</Text>
+        <Text style={styles.callType}>{t('incoming_voice_call')}</Text>
         <Text style={styles.e2ee}>🔐 {t('encrypted_e2e')}</Text>
         <Text style={styles.statusText}>{callState === 'ringing' ? t('ringing') : t('connecting')}</Text>
       </View>

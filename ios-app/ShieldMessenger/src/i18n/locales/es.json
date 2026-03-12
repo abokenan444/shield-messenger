@@ -45,7 +45,6 @@
   "self_destruct": "Temporizador de autodestrucción",
   "encrypted_message": "Los mensajes están cifrados de extremo a extremo",
   "voice_call": "Llamada de voz",
-  "video_call": "Videollamada",
   "calling": "Llamando...",
   "ringing": "Sonando...",
   "connected": "Conectado",

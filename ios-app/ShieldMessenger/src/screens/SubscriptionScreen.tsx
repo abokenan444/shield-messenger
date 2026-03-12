@@ -29,7 +29,6 @@ const SubscriptionScreen: React.FC<{navigation: any}> = ({navigation}) => {
       features: [
         'Everything in Free',
         'Unlimited Group Chats',
-        'Video Calls over Tor',
         '50MB File Transfer',
         'Priority Tor Relays',
         'Custom Bridge Support',

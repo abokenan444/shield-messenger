@@ -91,7 +91,7 @@ export function WhitepaperPage() {
       <SectionBlock title={t.wp_admin_title} body={t.wp_admin_body} />
       <BulletList items={[t.wp_admin_b1, t.wp_admin_b2, t.wp_admin_b3, t.wp_admin_b4, t.wp_admin_b5]} />
 
-      {/* ── Section 5: Voice & Video Calls ── */}
+      {/* ─── Section 5: Voice Calls ─── */}
       <SectionBlock title={t.wp_calls_title} body={t.wp_calls_body} />
       <BulletList items={[t.wp_calls_b1, t.wp_calls_b2, t.wp_calls_b3, t.wp_calls_b4]} />
 

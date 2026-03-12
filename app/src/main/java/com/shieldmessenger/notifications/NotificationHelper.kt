@@ -94,7 +94,7 @@ object NotificationHelper {
         // Calls channel (highest priority)
         val callsChannel = NotificationChannel(
             CHANNEL_CALLS,
-            "Voice & Video Calls",
+            "Voice Calls",
             NotificationManager.IMPORTANCE_MAX
         ).apply {
             description = "Incoming encrypted call notifications"

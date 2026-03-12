@@ -1,5 +1,5 @@
 /**
- * WebRTC Service — End-to-end encrypted voice & video calls
+ * WebRTC Service — End-to-end encrypted voice calls
  *
  * Uses WebRTC for media transport with SRTP encryption.
  * Signaling messages are encrypted using the Rust WASM crypto core
@@ -10,7 +10,7 @@ import * as wasm from './wasmBridge';
 
 // ─────────────────── Types ───────────────────
 
-export type CallType = 'voice' | 'video';
+export type CallType = 'voice';
 export type CallDirection = 'outgoing' | 'incoming';
 export type CallState =
   | 'idle'
@@ -25,7 +25,6 @@ export interface CallParticipant {
   userId: string;
   displayName: string;
   audioEnabled: boolean;
-  videoEnabled: boolean;
   speaking: boolean;
   stream?: MediaStream;
 }
@@ -82,22 +81,6 @@ const MEDIA_CONSTRAINTS_VOICE: MediaStreamConstraints = {
     channelCount: 1,
   },
   video: false,
-};
-
-const MEDIA_CONSTRAINTS_VIDEO: MediaStreamConstraints = {
-  audio: {
-    echoCancellation: true,
-    noiseSuppression: true,
-    autoGainControl: true,
-    sampleRate: 48000,
-    channelCount: 1,
-  },
-  video: {
-    width: { ideal: 1280, max: 1920 },
-    height: { ideal: 720, max: 1080 },
-    frameRate: { ideal: 30, max: 60 },
-    facingMode: 'user',
-  },
 };
 
 // ─────────────────── Call Manager ───────────────────
@@ -175,7 +158,6 @@ export class CallManager {
           userId: targetUserId,
           displayName: targetDisplayName,
           audioEnabled: true,
-          videoEnabled: callType === 'video',
           speaking: false,
         },
       ],
@@ -189,7 +171,7 @@ export class CallManager {
       this.createPeerConnection();
       const offer = await this.peerConnection!.createOffer({
         offerToReceiveAudio: true,
-        offerToReceiveVideo: callType === 'video',
+        offerToReceiveVideo: false,
       });
       await this.peerConnection!.setLocalDescription(offer);
 
@@ -231,7 +213,6 @@ export class CallManager {
           userId: signal.from,
           displayName: signal.from,
           audioEnabled: true,
-          videoEnabled: callType === 'video',
           speaking: false,
         },
       ],
@@ -349,7 +330,6 @@ export class CallManager {
         const muteData = JSON.parse(signal.payload);
         this.updateParticipant(signal.from, {
           audioEnabled: muteData.audio,
-          videoEnabled: muteData.video,
         });
         break;
       }
@@ -367,76 +347,6 @@ export class CallManager {
     return enabled;
   }
 
-  toggleVideo(): boolean {
-    if (!this.localStream) return false;
-    const videoTracks = this.localStream.getVideoTracks();
-    const enabled = !videoTracks[0]?.enabled;
-    videoTracks.forEach((t) => (t.enabled = enabled));
-    this.notifyMuteChange();
-    return enabled;
-  }
-
-  async switchCamera(): Promise<void> {
-    if (!this.localStream || this._callInfo.type !== 'video') return;
-
-    const currentTrack = this.localStream.getVideoTracks()[0];
-    if (!currentTrack) return;
-
-    const settings = currentTrack.getSettings();
-    const newFacing = settings.facingMode === 'user' ? 'environment' : 'user';
-
-    try {
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: newFacing },
-      });
-      const newTrack = newStream.getVideoTracks()[0];
-
-      // Replace in peer connection
-      const sender = this.peerConnection
-        ?.getSenders()
-        .find((s) => s.track?.kind === 'video');
-      if (sender) {
-        await sender.replaceTrack(newTrack);
-      }
-
-      // Replace in local stream
-      this.localStream.removeTrack(currentTrack);
-      currentTrack.stop();
-      this.localStream.addTrack(newTrack);
-
-      this.emit({ type: 'local-stream', stream: this.localStream });
-    } catch (e) {
-      console.error('[SL-Call] Camera switch failed:', e);
-    }
-  }
-
-  async enableVideo(): Promise<void> {
-    if (this._callInfo.type === 'video') return;
-    if (!this.peerConnection) return;
-
-    try {
-      const videoStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          frameRate: { ideal: 30 },
-          facingMode: 'user',
-        },
-      });
-
-      const videoTrack = videoStream.getVideoTracks()[0];
-      if (this.localStream) {
-        this.localStream.addTrack(videoTrack);
-      }
-
-      this.peerConnection.addTrack(videoTrack, this.localStream!);
-      this._callInfo.type = 'video';
-      this.emit({ type: 'local-stream', stream: this.localStream! });
-    } catch (e) {
-      console.error('[SL-Call] Enable video failed:', e);
-    }
-  }
-
   getLocalStream(): MediaStream | null {
     return this.localStream;
   }
@@ -448,10 +358,7 @@ export class CallManager {
   // ─── Private Methods ───
 
   private async acquireMedia(callType: CallType): Promise<void> {
-    const constraints =
-      callType === 'video' ? MEDIA_CONSTRAINTS_VIDEO : MEDIA_CONSTRAINTS_VOICE;
-
-    this.localStream = await navigator.mediaDevices.getUserMedia(constraints);
+    this.localStream = await navigator.mediaDevices.getUserMedia(MEDIA_CONSTRAINTS_VOICE);
     this.emit({ type: 'local-stream', stream: this.localStream });
     this.setupAudioAnalysis();
   }
@@ -570,14 +477,13 @@ export class CallManager {
     if (!this.localStream) return;
 
     const audioEnabled = this.localStream.getAudioTracks()[0]?.enabled ?? false;
-    const videoEnabled = this.localStream.getVideoTracks()[0]?.enabled ?? false;
 
     const signal: CallSignal = {
       callId: this._callInfo.callId,
       type: 'mute-change',
       from: 'self',
       to: this._callInfo.participants[0]?.userId || '',
-      payload: JSON.stringify({ audio: audioEnabled, video: videoEnabled }),
+      payload: JSON.stringify({ audio: audioEnabled }),
       timestamp: Date.now(),
     };
 

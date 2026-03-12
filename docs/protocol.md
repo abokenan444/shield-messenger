@@ -1,4 +1,4 @@
-# Shield Messenger Protocol Specification
+﻿# Shield Messenger Protocol Specification
 
 **Version:** 2.0
 **Date:** 2026-02-26
@@ -35,7 +35,7 @@ graph TD
             A --> D[Port 9153: ACKs]
         end
         subgraph Voice Tor Instance (SOCKS: 9052)
-            E[Ephemeral Voice Hidden Service] --> F[Port 9152: Voice/Video Stream]
+            E[Ephemeral Voice Hidden Service] --> F[Port 9152: Voice Stream]
         end
         G[Shield Messenger Core] <--> A
         G <--> E
@@ -58,7 +58,7 @@ The protocol uses a standardized set of ports for different functions:
 | **9150** | Messaging | 8080 | Main channel for PING/PONG, handshake, text, files, and friend requests. |
 | **9151** | Messaging | 9151 | Reserved for future use (e.g., TAP messages). |
 | **9153** | Messaging | 9153 | Dedicated listener for delivery confirmations (ACKs) to optimize flow control. |
-| **9152** | Voice | 9152 | Low-latency, high-throughput channel for encrypted voice/video streams. |
+| **9152** | Voice | 9152 | Low-latency, high-throughput channel for encrypted voice streams. |
 
 ---
 
@@ -123,7 +123,7 @@ To resist traffic analysis, the protocol implements a multi-layered padding and 
 - **Traffic Shaping Profiles:** The padding strategy can be adapted based on the type of communication:
     - **Chat:** Optimized for low-latency, bursty text messages.
     - **File Transfer:** Optimized for high-throughput, sustained data streams.
-    - **Voice/Video:** Optimized for constant-bitrate, low-latency media streams.
+    - **Voice:** Optimized for constant-bitrate, low-latency media streams.
 
 ---
 

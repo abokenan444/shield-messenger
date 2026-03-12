@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 All notable changes to this project will be documented in this file.
 
@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Security Hardening v2 (2026-02-24)
 - **Post-Quantum Ratchet — Out-of-Order Support**: Skipped-message key cache (up to 256 ahead) for reliable decryption of messages delivered out of order. Duplicate messages rejected. Keys zeroized after use.
-- **Configurable Fixed Packet Size**: `set_fixed_packet_size(4096 | 8192 | 16384)` for runtime configuration. 8192/16384 recommended for voice/video.
+- **Configurable Fixed Packet Size**: `set_fixed_packet_size(4096 | 8192 | 16384)` for runtime configuration. 8192/16384 recommended for voice.
 - **Truncated Exponential Delays**: Replaced uniform random delay with truncated exponential distribution (lambda=0.005) for timing analysis resistance.
 - **Cover Traffic**: `generate_cover_packet()` (type `0xFF`) sent every 30-90 seconds on idle connections. Receiver discards silently.
 - **`ct_eq!` Macro**: Convenience constant-time equality macro for any byte expression. Added `eq_24()` for nonce comparisons.

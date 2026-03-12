@@ -25,7 +25,6 @@ interface CallStoreState {
   localStream: MediaStream | null;
   remoteStream: MediaStream | null;
   audioEnabled: boolean;
-  videoEnabled: boolean;
   speakerOn: boolean;
   showIncomingCall: boolean;
   incomingCallFrom: string;
@@ -40,10 +39,7 @@ interface CallStoreState {
   rejectCall: () => void;
   hangup: () => void;
   toggleAudio: () => void;
-  toggleVideo: () => void;
   toggleSpeaker: () => void;
-  switchCamera: () => Promise<void>;
-  enableVideo: () => Promise<void>;
 
   // Internal
   _setActiveCall: (call: CallInfo | null) => void;
@@ -82,7 +78,6 @@ export const useCallStore = create<CallStoreState>()((set, get) => {
     localStream: null,
     remoteStream: null,
     audioEnabled: true,
-    videoEnabled: false,
     speakerOn: true,
     showIncomingCall: false,
     incomingCallFrom: '',
@@ -94,7 +89,6 @@ export const useCallStore = create<CallStoreState>()((set, get) => {
         await callManager.startCall(roomId, type, userId, displayName);
         set({
           activeCall: callManager.callInfo,
-          videoEnabled: type === 'video',
           audioEnabled: true,
         });
       } catch (err) {
@@ -168,22 +162,8 @@ export const useCallStore = create<CallStoreState>()((set, get) => {
       set({ audioEnabled: enabled });
     },
 
-    toggleVideo: () => {
-      const enabled = callManager.toggleVideo();
-      set({ videoEnabled: enabled });
-    },
-
     toggleSpeaker: () => {
       set((s) => ({ speakerOn: !s.speakerOn }));
-    },
-
-    switchCamera: async () => {
-      await callManager.switchCamera();
-    },
-
-    enableVideo: async () => {
-      await callManager.enableVideo();
-      set({ videoEnabled: true });
     },
 
     _setActiveCall: (call) => set({ activeCall: call }),

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Shield Messenger</string>
 
@@ -235,7 +235,6 @@
     <string name="transfer_details">Detalles de transferencia</string>
     <string name="unlock">Desbloquear</string>
     <string name="value">Valor</string>
-    <string name="video_call_connecting">Conectando videollamada...</string>
     <string name="wallet">Monedero</string>
     <string name="wallet_address">Direccion del monedero</string>
     <string name="wallet_name">Nombre del monedero</string>

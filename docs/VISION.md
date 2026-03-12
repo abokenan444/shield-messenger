@@ -1,4 +1,4 @@
-# Shield Messenger — Vision & Comprehensive Whitepaper
+﻿# Shield Messenger — Vision & Comprehensive Whitepaper
 
 ## 1. Vision & Mission
 
@@ -49,7 +49,7 @@ To build a communication platform that puts the user first, through a design tha
 ## 4. Free Features (Available to Everyone)
 
 1. Fully encrypted text messages with edit and delete-for-everyone.
-2. E2EE voice and video calls with high quality.
+2. E2EE voice calls with high quality.
 3. Groups with up to 100 members.
 4. Media sharing up to 100 MB.
 5. Free access to public servers (with full privacy — no data collection).
@@ -115,7 +115,7 @@ Automatically back up conversations and media to an encrypted cloud (using the u
 - Launch a closed beta for security testing.
 
 ### Phase 2 — Growth (6 months)
-- Add E2EE voice and video calls.
+- Add E2EE voice calls.
 - Launch the iOS app.
 - Roll out the first premium features.
 

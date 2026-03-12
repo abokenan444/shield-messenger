@@ -193,12 +193,6 @@
             android:exported="false" />
 
         <activity
-            android:name=".VideoCallActivity"
-            android:exported="false"
-            android:screenOrientation="portrait"
-            android:launchMode="singleTop" />
-
-        <activity
             android:name=".BackupActivity"
             android:exported="false" />
 

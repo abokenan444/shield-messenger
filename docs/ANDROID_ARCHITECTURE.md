@@ -1,4 +1,4 @@
-# Android Architecture: Single-Activity Migration Guide
+﻿# Android Architecture: Single-Activity Migration Guide
 
 ## Current State
 
@@ -21,7 +21,7 @@ The 54 Activities are grouped into the following functional domains:
 |--------|-----------|-------|
 | **Authentication** | SplashActivity, WelcomeActivity, CreateAccountActivity, RestoreAccountActivity, LockActivity, DevicePasswordActivity | 6 |
 | **Messaging** | MainActivity, ChatActivity, GroupChatActivity, ComposeActivity, AddFriendActivity | 5 |
-| **Voice/Video** | VoiceCallActivity, IncomingCallActivity, CallLogActivity, NewCallActivity, CallHistoryActivity, ContactCallActivity | 6 |
+| **Voice** | VoiceCallActivity, IncomingCallActivity, CallLogActivity, NewCallActivity, CallHistoryActivity, ContactCallActivity | 5 |
 | **Contacts** | ContactOptionsActivity, GroupMembersActivity, GroupProfileActivity, CreateGroupActivity | 4 |
 | **Wallet** | WalletActivity, CreateWalletActivity, ImportWalletActivity, SendMoneyActivity, ReceiveActivity, AcceptPaymentActivity, RequestMoneyActivity, RequestDetailsActivity, TransactionsActivity, TransactionDetailActivity, TransferDetailsActivity, RecentTransactionsActivity, SwapActivity, WalletIdentityActivity, WalletSettingsActivity, SendActivity | 16 |
 | **Settings** | SettingsActivity, SecurityModeActivity, AutoLockActivity, DuressPinActivity, NotificationsActivity, AboutActivity, BridgeActivity, CommunicationModeActivity, TorHealthActivity, DeveloperActivity, SystemLogActivity | 11 |

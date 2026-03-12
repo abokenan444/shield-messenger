@@ -1,4 +1,4 @@
-# Security Changelog — Shield Messenger (Shield Messenger)
+﻿# Security Changelog — Shield Messenger (Shield Messenger)
 
 **Repository:** https://github.com/abokenan444/shield-messenger  
 **Branch:** `main`
@@ -28,7 +28,7 @@ This changelog documents all security and privacy enhancements applied to the Sh
 
 ### Traffic Analysis Resistance — Configurable Size, Cover Traffic, Exponential Delays
 
-- **Configurable fixed packet size:** `FIXED_PACKET_SIZE` is now runtime-configurable via `set_fixed_packet_size(4096 | 8192 | 16384)`. Uses `AtomicUsize` for lock-free reads. 8192/16384 recommended for voice/video streams.
+- **Configurable fixed packet size:** `FIXED_PACKET_SIZE` is now runtime-configurable via `set_fixed_packet_size(4096 | 8192 | 16384)`. Uses `AtomicUsize` for lock-free reads. 8192/16384 recommended for voice streams.
 - **Truncated exponential delay distribution:** Replaced uniform random delay (200-800 ms) with truncated exponential (lambda=0.005). This avoids flat-pattern fingerprinting that a uniform distribution exposes.
 - **Cover traffic:** Added `generate_cover_packet()` (type `0xFF`) with random nonce, padded to fixed size. `random_cover_interval_secs()` returns a random interval in [30, 90] seconds for idle connections. Receiver discards cover packets silently via `is_cover_packet()`.
 - **Receive path updated:** `tor.rs` now accepts any valid fixed size (4096/8192/16384) and silently discards cover traffic packets before any further processing.

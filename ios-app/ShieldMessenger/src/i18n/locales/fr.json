@@ -48,7 +48,6 @@
   "self_destruct": "Minuteur d'autodestruction",
   "encrypted_message": "Les messages sont chiffrés de bout en bout",
   "voice_call": "Appel vocal",
-  "video_call": "Appel vidéo",
   "calling": "Appel en cours...",
   "ringing": "Sonnerie...",
   "connected": "Connecté",

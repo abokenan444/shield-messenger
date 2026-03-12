@@ -34,7 +34,6 @@ const HANDSHAKE_TIMEOUT_SECS: u64 = 10;
 // Packet type flags (v2)
 const PTYPE_AUDIO: u8 = 0x01;
 const PTYPE_CONTROL: u8 = 0x02;
-const PTYPE_VIDEO: u8 = 0x03;
 
 /// Voice packet structure
 /// Contains compressed audio data + metadata

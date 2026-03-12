@@ -1,4 +1,4 @@
-{
+﻿{
   "a": "A",
   "abc123": "abc123...",
   "abc1xyz9": "ABC1...XYZ9",
@@ -154,7 +154,7 @@
   "erase_all_data_when_duress_pin_is_entere": "Erase all data when duress PIN is entered",
   "errors": "Errors",
   "event_log": "Event Log",
-  "everything_in_freen_video_calls_over_tor": "• Everything in Free\\n• Video calls over Tor\\n• File sharing (up to 10 MB)\\n• Priority Tor relay routing\\n• Advanced wallet features\\n• Support development",
+  "everything_in_freen_video_calls_over_tor": "• Everything in Free\\n• Voice calls over Tor\\n• File sharing (up to 10 MB)\\n• Priority Tor relay routing\\n• Advanced wallet features\\n• Support development",
   "everything_in_supportern_custom_tor_brid": "• Everything in Supporter\\n• Custom Tor bridge deployment\\n• Team management\\n• Dedicated infrastructure\\n• SLA &amp; priority support\\n• Self-hosted option",
   "exchange": "Exchange",
   "exchange_fee": "Exchange fee",
@@ -579,7 +579,6 @@
   "v": "V",
   "value": "Value",
   "version_014_beta": "Version 0.1.4 Beta",
-  "video_call_connecting": "Video call connecting...",
   "view_on_solana_explorer": "View on Solana Explorer",
   "voice_tor": "Voice Tor",
   "w": "W",

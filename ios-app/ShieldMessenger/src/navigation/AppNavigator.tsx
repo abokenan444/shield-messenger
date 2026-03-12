@@ -60,7 +60,6 @@ import CreateWalletScreen from '../screens/CreateWalletScreen';
 import ImportWalletScreen from '../screens/ImportWalletScreen';
 import WalletSettingsScreen from '../screens/WalletSettingsScreen';
 // New screens matching Android
-import VideoCallScreen from '../screens/VideoCallScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
 import TotpSetupScreen from '../screens/TotpSetupScreen';
 import SwapScreen from '../screens/SwapScreen';
@@ -80,7 +79,7 @@ export type RootStackParamList = {
   AddFriend: undefined;
   FriendRequests: undefined;
   VoiceCall: {contactId: string; contactName: string};
-  IncomingCall: {contactName: string; contactId: string; isVideo?: boolean};
+  IncomingCall: {contactName: string; contactId: string};
   CallHistory: undefined;
   NewCall: undefined;
   CreateGroup: undefined;
@@ -111,7 +110,6 @@ export type RootStackParamList = {
   WalletSettings: undefined;
   Privacy: undefined;
   License: undefined;
-  VideoCall: {contactId: string; contactName: string};
   Subscription: undefined;
   TotpSetup: undefined;
   Swap: undefined;
@@ -248,7 +246,6 @@ const AppNavigator = () => {
             <Stack.Screen name="ImportWallet" component={ImportWalletScreen} />
             <Stack.Screen name="WalletSettings" component={WalletSettingsScreen} />
             {/* New screens matching Android */}
-            <Stack.Screen name="VideoCall" component={VideoCallScreen} />
             <Stack.Screen name="Subscription" component={SubscriptionScreen} />
             <Stack.Screen name="TotpSetup" component={TotpSetupScreen} />
             <Stack.Screen name="Swap" component={SwapScreen} />

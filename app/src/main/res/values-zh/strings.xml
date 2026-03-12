@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Shield Messenger</string>
 
@@ -241,7 +241,6 @@
     <string name="transfer_details">转账详情</string>
     <string name="unlock">解锁</string>
     <string name="value">价值</string>
-    <string name="video_call_connecting">视频通话连接中...</string>
     <string name="wallet">钱包</string>
     <string name="wallet_address">钱包地址</string>
     <string name="wallet_name">钱包名称</string>

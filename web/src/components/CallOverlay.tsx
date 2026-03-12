@@ -8,14 +8,12 @@ export function CallOverlay() {
   const localStream = useCallStore((s) => s.localStream);
   const remoteStream = useCallStore((s) => s.remoteStream);
   const audioEnabled = useCallStore((s) => s.audioEnabled);
-  const videoEnabled = useCallStore((s) => s.videoEnabled);
   const speakerOn = useCallStore((s) => s.speakerOn);
-  const { hangup, toggleAudio, toggleVideo, toggleSpeaker, switchCamera, enableVideo } = useCallStore();
+  const { hangup, toggleAudio, toggleSpeaker } = useCallStore();
   const { t } = useTranslation();
 
   if (!activeCall) return null;
 
-  const isVideo = activeCall.type === 'video';
   const participant = activeCall.participants[0];
 
   return (
@@ -31,19 +29,11 @@ export function CallOverlay() {
 
       {/* Main Area */}
       <div className="flex-1 flex items-center justify-center relative">
-        {isVideo ? (
-          <VideoCallView
-            localStream={localStream}
-            remoteStream={remoteStream}
-            participant={participant}
-          />
-        ) : (
-          <VoiceCallView
-            participant={participant}
-            state={activeCall.state}
-            duration={activeCall.duration}
-          />
-        )}
+        <VoiceCallView
+          participant={participant}
+          state={activeCall.state}
+          duration={activeCall.duration}
+        />
       </div>
 
       {/* Controls */}
@@ -65,50 +55,6 @@ export function CallOverlay() {
             active={!audioEnabled}
             onClick={toggleAudio}
           />
-
-          {/* Video toggle */}
-          {isVideo && (
-            <CallButton
-              icon={videoEnabled ? (
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-              ) : (
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                </svg>
-              )}
-              label={videoEnabled ? t.call_stopCamera : t.call_startCamera}
-              active={!videoEnabled}
-              onClick={toggleVideo}
-            />
-          )}
-
-          {/* Switch camera (video only) */}
-          {isVideo && videoEnabled && (
-            <CallButton
-              icon={
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              }
-              label={t.call_switchCamera}
-              onClick={switchCamera}
-            />
-          )}
-
-          {/* Upgrade to video (voice call only) */}
-          {!isVideo && (
-            <CallButton
-              icon={
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-              }
-              label={t.call_enableVideo}
-              onClick={enableVideo}
-            />
-          )}
 
           {/* Speaker */}
           <CallButton
@@ -159,7 +105,7 @@ export function IncomingCallDialog() {
 
         <h2 className="text-xl font-semibold text-white mb-1">{incomingFrom}</h2>
         <p className="text-dark-400 mb-2">
-          {incomingType === 'video' ? t.call_incomingVideo : t.call_incomingVoice}
+          {t.call_incomingVoice}
         </p>
 
         <div className="flex items-center justify-center gap-2 mb-8">
@@ -243,60 +189,6 @@ function VoiceCallView({
         <div className="flex items-center gap-1 text-xs text-yellow-400">
           <span>🔇</span>
           <span>{participant.displayName} {t.call_mutedMic}</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Video Call View ───
-
-function VideoCallView({
-  localStream,
-  remoteStream,
-  participant,
-}: {
-  localStream: MediaStream | null;
-  remoteStream: MediaStream | null;
-  participant?: { displayName: string };
-}) {
-  const { t } = useTranslation();
-
-  return (
-    <div className="w-full h-full relative">
-      {/* Remote Video (full screen) */}
-      {remoteStream ? (
-        <video
-          className="w-full h-full object-cover"
-          autoPlay
-          playsInline
-          ref={(el) => {
-            if (el) el.srcObject = remoteStream;
-          }}
-        />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-32 h-32 rounded-full bg-primary-600 flex items-center justify-center text-5xl font-bold text-white animate-pulse">
-              {participant?.displayName[0]?.toUpperCase() || '?'}
-            </div>
-            <p className="text-dark-400">{t.call_waitingVideo}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Local Video (picture-in-picture) */}
-      {localStream && (
-        <div className="absolute bottom-24 left-4 w-40 h-56 rounded-2xl overflow-hidden shadow-2xl border-2 border-dark-700">
-          <video
-            className="w-full h-full object-cover mirror"
-            autoPlay
-            playsInline
-            muted
-            ref={(el) => {
-              if (el) el.srcObject = localStream;
-            }}
-          />
         </div>
       )}
     </div>
