@@ -1,4 +1,4 @@
-﻿/* ─── Translation keys & 16 locale dictionaries ───────────────── */
+/* --- Translation keys & 16 locale dictionaries ----------------- */
 
 export interface Translations {
   // meta
@@ -270,30 +270,31 @@ export interface Translations {
   identity_dismiss: string;
 }
 
-/* ───── Arabic (العربية) ───── */
+/* ----- Arabic (???????) ----- */
 export const ar: Translations = {
-  langName: 'العربية',
+  langName: '???????',
   langDir: 'rtl',
   langCode: 'ar',
 
-  sidebar_chats: 'المحادثات',
-  sidebar_calls: 'المكالمات',
-  sidebar_contacts: 'جهات الاتصال',
-  sidebar_settings: 'الإعدادات',
+  sidebar_chats: '?????????',
+  sidebar_calls: '?????????',
+  sidebar_contacts: '???? ???????',
+  sidebar_settings: '?????????',
 
-  chatList_title: 'المحادثات',
-  chatList_newChat: 'محادثة جديدة',
-  chatList_search: '🔍 بحث...',
-  chatList_noChats: 'لا توجد محادثات',
-  chatList_noMessages: 'لا توجد رسائل',
+  chatList_title: '?????????',
+  chatList_newChat: '?????? ?????',
+  chatList_search: '?? ???...',
+  chatList_noChats: '?? ???? ???????',
+  chatList_noMessages: '?? ???? ?????',
 
-  chat_user: 'مستخدم',
-  chat_me: 'أنا',
-  chat_members: 'أعضاء',
-  chat_typing: 'يكتب...',
-  chat_voiceCall: 'مكالمة صوتية',
+  chat_user: '??????',
+  chat_me: '???',
+  chat_members: '?????',
+  chat_typing: '????...',
+  chat_voiceCall: '?????? ?????',
+};
 
-/* ───── English ───── */
+/* ----- English ----- */
 export const en: Translations = {
   langName: 'English',
   langDir: 'ltr',
@@ -306,7 +307,7 @@ export const en: Translations = {
 
   chatList_title: 'Chats',
   chatList_newChat: 'New chat',
-  chatList_search: '🔍 Search...',
+  chatList_search: '?? Search...',
   chatList_noChats: 'No chats',
   chatList_noMessages: 'No messages',
 
@@ -315,33 +316,35 @@ export const en: Translations = {
   chat_members: 'members',
   chat_typing: 'typing...',
   chat_voiceCall: 'Voice call',
+};
 
-/* ───── Français ───── */
+/* ----- Fran�ais ----- */
 export const fr: Translations = {
-  langName: 'Français',
+  langName: 'Fran�ais',
   langDir: 'ltr',
   langCode: 'fr',
 
   sidebar_chats: 'Discussions',
   sidebar_calls: 'Appels',
   sidebar_contacts: 'Contacts',
-  sidebar_settings: 'Paramètres',
+  sidebar_settings: 'Param�tres',
 
   chatList_title: 'Discussions',
   chatList_newChat: 'Nouvelle discussion',
-  chatList_search: '🔍 Rechercher...',
+  chatList_search: '?? Rechercher...',
   chatList_noChats: 'Aucune discussion',
   chatList_noMessages: 'Aucun message',
 
   chat_user: 'Utilisateur',
   chat_me: 'Moi',
   chat_members: 'membres',
-  chat_typing: 'écrit...',
+  chat_typing: '�crit...',
   chat_voiceCall: 'Appel vocal',
+};
 
-/* ───── Español ───── */
+/* ----- Espa�ol ----- */
 export const es: Translations = {
-  langName: 'Español',
+  langName: 'Espa�ol',
   langDir: 'ltr',
   langCode: 'es',
 
@@ -352,7 +355,7 @@ export const es: Translations = {
 
   chatList_title: 'Chats',
   chatList_newChat: 'Nuevo chat',
-  chatList_search: '🔍 Buscar...',
+  chatList_search: '?? Buscar...',
   chatList_noChats: 'No hay chats',
   chatList_noMessages: 'No hay mensajes',
 
@@ -361,8 +364,9 @@ export const es: Translations = {
   chat_members: 'miembros',
   chat_typing: 'escribiendo...',
   chat_voiceCall: 'Llamada de voz',
+};
 
-/* ───── Deutsch ───── */
+/* ----- Deutsch ----- */
 export const de: Translations = {
   langName: 'Deutsch',
   langDir: 'ltr',
@@ -375,7 +379,7 @@ export const de: Translations = {
 
   chatList_title: 'Chats',
   chatList_newChat: 'Neuer Chat',
-  chatList_search: '🔍 Suchen...',
+  chatList_search: '?? Suchen...',
   chatList_noChats: 'Keine Chats',
   chatList_noMessages: 'Keine Nachrichten',
 
@@ -384,192 +388,201 @@ export const de: Translations = {
   chat_members: 'Mitglieder',
   chat_typing: 'schreibt...',
   chat_voiceCall: 'Sprachanruf',
+};
 
-/* ───── Türkçe ───── */
+/* ----- T�rk�e ----- */
 export const tr: Translations = {
-  langName: 'Türkçe',
+  langName: 'T�rk�e',
   langDir: 'ltr',
   langCode: 'tr',
 
   sidebar_chats: 'Sohbetler',
   sidebar_calls: 'Aramalar',
-  sidebar_contacts: 'Kişiler',
+  sidebar_contacts: 'Kisiler',
   sidebar_settings: 'Ayarlar',
 
   chatList_title: 'Sohbetler',
   chatList_newChat: 'Yeni sohbet',
-  chatList_search: '🔍 Ara...',
+  chatList_search: '?? Ara...',
   chatList_noChats: 'Sohbet yok',
   chatList_noMessages: 'Mesaj yok',
 
-  chat_user: 'Kullanıcı',
+  chat_user: 'Kullanici',
   chat_me: 'Ben',
-  chat_members: 'üye',
-  chat_typing: 'yazıyor...',
+  chat_members: '�ye',
+  chat_typing: 'yaziyor...',
   chat_voiceCall: 'Sesli arama',
+};
 
-/* ───── فارسی (Persian) ───── */
+/* ----- ????? (Persian) ----- */
 export const fa: Translations = {
-  langName: 'فارسی',
+  langName: '?????',
   langDir: 'rtl',
   langCode: 'fa',
 
-  sidebar_chats: 'گفتگوها',
-  sidebar_calls: 'تماس‌ها',
-  sidebar_contacts: 'مخاطبین',
-  sidebar_settings: 'تنظیمات',
+  sidebar_chats: '???????',
+  sidebar_calls: '???????',
+  sidebar_contacts: '???????',
+  sidebar_settings: '???????',
 
-  chatList_title: 'گفتگوها',
-  chatList_newChat: 'گفتگوی جدید',
-  chatList_search: '🔍 جستجو...',
-  chatList_noChats: 'گفتگویی وجود ندارد',
-  chatList_noMessages: 'پیامی وجود ندارد',
+  chatList_title: '???????',
+  chatList_newChat: '?????? ????',
+  chatList_search: '?? ?????...',
+  chatList_noChats: '??????? ???? ?????',
+  chatList_noMessages: '????? ???? ?????',
 
-  chat_user: 'کاربر',
-  chat_me: 'من',
-  chat_members: 'عضو',
-  chat_typing: 'در حال نوشتن...',
-  chat_voiceCall: 'تماس صوتی',
+  chat_user: '?????',
+  chat_me: '??',
+  chat_members: '???',
+  chat_typing: '?? ??? ?????...',
+  chat_voiceCall: '???? ????',
+};
 
-/* ───── اردو (Urdu) ───── */
+/* ----- ???? (Urdu) ----- */
 export const ur: Translations = {
-  langName: 'اردو',
+  langName: '????',
   langDir: 'rtl',
   langCode: 'ur',
 
-  sidebar_chats: 'چیٹس',
-  sidebar_calls: 'کالز',
-  sidebar_contacts: 'رابطے',
-  sidebar_settings: 'ترتیبات',
+  sidebar_chats: '????',
+  sidebar_calls: '????',
+  sidebar_contacts: '?????',
+  sidebar_settings: '???????',
 
-  chatList_title: 'چیٹس',
-  chatList_newChat: 'نئی چیٹ',
-  chatList_search: '🔍 تلاش...',
-  chatList_noChats: 'کوئی چیٹ نہیں',
-  chatList_noMessages: 'کوئی پیغام نہیں',
+  chatList_title: '????',
+  chatList_newChat: '??? ???',
+  chatList_search: '?? ????...',
+  chatList_noChats: '???? ??? ????',
+  chatList_noMessages: '???? ????? ????',
 
-  chat_user: 'صارف',
-  chat_me: 'میں',
-  chat_members: 'ممبران',
-  chat_typing: 'لکھ رہا ہے...',
-  chat_voiceCall: 'صوتی کال',
+  chat_user: '????',
+  chat_me: '???',
+  chat_members: '??????',
+  chat_typing: '??? ??? ??...',
+  chat_voiceCall: '???? ???',
+};
 
-/* ───── 中文 (Chinese Simplified) ───── */
+/* ----- ?? (Chinese Simplified) ----- */
 export const zh: Translations = {
-  langName: '中文',
+  langName: '??',
   langDir: 'ltr',
   langCode: 'zh',
 
-  sidebar_chats: '聊天',
-  sidebar_calls: '通话',
-  sidebar_contacts: '联系人',
-  sidebar_settings: '设置',
+  sidebar_chats: '??',
+  sidebar_calls: '??',
+  sidebar_contacts: '???',
+  sidebar_settings: '??',
 
-  chatList_title: '聊天',
-  chatList_newChat: '新建聊天',
-  chatList_search: '🔍 搜索...',
-  chatList_noChats: '暂无聊天',
-  chatList_noMessages: '暂无消息',
+  chatList_title: '??',
+  chatList_newChat: '????',
+  chatList_search: '?? ??...',
+  chatList_noChats: '????',
+  chatList_noMessages: '????',
 
-  chat_user: '用户',
-  chat_me: '我',
-  chat_members: '成员',
-  chat_typing: '正在输入...',
-  chat_voiceCall: '语音通话',
+  chat_user: '??',
+  chat_me: '?',
+  chat_members: '??',
+  chat_typing: '????...',
+  chat_voiceCall: '????',
+};
 
-/* ───── 日本語 (Japanese) ───── */
+/* ----- ??? (Japanese) ----- */
 export const ja: Translations = {
-  langName: '日本語',
+  langName: '???',
   langDir: 'ltr',
   langCode: 'ja',
 
-  sidebar_chats: 'チャット',
-  sidebar_calls: '通話',
-  sidebar_contacts: '連絡先',
-  sidebar_settings: '設定',
+  sidebar_chats: '????',
+  sidebar_calls: '??',
+  sidebar_contacts: '???',
+  sidebar_settings: '??',
 
-  chatList_title: 'チャット',
-  chatList_newChat: '新しいチャット',
-  chatList_search: '🔍 検索...',
-  chatList_noChats: 'チャットなし',
-  chatList_noMessages: 'メッセージなし',
+  chatList_title: '????',
+  chatList_newChat: '???????',
+  chatList_search: '?? ??...',
+  chatList_noChats: '??????',
+  chatList_noMessages: '???????',
 
-  chat_user: 'ユーザー',
-  chat_me: '自分',
-  chat_members: 'メンバー',
-  chat_typing: '入力中...',
-  chat_voiceCall: '音声通話',
+  chat_user: '????',
+  chat_me: '??',
+  chat_members: '????',
+  chat_typing: '???...',
+  chat_voiceCall: '????',
+};
 
-/* ───── 한국어 (Korean) ───── */
+/* ----- ??? (Korean) ----- */
 export const ko: Translations = {
-  langName: '한국어',
+  langName: '???',
   langDir: 'ltr',
   langCode: 'ko',
 
-  sidebar_chats: '채팅',
-  sidebar_calls: '통화',
-  sidebar_contacts: '연락처',
-  sidebar_settings: '설정',
+  sidebar_chats: '??',
+  sidebar_calls: '??',
+  sidebar_contacts: '???',
+  sidebar_settings: '??',
 
-  chatList_title: '채팅',
-  chatList_newChat: '새 채팅',
-  chatList_search: '🔍 검색...',
-  chatList_noChats: '채팅 없음',
-  chatList_noMessages: '메시지 없음',
+  chatList_title: '??',
+  chatList_newChat: '? ??',
+  chatList_search: '?? ??...',
+  chatList_noChats: '?? ??',
+  chatList_noMessages: '??? ??',
 
-  chat_user: '사용자',
-  chat_me: '나',
-  chat_members: '멤버',
-  chat_typing: '입력 중...',
-  chat_voiceCall: '음성 통화',
+  chat_user: '???',
+  chat_me: '?',
+  chat_members: '??',
+  chat_typing: '?? ?...',
+  chat_voiceCall: '?? ??',
+};
 
-/* ───── Русский (Russian) ───── */
+/* ----- ??????? (Russian) ----- */
 export const ru: Translations = {
-  langName: 'Русский',
+  langName: '???????',
   langDir: 'ltr',
   langCode: 'ru',
 
-  sidebar_chats: 'Чаты',
-  sidebar_calls: 'Звонки',
-  sidebar_contacts: 'Контакты',
-  sidebar_settings: 'Настройки',
+  sidebar_chats: '????',
+  sidebar_calls: '??????',
+  sidebar_contacts: '????????',
+  sidebar_settings: '?????????',
 
-  chatList_title: 'Чаты',
-  chatList_newChat: 'Новый чат',
-  chatList_search: '🔍 Поиск...',
-  chatList_noChats: 'Нет чатов',
-  chatList_noMessages: 'Нет сообщений',
+  chatList_title: '????',
+  chatList_newChat: '????? ???',
+  chatList_search: '?? ?????...',
+  chatList_noChats: '??? ?????',
+  chatList_noMessages: '??? ?????????',
 
-  chat_user: 'Пользователь',
-  chat_me: 'Я',
-  chat_members: 'участников',
-  chat_typing: 'печатает...',
-  chat_voiceCall: 'Голосовой звонок',
+  chat_user: '????????????',
+  chat_me: '?',
+  chat_members: '??????????',
+  chat_typing: '????????...',
+  chat_voiceCall: '????????? ??????',
+};
 
-/* ───── Português ───── */
+/* ----- Portugu�s ----- */
 export const pt: Translations = {
-  langName: 'Português',
+  langName: 'Portugu�s',
   langDir: 'ltr',
   langCode: 'pt',
 
   sidebar_chats: 'Conversas',
   sidebar_calls: 'Chamadas',
   sidebar_contacts: 'Contatos',
-  sidebar_settings: 'Configurações',
+  sidebar_settings: 'Configura��es',
 
   chatList_title: 'Conversas',
   chatList_newChat: 'Nova conversa',
-  chatList_search: '🔍 Pesquisar...',
+  chatList_search: '?? Pesquisar...',
   chatList_noChats: 'Sem conversas',
   chatList_noMessages: 'Sem mensagens',
 
-  chat_user: 'Usuário',
+  chat_user: 'Usu�rio',
   chat_me: 'Eu',
   chat_members: 'membros',
   chat_typing: 'digitando...',
   chat_voiceCall: 'Chamada de voz',
+};
 
-/* ───── Italiano ───── */
+/* ----- Italiano ----- */
 export const it: Translations = {
   langName: 'Italiano',
   langDir: 'ltr',
@@ -582,7 +595,7 @@ export const it: Translations = {
 
   chatList_title: 'Chat',
   chatList_newChat: 'Nuova chat',
-  chatList_search: '🔍 Cerca...',
+  chatList_search: '?? Cerca...',
   chatList_noChats: 'Nessuna chat',
   chatList_noMessages: 'Nessun messaggio',
 
@@ -591,31 +604,33 @@ export const it: Translations = {
   chat_members: 'membri',
   chat_typing: 'sta scrivendo...',
   chat_voiceCall: 'Chiamata vocale',
+};
 
-/* ───── हिन्दी (Hindi) ───── */
+/* ----- ?????? (Hindi) ----- */
 export const hi: Translations = {
-  langName: 'हिन्दी',
+  langName: '??????',
   langDir: 'ltr',
   langCode: 'hi',
 
-  sidebar_chats: 'चैट',
-  sidebar_calls: 'कॉल',
-  sidebar_contacts: 'संपर्क',
-  sidebar_settings: 'सेटिंग्स',
+  sidebar_chats: '???',
+  sidebar_calls: '???',
+  sidebar_contacts: '??????',
+  sidebar_settings: '????????',
 
-  chatList_title: 'चैट',
-  chatList_newChat: 'नई चैट',
-  chatList_search: '🔍 खोजें...',
-  chatList_noChats: 'कोई चैट नहीं',
-  chatList_noMessages: 'कोई संदेश नहीं',
+  chatList_title: '???',
+  chatList_newChat: '?? ???',
+  chatList_search: '?? ?????...',
+  chatList_noChats: '??? ??? ????',
+  chatList_noMessages: '??? ????? ????',
 
-  chat_user: 'उपयोगकर्ता',
-  chat_me: 'मैं',
-  chat_members: 'सदस्य',
-  chat_typing: 'टाइप कर रहा है...',
-  chat_voiceCall: 'वॉइस कॉल',
+  chat_user: '??????????',
+  chat_me: '???',
+  chat_members: '?????',
+  chat_typing: '???? ?? ??? ??...',
+  chat_voiceCall: '???? ???',
+};
 
-/* ───── Bahasa Indonesia ───── */
+/* ----- Bahasa Indonesia ----- */
 export const id: Translations = {
   langName: 'Bahasa Indonesia',
   langDir: 'ltr',
@@ -628,7 +643,7 @@ export const id: Translations = {
 
   chatList_title: 'Obrolan',
   chatList_newChat: 'Obrolan baru',
-  chatList_search: '🔍 Cari...',
+  chatList_search: '?? Cari...',
   chatList_noChats: 'Tidak ada obrolan',
   chatList_noMessages: 'Tidak ada pesan',
 
@@ -637,8 +652,9 @@ export const id: Translations = {
   chat_members: 'anggota',
   chat_typing: 'mengetik...',
   chat_voiceCall: 'Panggilan suara',
+};
 
-/* ───── Nederlands ───── */
+/* ----- Nederlands ----- */
 export const nl: Translations = {
   langName: 'Nederlands',
   langDir: 'ltr',
@@ -651,7 +667,7 @@ export const nl: Translations = {
 
   chatList_title: 'Chats',
   chatList_newChat: 'Nieuwe chat',
-  chatList_search: '🔍 Zoeken...',
+  chatList_search: '?? Zoeken...',
   chatList_noChats: 'Geen chats',
   chatList_noMessages: 'Geen berichten',
 
@@ -660,8 +676,9 @@ export const nl: Translations = {
   chat_members: 'leden',
   chat_typing: 'aan het typen...',
   chat_voiceCall: 'Spraakoproep',
+};
 
-/* ───── Locale registry ───── */
+/* ----- Locale registry ----- */
 export const locales: Record<string, Translations> = {
   ar, en, fr, es, de, tr, fa, ur, zh, ja, ko, ru, pt, it, hi, id, nl,
 };

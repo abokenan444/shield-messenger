@@ -22,6 +22,7 @@ export function PublicNav() {
   const navLinks = [
     { to: '/home', label: lt.nav_home, hash: '' },
     { to: '/home#features', label: lt.nav_features, hash: 'features' },
+    { to: '/aethernet', label: lt.nav_aethernet, hash: '' },
     { to: '/pricing', label: lt.nav_pricing, hash: '' },
     { to: '/faq', label: lt.nav_faq, hash: '' },
     { to: '/blog', label: lt.nav_blog, hash: '' },

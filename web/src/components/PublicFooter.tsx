@@ -43,6 +43,8 @@ export function PublicFooter() {
               <Link to="/terms" className="block text-dark-400 text-sm hover:text-primary-400 transition-colors">{lt.nav_terms}</Link>
               <Link to="/transparency" className="block text-dark-400 text-sm hover:text-primary-400 transition-colors">{lt.nav_transparency}</Link>
               <Link to="/whitepaper" className="block text-dark-400 text-sm hover:text-primary-400 transition-colors">Whitepaper</Link>
+              <Link to="/aethernet" className="block text-dark-400 text-sm hover:text-primary-400 transition-colors">{lt.nav_aethernet}</Link>
+              <Link to="/tplink-setup" className="block text-dark-400 text-sm hover:text-primary-400 transition-colors">{lt.nav_tplink}</Link>
             </div>
           </div>
 

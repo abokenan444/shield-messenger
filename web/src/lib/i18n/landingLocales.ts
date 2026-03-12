@@ -228,6 +228,115 @@ export interface LandingT {
   wp_closing: string;
   wp_diagram_handshake_title: string;
   wp_diagram_network_title: string;
+
+  // AetherNet page
+  an_title: string;
+  an_subtitle: string;
+  an_what_title: string;
+  an_what_body: string;
+  an_tor_name: string;
+  an_tor_desc: string;
+  an_tor_badge: string;
+  an_i2p_name: string;
+  an_i2p_desc: string;
+  an_i2p_badge: string;
+  an_mesh_name: string;
+  an_mesh_desc: string;
+  an_mesh_badge: string;
+  an_switch_title: string;
+  an_switch_body: string;
+  an_factor_anonymity: string;
+  an_factor_latency: string;
+  an_factor_reliability: string;
+  an_factor_bandwidth: string;
+  an_factor_battery: string;
+  an_factor_threat: string;
+  an_crisis_title: string;
+  an_crisis_body: string;
+  an_crisis_f1: string;
+  an_crisis_f2: string;
+  an_crisis_f3: string;
+  an_crisis_f4: string;
+  an_store_title: string;
+  an_store_body: string;
+  an_store_f1: string;
+  an_store_f2: string;
+  an_store_f3: string;
+  an_store_f4: string;
+  an_trust_title: string;
+  an_trust_body: string;
+  an_trust_stat1: string;
+  an_trust_stat2: string;
+  an_trust_stat3: string;
+  an_solidarity_title: string;
+  an_solidarity_body: string;
+  an_solidarity_f1: string;
+  an_solidarity_f2: string;
+  an_solidarity_f3: string;
+  an_solidarity_f4: string;
+  an_setup_title: string;
+  an_setup_body: string;
+  an_setup_cta: string;
+  nav_aethernet: string;
+  nav_tplink: string;
+
+  // TP-Link Setup page
+  tp_back: string;
+  tp_title: string;
+  tp_intro: string;
+  tp_req_title: string;
+  tp_req1: string;
+  tp_req2: string;
+  tp_req3: string;
+  tp_req4: string;
+  tp_models_title: string;
+  tp_models_body: string;
+  tp_model_rec: string;
+  tp_model_adv: string;
+  tp_model_single: string;
+  tp_model_range: string;
+  tp_step1_title: string;
+  tp_step1_body: string;
+  tp_step1_s1: string;
+  tp_step1_s2: string;
+  tp_step1_s3: string;
+  tp_step1_s4: string;
+  tp_step2_title: string;
+  tp_step2_body: string;
+  tp_step2_s1: string;
+  tp_step2_s2: string;
+  tp_step2_s3: string;
+  tp_step2_s4: string;
+  tp_step2_warn: string;
+  tp_step3_title: string;
+  tp_step3_body: string;
+  tp_step3_s1: string;
+  tp_step3_s2: string;
+  tp_step3_s3: string;
+  tp_step3_s4: string;
+  tp_step4_title: string;
+  tp_step4_body: string;
+  tp_step4_s1: string;
+  tp_step4_s2: string;
+  tp_step4_s3: string;
+  tp_step5_title: string;
+  tp_step5_body: string;
+  tp_step5_note: string;
+  tp_step6_title: string;
+  tp_step6_body: string;
+  tp_test1: string;
+  tp_test2: string;
+  tp_test3: string;
+  tp_test4: string;
+  tp_trouble_title: string;
+  tp_trouble_q1: string;
+  tp_trouble_a1: string;
+  tp_trouble_q2: string;
+  tp_trouble_a2: string;
+  tp_trouble_q3: string;
+  tp_trouble_a3: string;
+  tp_cta: string;
+  tp_updated: string;
 }
 
 /* ═══ Arabic ═══ */
@@ -436,6 +545,115 @@ const ar: LandingT = {
   wp_closing: 'Shield Messenger مبني على مبدأ بسيط: بياناتك ملكك أنت فقط. لا نجمعها، لا نخزّنها، ولا نستطيع قراءتها حتى لو أردنا. هذا ليس وعداً تسويقياً — إنه واقع تقني يمكن لأي خبير التحقق منه في الكود المفتوح المصدر.',
   wp_diagram_handshake_title: 'مخطط عملية التعارف الثلاثية (Hybrid Handshake)',
   wp_diagram_network_title: 'مخطط عمارة الشبكة (Network Architecture)',
+
+  // AetherNet
+  an_title: 'AetherNet — شبكة لامركزية ذكية',
+  an_subtitle: 'طبقة الشبكات من الجيل التالي التي تجمع بين Tor و I2P والشبكة المحلية في نظام موحّد ذكي — لضمان وصول رسائلك دائماً عبر المسار الأكثر أمانًا.',
+  an_what_title: 'ما هو AetherNet؟',
+  an_what_body: 'AetherNet هو محرك شبكات متعدد النقل يتنقل ديناميكياً بين ثلاث شبكات خصوصية مختلفة. يختار تلقائياً المسار الأمثل بناءً على ظروف الشبكة ومستوى التهديد وتوفر الاتصال.',
+  an_tor_name: 'Tor — شبكة البصل',
+  an_tor_desc: 'توجيه مشفّر عبر دوائر بصلية متعددة العقد. مثالي للرسائل والمكالمات عبر الإنترنت مع أقصى إخفاء للهوية.',
+  an_tor_badge: 'إخفاء عالي جداً',
+  an_i2p_name: 'I2P — شبكة الثوم',
+  an_i2p_desc: 'أنفاق مشفرة عبر بروتوكول الثوم. أفضل لنقل الملفات الكبيرة مع حماية عالية وتكرار البيانات.',
+  an_i2p_badge: 'نقل ملفات سريع',
+  an_mesh_name: 'LibreMesh — الشبكة المحلية',
+  an_mesh_desc: 'شبكة محلية عبر البلوتوث و Wi-Fi Direct و LoRa. تعمل بدون إنترنت — مثالية لحالات الطوارئ والأزمات.',
+  an_mesh_badge: 'يعمل بدون إنترنت',
+  an_switch_title: 'محرك التبديل الذكي',
+  an_switch_body: 'يقيّم كل وسيلة نقل في الوقت الفعلي ويختار المسار الأمثل تلقائياً بناءً على عدة عوامل:',
+  an_factor_anonymity: 'إخفاء الهوية',
+  an_factor_latency: 'وقت الاستجابة',
+  an_factor_reliability: 'الموثوقية',
+  an_factor_bandwidth: 'عرض النطاق',
+  an_factor_battery: 'استهلاك البطارية',
+  an_factor_threat: 'مستوى التهديد',
+  an_crisis_title: 'وضع الأزمات',
+  an_crisis_body: 'يتم تفعيله تلقائياً أو يدوياً عند اكتشاف تهديدات. يوفر أقصى حماية ممكنة مع تدابير متعددة ضد التحليل والمراقبة.',
+  an_crisis_f1: 'إرسال متزامن عبر جميع الشبكات المتاحة لضمان التسليم',
+  an_crisis_f2: 'حشو الرسائل لحجم ثابت لمنع تحليل حركة المرور',
+  an_crisis_f3: 'توليد حركة وهمية لإخفاء الاتصالات الحقيقية',
+  an_crisis_f4: 'تدوير مفاتيح التشفير مع كل رسالة',
+  an_store_title: 'التخزين وإعادة الإرسال',
+  an_store_body: 'عندما لا تتوفر أي شبكة، يتم تخزين الرسائل محلياً بأمان وإعادة إرسالها تلقائياً عند عودة الاتصال.',
+  an_store_f1: 'الرسائل مشفرة في حالة السكون بمفتاح المستلم',
+  an_store_f2: 'ترتيب حسب الأولوية: عاجل > عادي > مجمّع',
+  an_store_f3: 'إعادة المحاولة تلقائياً مع تراجع أسي',
+  an_store_f4: 'انتهاء الصلاحية بعد 7 أيام (قابل للتعديل)',
+  an_trust_title: 'خريطة الثقة',
+  an_trust_body: 'نظام سمعة محلي لعقد الشبكة المحلية. يتم حساب درجات الثقة على جهازك فقط ولا تتم مشاركتها أبداً.',
+  an_trust_stat1: 'محلي بالكامل',
+  an_trust_stat2: 'بيانات مشاركة',
+  an_trust_stat3: 'خصوصية',
+  an_solidarity_title: 'بروتوكول التضامن',
+  an_solidarity_body: 'طبقة شبكية للمساعدة المتبادلة حيث يمكن للمستخدمين التطوع لترحيل الرسائل مع حماية كاملة.',
+  an_solidarity_f1: 'ترحيل طوعي اختياري بالكامل',
+  an_solidarity_f2: 'تشفير بصلي حتى لا يستطيع المُرحّل قراءة المحتوى',
+  an_solidarity_f3: 'نظام أرصدة محلي لتحديد أولوية الرسائل',
+  an_solidarity_f4: 'حدود عرض نطاق يومية قابلة للتعديل',
+  an_setup_title: 'هل تريد تعزيز شبكتك المحلية؟',
+  an_setup_body: 'اعرف كيف تهيّئ جهاز TP-Link لدعم شبكة AetherNet المحلية والحصول على أفضل أداء.',
+  an_setup_cta: 'دليل تهيئة TP-Link',
+  nav_aethernet: 'AetherNet',
+  nav_tplink: 'إعداد TP-Link',
+
+  // TP-Link Setup
+  tp_back: 'العودة إلى AetherNet',
+  tp_title: 'دليل تهيئة TP-Link لشبكة AetherNet',
+  tp_intro: 'تعلّم كيف تهيّئ جهاز TP-Link الخاص بك لدعم شبكة AetherNet المحلية. يمكنك إنشاء شبكة آمنة لامركزية باستخدام أجهزة TP-Link Mesh أو أي راوتر يدعم OpenWrt.',
+  tp_req_title: 'المتطلبات الأساسية',
+  tp_req1: 'جهاز TP-Link Deco أو راوتر TP-Link يدعم OpenWrt',
+  tp_req2: 'تطبيق TP-Link Deco (متوفر على Android و iOS)',
+  tp_req3: 'هاتف ذكي مثبّت عليه Shield Messenger',
+  tp_req4: 'اتصال إنترنت للإعداد الأولي (اختياري للعمل اللاحق)',
+  tp_models_title: 'الموديلات المتوافقة',
+  tp_models_body: 'جميع أجهزة TP-Link Deco تدعم الشبكة المحلية. الموديلات التالية مُوصى بها:',
+  tp_model_rec: 'مُوصى به',
+  tp_model_adv: 'متقدم',
+  tp_model_single: 'فردي',
+  tp_model_range: 'موسّع',
+  tp_step1_title: 'إعداد جهاز TP-Link Deco',
+  tp_step1_body: 'ابدأ بتوصيل جهاز Deco الرئيسي وإعداده عبر التطبيق:',
+  tp_step1_s1: 'حمّل تطبيق TP-Link Deco من متجر التطبيقات وأنشئ حساب TP-Link.',
+  tp_step1_s2: 'وصّل جهاز Deco الرئيسي بالمودم عبر كابل Ethernet.',
+  tp_step1_s3: 'افتح التطبيق واتّبع خطوات الإعداد لإضافة الجهاز.',
+  tp_step1_s4: 'أنشئ شبكة Wi-Fi جديدة باسم وكلمة مرور قويين.',
+  tp_step2_title: 'تكوين الشبكة',
+  tp_step2_body: 'هيّئ الشبكة لدعم AetherNet بأفضل أداء:',
+  tp_step2_s1: 'من التطبيق: اذهب إلى الإعدادات المتقدمة → الشبكة.',
+  tp_step2_s2: 'فعّل "وضع الجسر" (Bridge Mode) إذا كنت تستخدم مودم موجود.',
+  tp_step2_s3: 'في إعدادات DHCP: خصّص نطاق IP ثابت لأجهزة Shield Messenger.',
+  tp_step2_s4: 'فعّل UPnP لتسهيل اكتشاف الأجهزة على الشبكة المحلية.',
+  tp_step2_warn: 'تأكد من تفعيل تشفير WPA3 (أو WPA2 كحد أدنى) لحماية الشبكة اللاسلكية.',
+  tp_step3_title: 'إعداد الشبكة المحلية Mesh',
+  tp_step3_body: 'أضف أجهزة Deco إضافية لتوسيع نطاق الشبكة:',
+  tp_step3_s1: 'ضع أجهزة Deco الإضافية في مواقع استراتيجية (كل 10-15 متراً).',
+  tp_step3_s2: 'من التطبيق: اضغط "+" لإضافة وحدة Deco جديدة.',
+  tp_step3_s3: 'انتظر حتى يتصل الجهاز تلقائياً بالشبكة المحلية.',
+  tp_step3_s4: 'تحقق من مؤشر LED — الأخضر يعني اتصال جيد.',
+  tp_step4_title: 'ربط Shield Messenger بالشبكة',
+  tp_step4_body: 'بعد إعداد TP-Link، هيّئ Shield Messenger:',
+  tp_step4_s1: 'افتح Shield Messenger → الإعدادات → AetherNet.',
+  tp_step4_s2: 'فعّل "الشبكة المحلية" (LibreMesh) واختر الشبكة.',
+  tp_step4_s3: 'سيكتشف التطبيق تلقائياً أجهزة Shield الأخرى على نفس الشبكة.',
+  tp_step5_title: 'إعداد متقدم — OpenWrt + Tor',
+  tp_step5_body: 'للمستخدمين المتقدمين: يمكنك تثبيت OpenWrt على بعض أجهزة TP-Link وتشغيل Tor مباشرةً على الراوتر. هذا يوفر حماية إضافية لجميع أجهزة الشبكة.',
+  tp_step5_note: 'ملاحظة: تثبيت OpenWrt يلغي ضمان الجهاز. تأكد من توافق موديلك قبل المتابعة.',
+  tp_step6_title: 'اختبار الإعداد',
+  tp_step6_body: 'تأكد من عمل كل شيء بشكل صحيح:',
+  tp_test1: 'اتصال Wi-Fi مستقر وقوي',
+  tp_test2: 'أجهزة Shield Messenger مكتشفة على الشبكة',
+  tp_test3: 'الرسائل تُرسل عبر الشبكة المحلية',
+  tp_test4: 'Tor يعمل عبر الراوتر (إعداد متقدم)',
+  tp_trouble_title: 'حل المشاكل',
+  tp_trouble_q1: 'لا يتم اكتشاف أجهزة أخرى على الشبكة',
+  tp_trouble_a1: 'تأكد من تواجد جميع الأجهزة على نفس الشبكة، وأن UPnP مفعّل. أعد تشغيل التطبيق وانتظر 30 ثانية.',
+  tp_trouble_q2: 'الاتصال بطيء بين أجهزة Deco',
+  tp_trouble_a2: 'قرّب أجهزة Deco من بعضها (لا تتجاوز 15 متراً). تجنّب وضعها خلف جدران سميكة أو أجسام معدنية.',
+  tp_trouble_q3: 'Tor لا يعمل على OpenWrt',
+  tp_trouble_a3: 'تحقق من الذاكرة المتوفرة (يحتاج Tor 32 ميجابايت كحد أدنى). تأكد من فتح المنفذ 9050 في جدار الحماية.',
+  tp_cta: 'تحميل Shield Messenger',
+  tp_updated: 'آخر تحديث: مارس 2026',
 };
 
 /* ═══ English ═══ */
@@ -644,6 +862,115 @@ const en: LandingT = {
   wp_closing: 'Shield Messenger is built on a simple principle: your data belongs to you alone. We don\'t collect it, we don\'t store it, and we can\'t read it even if we wanted to. This isn\'t a marketing promise — it\'s a technical reality that any expert can verify in our open-source code.',
   wp_diagram_handshake_title: 'Three-Phase Friend Request (Hybrid Handshake)',
   wp_diagram_network_title: 'Network Architecture',
+
+  // AetherNet
+  an_title: 'AetherNet — Intelligent Decentralized Mesh',
+  an_subtitle: 'The next-generation networking layer that combines Tor, I2P, and local mesh into a unified intelligent system — ensuring your messages always reach their destination via the most secure path.',
+  an_what_title: 'What is AetherNet?',
+  an_what_body: 'AetherNet is a multi-transport networking engine that dynamically switches between three different privacy networks. It automatically selects the optimal path based on network conditions, threat level, and connectivity availability.',
+  an_tor_name: 'Tor — The Onion Network',
+  an_tor_desc: 'Multi-hop onion-routed circuits for maximum anonymity. Ideal for messaging and calls over the internet with full identity concealment.',
+  an_tor_badge: 'Very High Anonymity',
+  an_i2p_name: 'I2P — The Garlic Network',
+  an_i2p_desc: 'Garlic-routed encrypted tunnels. Best for large file transfers with high protection and data redundancy.',
+  an_i2p_badge: 'Fast File Transfer',
+  an_mesh_name: 'LibreMesh — Local Network',
+  an_mesh_desc: 'Local mesh via Bluetooth, Wi-Fi Direct, and LoRa. Works without internet — perfect for emergencies and crisis situations.',
+  an_mesh_badge: 'Works Offline',
+  an_switch_title: 'Smart Switching Engine',
+  an_switch_body: 'Evaluates each transport in real-time and automatically selects the optimal path based on multiple factors:',
+  an_factor_anonymity: 'Anonymity',
+  an_factor_latency: 'Latency',
+  an_factor_reliability: 'Reliability',
+  an_factor_bandwidth: 'Bandwidth',
+  an_factor_battery: 'Battery Usage',
+  an_factor_threat: 'Threat Level',
+  an_crisis_title: 'Crisis Mode',
+  an_crisis_body: 'Automatically or manually activated when threats are detected. Provides maximum possible protection with multiple anti-analysis and anti-surveillance measures.',
+  an_crisis_f1: 'Simultaneous delivery via all available networks',
+  an_crisis_f2: 'Fixed-size message padding to prevent traffic analysis',
+  an_crisis_f3: 'Dummy traffic generation to mask real communications',
+  an_crisis_f4: 'Per-message encryption key rotation',
+  an_store_title: 'Store & Forward',
+  an_store_body: 'When no network is available, messages are securely stored locally and automatically resent when connectivity returns.',
+  an_store_f1: 'Messages encrypted at rest with recipient\'s key',
+  an_store_f2: 'Priority ordering: Urgent > Normal > Bulk',
+  an_store_f3: 'Automatic retry with exponential backoff',
+  an_store_f4: 'Expiry after 7 days (configurable)',
+  an_trust_title: 'Trust Map',
+  an_trust_body: 'A local reputation system for mesh network nodes. Trust scores are computed on your device only and never shared.',
+  an_trust_stat1: 'Fully Local',
+  an_trust_stat2: 'Data Shared',
+  an_trust_stat3: 'Privacy',
+  an_solidarity_title: 'Solidarity Protocol',
+  an_solidarity_body: 'A mutual-aid networking layer where users can volunteer to relay messages with full privacy protection.',
+  an_solidarity_f1: 'Completely opt-in voluntary relay',
+  an_solidarity_f2: 'Onion encryption — relays cannot read content',
+  an_solidarity_f3: 'Local credits system for message prioritization',
+  an_solidarity_f4: 'Configurable daily bandwidth limits',
+  an_setup_title: 'Want to boost your local network?',
+  an_setup_body: 'Learn how to configure a TP-Link device to support AetherNet local mesh and get the best performance.',
+  an_setup_cta: 'TP-Link Setup Guide',
+  nav_aethernet: 'AetherNet',
+  nav_tplink: 'TP-Link Setup',
+
+  // TP-Link Setup
+  tp_back: 'Back to AetherNet',
+  tp_title: 'TP-Link Setup Guide for AetherNet',
+  tp_intro: 'Learn how to configure your TP-Link device to support the AetherNet local mesh network. Create a secure decentralized network using TP-Link Mesh devices or any router supporting OpenWrt.',
+  tp_req_title: 'Requirements',
+  tp_req1: 'TP-Link Deco device or TP-Link router with OpenWrt support',
+  tp_req2: 'TP-Link Deco app (available on Android and iOS)',
+  tp_req3: 'Smartphone with Shield Messenger installed',
+  tp_req4: 'Internet connection for initial setup (optional for later use)',
+  tp_models_title: 'Compatible Models',
+  tp_models_body: 'All TP-Link Deco devices support local mesh. The following models are recommended:',
+  tp_model_rec: 'Recommended',
+  tp_model_adv: 'Advanced',
+  tp_model_single: 'Single',
+  tp_model_range: 'Extender',
+  tp_step1_title: 'TP-Link Deco Initial Setup',
+  tp_step1_body: 'Start by connecting the main Deco unit and setting it up via the app:',
+  tp_step1_s1: 'Download the TP-Link Deco app and create a TP-Link account.',
+  tp_step1_s2: 'Connect the main Deco unit to your modem via Ethernet cable.',
+  tp_step1_s3: 'Open the app and follow the setup steps to add the device.',
+  tp_step1_s4: 'Create a new Wi-Fi network with a strong name and password.',
+  tp_step2_title: 'Network Configuration',
+  tp_step2_body: 'Configure the network for optimal AetherNet performance:',
+  tp_step2_s1: 'In the app: go to Advanced Settings → Network.',
+  tp_step2_s2: 'Enable Bridge Mode if you\'re using an existing modem.',
+  tp_step2_s3: 'In DHCP settings: assign static IPs for Shield Messenger devices.',
+  tp_step2_s4: 'Enable UPnP for easy device discovery on the local network.',
+  tp_step2_warn: 'Make sure WPA3 encryption (or WPA2 minimum) is enabled to protect the wireless network.',
+  tp_step3_title: 'Mesh Network Setup',
+  tp_step3_body: 'Add additional Deco units to extend network coverage:',
+  tp_step3_s1: 'Place additional Deco units at strategic locations (every 10-15 meters).',
+  tp_step3_s2: 'In the app: press "+" to add a new Deco unit.',
+  tp_step3_s3: 'Wait for the device to automatically connect to the local network.',
+  tp_step3_s4: 'Check the LED indicator — green means good connection.',
+  tp_step4_title: 'Connect Shield Messenger',
+  tp_step4_body: 'After TP-Link setup, configure Shield Messenger:',
+  tp_step4_s1: 'Open Shield Messenger → Settings → AetherNet.',
+  tp_step4_s2: 'Enable "Local Mesh" (LibreMesh) and select the network.',
+  tp_step4_s3: 'The app will automatically discover other Shield devices on the same network.',
+  tp_step5_title: 'Advanced — OpenWrt + Tor',
+  tp_step5_body: 'For advanced users: you can install OpenWrt on compatible TP-Link devices and run Tor directly on the router. This provides additional protection for all network devices.',
+  tp_step5_note: 'Note: Installing OpenWrt voids the device warranty. Verify your model\'s compatibility before proceeding.',
+  tp_step6_title: 'Test the Setup',
+  tp_step6_body: 'Verify everything is working correctly:',
+  tp_test1: 'Stable and strong Wi-Fi connection',
+  tp_test2: 'Shield Messenger devices discovered on network',
+  tp_test3: 'Messages sent via local mesh',
+  tp_test4: 'Tor running through the router (advanced setup)',
+  tp_trouble_title: 'Troubleshooting',
+  tp_trouble_q1: 'Other devices not discovered on the network',
+  tp_trouble_a1: 'Make sure all devices are on the same network and UPnP is enabled. Restart the app and wait 30 seconds.',
+  tp_trouble_q2: 'Slow connection between Deco units',
+  tp_trouble_a2: 'Move Deco units closer together (max 15 meters apart). Avoid placing them behind thick walls or metal objects.',
+  tp_trouble_q3: 'Tor not working on OpenWrt',
+  tp_trouble_a3: 'Check available memory (Tor needs at least 32MB). Make sure port 9050 is open in the firewall.',
+  tp_cta: 'Download Shield Messenger',
+  tp_updated: 'Last updated: March 2026',
 };
 
 /* ═══ Français ═══ */
@@ -852,6 +1179,115 @@ const fr: LandingT = {
   wp_closing: 'Shield Messenger repose sur un principe simple : vos données vous appartiennent. Nous ne les collectons pas, ne les stockons pas, et ne pouvons pas les lire. C\'est une réalité technique vérifiable dans notre code open source.',
   wp_diagram_handshake_title: 'Processus de demande d\'ami en trois phases (Handshake hybride)',
   wp_diagram_network_title: 'Architecture réseau',
+
+  // AetherNet
+  an_title: 'AetherNet — Réseau Maillé Décentralisé Intelligent',
+  an_subtitle: 'La couche réseau de nouvelle génération combinant Tor, I2P et mesh local en un système unifié intelligent — garantissant que vos messages arrivent toujours par le chemin le plus sûr.',
+  an_what_title: 'Qu\'est-ce qu\'AetherNet ?',
+  an_what_body: 'AetherNet est un moteur réseau multi-transport qui bascule dynamiquement entre trois réseaux de confidentialité. Il sélectionne automatiquement le chemin optimal selon les conditions réseau, le niveau de menace et la connectivité.',
+  an_tor_name: 'Tor — Le Réseau Oignon',
+  an_tor_desc: 'Circuits routés en oignon multi-sauts pour un anonymat maximal. Idéal pour la messagerie et les appels via Internet.',
+  an_tor_badge: 'Anonymat Très Élevé',
+  an_i2p_name: 'I2P — Le Réseau Ail',
+  an_i2p_desc: 'Tunnels chiffrés par routage en ail. Optimal pour les transferts de fichiers volumineux avec haute protection.',
+  an_i2p_badge: 'Transfert Rapide',
+  an_mesh_name: 'LibreMesh — Réseau Local',
+  an_mesh_desc: 'Réseau local via Bluetooth, Wi-Fi Direct et LoRa. Fonctionne sans Internet — parfait pour les urgences.',
+  an_mesh_badge: 'Fonctionne Hors Ligne',
+  an_switch_title: 'Moteur de Commutation Intelligent',
+  an_switch_body: 'Évalue chaque transport en temps réel et sélectionne automatiquement le chemin optimal :',
+  an_factor_anonymity: 'Anonymat',
+  an_factor_latency: 'Latence',
+  an_factor_reliability: 'Fiabilité',
+  an_factor_bandwidth: 'Bande Passante',
+  an_factor_battery: 'Autonomie',
+  an_factor_threat: 'Niveau de Menace',
+  an_crisis_title: 'Mode Crise',
+  an_crisis_body: 'Activé automatiquement ou manuellement lors de la détection de menaces. Protection maximale avec des mesures anti-analyse et anti-surveillance.',
+  an_crisis_f1: 'Envoi simultané via tous les réseaux disponibles',
+  an_crisis_f2: 'Remplissage des messages à taille fixe contre l\'analyse de trafic',
+  an_crisis_f3: 'Génération de trafic factice pour masquer les communications',
+  an_crisis_f4: 'Rotation des clés de chiffrement à chaque message',
+  an_store_title: 'Stockage et Retransmission',
+  an_store_body: 'Quand aucun réseau n\'est disponible, les messages sont stockés localement en sécurité et retransmis automatiquement.',
+  an_store_f1: 'Messages chiffrés au repos avec la clé du destinataire',
+  an_store_f2: 'Priorité : Urgent > Normal > Groupé',
+  an_store_f3: 'Renvoi automatique avec temporisation exponentielle',
+  an_store_f4: 'Expiration après 7 jours (configurable)',
+  an_trust_title: 'Carte de Confiance',
+  an_trust_body: 'Système de réputation local pour les nœuds du réseau mesh. Les scores sont calculés sur votre appareil uniquement.',
+  an_trust_stat1: 'Entièrement Local',
+  an_trust_stat2: 'Données Partagées',
+  an_trust_stat3: 'Confidentialité',
+  an_solidarity_title: 'Protocole de Solidarité',
+  an_solidarity_body: 'Une couche d\'entraide où les utilisateurs peuvent relayer volontairement les messages avec une protection totale.',
+  an_solidarity_f1: 'Relais volontaire et optionnel',
+  an_solidarity_f2: 'Chiffrement en oignon — les relais ne peuvent pas lire le contenu',
+  an_solidarity_f3: 'Système de crédits local pour la priorisation',
+  an_solidarity_f4: 'Limites de bande passante quotidiennes configurables',
+  an_setup_title: 'Envie de booster votre réseau local ?',
+  an_setup_body: 'Découvrez comment configurer un appareil TP-Link pour le réseau mesh AetherNet.',
+  an_setup_cta: 'Guide de Configuration TP-Link',
+  nav_aethernet: 'AetherNet',
+  nav_tplink: 'Configuration TP-Link',
+
+  // TP-Link Setup
+  tp_back: 'Retour à AetherNet',
+  tp_title: 'Guide de Configuration TP-Link pour AetherNet',
+  tp_intro: 'Apprenez à configurer votre appareil TP-Link pour le réseau mesh local AetherNet.',
+  tp_req_title: 'Prérequis',
+  tp_req1: 'Appareil TP-Link Deco ou routeur TP-Link compatible OpenWrt',
+  tp_req2: 'Application TP-Link Deco (Android et iOS)',
+  tp_req3: 'Smartphone avec Shield Messenger installé',
+  tp_req4: 'Connexion Internet pour la configuration initiale (optionnelle ensuite)',
+  tp_models_title: 'Modèles Compatibles',
+  tp_models_body: 'Tous les appareils TP-Link Deco supportent le mesh local. Modèles recommandés :',
+  tp_model_rec: 'Recommandé',
+  tp_model_adv: 'Avancé',
+  tp_model_single: 'Individuel',
+  tp_model_range: 'Répéteur',
+  tp_step1_title: 'Configuration Initiale du Deco',
+  tp_step1_body: 'Commencez par connecter l\'unité Deco principale :',
+  tp_step1_s1: 'Téléchargez l\'application TP-Link Deco et créez un compte.',
+  tp_step1_s2: 'Connectez le Deco principal à votre modem via câble Ethernet.',
+  tp_step1_s3: 'Ouvrez l\'application et suivez les étapes de configuration.',
+  tp_step1_s4: 'Créez un réseau Wi-Fi avec un nom et mot de passe forts.',
+  tp_step2_title: 'Configuration Réseau',
+  tp_step2_body: 'Configurez le réseau pour des performances AetherNet optimales :',
+  tp_step2_s1: 'Dans l\'application : Paramètres Avancés → Réseau.',
+  tp_step2_s2: 'Activez le Mode Bridge si vous utilisez un modem existant.',
+  tp_step2_s3: 'Dans les paramètres DHCP : attribuez des IP statiques aux appareils Shield.',
+  tp_step2_s4: 'Activez UPnP pour la découverte automatique des appareils.',
+  tp_step2_warn: 'Assurez-vous que le chiffrement WPA3 (ou WPA2 minimum) est activé.',
+  tp_step3_title: 'Configuration du Réseau Mesh',
+  tp_step3_body: 'Ajoutez des unités Deco supplémentaires :',
+  tp_step3_s1: 'Placez les unités Deco tous les 10-15 mètres.',
+  tp_step3_s2: 'Dans l\'application : appuyez sur "+" pour ajouter une unité.',
+  tp_step3_s3: 'Attendez la connexion automatique au réseau.',
+  tp_step3_s4: 'Vérifiez le LED — vert signifie bonne connexion.',
+  tp_step4_title: 'Connecter Shield Messenger',
+  tp_step4_body: 'Après la configuration TP-Link :',
+  tp_step4_s1: 'Ouvrez Shield Messenger → Paramètres → AetherNet.',
+  tp_step4_s2: 'Activez "Réseau Local" (LibreMesh) et sélectionnez le réseau.',
+  tp_step4_s3: 'L\'application découvrira automatiquement les autres appareils Shield.',
+  tp_step5_title: 'Avancé — OpenWrt + Tor',
+  tp_step5_body: 'Pour les utilisateurs avancés : installez OpenWrt et Tor directement sur le routeur.',
+  tp_step5_note: 'Attention : l\'installation d\'OpenWrt annule la garantie. Vérifiez la compatibilité de votre modèle.',
+  tp_step6_title: 'Tester la Configuration',
+  tp_step6_body: 'Vérifiez que tout fonctionne correctement :',
+  tp_test1: 'Connexion Wi-Fi stable et forte',
+  tp_test2: 'Appareils Shield découverts sur le réseau',
+  tp_test3: 'Messages envoyés via le mesh local',
+  tp_test4: 'Tor fonctionnel via le routeur (config avancée)',
+  tp_trouble_title: 'Dépannage',
+  tp_trouble_q1: 'Aucun appareil découvert sur le réseau',
+  tp_trouble_a1: 'Vérifiez que tous les appareils sont sur le même réseau avec UPnP activé. Redémarrez l\'application.',
+  tp_trouble_q2: 'Connexion lente entre les unités Deco',
+  tp_trouble_a2: 'Rapprochez les unités Deco (max 15 mètres). Évitez les murs épais et objets métalliques.',
+  tp_trouble_q3: 'Tor ne fonctionne pas sur OpenWrt',
+  tp_trouble_a3: 'Vérifiez la mémoire disponible (Tor nécessite 32 Mo minimum). Ouvrez le port 9050 dans le pare-feu.',
+  tp_cta: 'Télécharger Shield Messenger',
+  tp_updated: 'Dernière mise à jour : Mars 2026',
 };
 
 /* ═══ Español ═══ */
