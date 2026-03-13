@@ -3,10 +3,10 @@
 //! Defines the core `NetworkTransport` trait and shared types used by all
 //! transport implementations (Tor, I2P, LibreMesh).
 
-use std::fmt;
-use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use serde_big_array::BigArray;
+use std::fmt;
+use std::time::Duration;
 use thiserror::Error;
 
 // ── Error Types ─────────────────────────────────────────────────────────────
@@ -86,22 +86,19 @@ pub struct Route {
 
 // ── Message Priority ────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
+)]
 pub enum MessagePriority {
     /// Bulk transfers, file sharing — can wait.
     Bulk = 0,
     /// Normal text messages.
+    #[default]
     Normal = 1,
     /// Time-sensitive: calls, typing indicators.
     Urgent = 2,
     /// Crisis mode: life-threatening, send via ALL transports.
     Critical = 3,
-}
-
-impl Default for MessagePriority {
-    fn default() -> Self {
-        MessagePriority::Normal
-    }
 }
 
 // ── Transport Envelope ──────────────────────────────────────────────────────

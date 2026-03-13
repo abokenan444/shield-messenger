@@ -164,6 +164,12 @@ pub struct TrustMap {
     records: Mutex<HashMap<[u8; 32], TrustRecord>>,
 }
 
+impl Default for TrustMap {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TrustMap {
     pub fn new() -> Self {
         Self {
@@ -271,9 +277,7 @@ impl TrustMap {
             .entry(*peer_pubkey)
             .or_insert_with(|| TrustRecord::new(*peer_pubkey));
 
-        if !record.vouchers.contains(voucher_pubkey)
-            && record.vouchers.len() < MAX_VOUCHES
-        {
+        if !record.vouchers.contains(voucher_pubkey) && record.vouchers.len() < MAX_VOUCHES {
             record.vouchers.push(*voucher_pubkey);
             record.vouch_count += 1;
             record.recompute_score();
@@ -368,7 +372,12 @@ mod tests {
         let map = TrustMap::new();
         let peer = [1u8; 32];
         let score = map.trust_score(&peer);
-        assert!(score >= 0.4 && score <= 0.6, "Default trust should be ~0.5, got {}", score);
+        // Composite: reliability(0.5)*0.4 + latency(0.5)*0.15 + base(0.5)*0.10 = 0.325
+        assert!(
+            score >= 0.2 && score <= 0.5,
+            "Default trust should be ~0.325, got {}",
+            score
+        );
     }
 
     #[test]

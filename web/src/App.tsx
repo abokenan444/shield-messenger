@@ -20,6 +20,7 @@ import { TermsPage } from './pages/landing/TermsPage';
 import { TransparencyPage } from './pages/landing/TransparencyPage';
 import { AetherNetPage } from './pages/landing/AetherNetPage';
 import { TPLinkSetupPage } from './pages/landing/TPLinkSetupPage';
+import { AetherNetDashboard } from './pages/AetherNetDashboard';
 
 const WhitepaperPage = lazy(() => import('./pages/landing/WhitepaperPage').then(m => ({ default: m.WhitepaperPage })));
 
@@ -77,6 +78,10 @@ export function App() {
       <Route
         path="/settings"
         element={isAuthenticated ? <SettingsPage /> : <Navigate to="/login" />}
+      />
+      <Route
+        path="/aethernet-dashboard"
+        element={isAuthenticated ? <AetherNetDashboard /> : <Navigate to="/login" />}
       />
 
       {/* Default: landing for guests, chat for authenticated */}

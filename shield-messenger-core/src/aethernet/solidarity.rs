@@ -105,6 +105,12 @@ pub struct SolidarityRelay {
     seen_relays: Mutex<HashMap<String, u64>>,
 }
 
+impl Default for SolidarityRelay {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SolidarityRelay {
     pub fn new() -> Self {
         Self {
@@ -233,8 +239,7 @@ impl SolidarityRelay {
         let shared = secret.diffie_hellman(&ephemeral_pub);
 
         let key = shared.as_bytes();
-        let cipher = XChaCha20Poly1305::new_from_slice(key)
-            .map_err(|_| "Cipher init failed")?;
+        let cipher = XChaCha20Poly1305::new_from_slice(key).map_err(|_| "Cipher init failed")?;
         let nonce = XNonce::from_slice(&layer.nonce);
 
         let plaintext = cipher
@@ -303,10 +308,7 @@ impl SolidarityRelay {
 
     /// Get relay statistics.
     pub fn stats(&self) -> SolidarityStats {
-        self.stats
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .clone()
+        self.stats.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Purge old dedup entries.

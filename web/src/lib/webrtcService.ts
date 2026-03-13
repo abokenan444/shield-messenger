@@ -357,7 +357,7 @@ export class CallManager {
 
   // ─── Private Methods ───
 
-  private async acquireMedia(callType: CallType): Promise<void> {
+  private async acquireMedia(_callType: CallType): Promise<void> {
     this.localStream = await navigator.mediaDevices.getUserMedia(MEDIA_CONSTRAINTS_VOICE);
     this.emit({ type: 'local-stream', stream: this.localStream });
     this.setupAudioAnalysis();

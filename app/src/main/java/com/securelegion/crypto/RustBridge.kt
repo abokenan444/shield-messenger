@@ -1722,4 +1722,49 @@ object RustBridge {
 
     /** Get trust score for a peer (0-100). */
     external fun aethernetTrustScore(peerPubkey: ByteArray): Int
+
+    // ── AetherNet Send/Receive ──────────────────────────────────────────────
+
+    /** Send a message through AetherNet smart transport selection. */
+    external fun aethernetSend(
+        recipientPubkey: ByteArray,
+        payload: ByteArray,
+        priority: Int,
+        transportHint: String
+    ): Boolean
+
+    /** Receive pending messages from all transports. Returns JSON array. */
+    external fun aethernetReceive(maxCount: Int): String?
+
+    /** Set Tor hidden service onion address for the Tor transport. */
+    external fun aethernetSetTorOnion(onion: String): Boolean
+
+    // ── AetherNet Mesh Platform Callbacks ────────────────────────────────────
+
+    /** Notify AetherNet of a discovered mesh peer. radioType: 0=BLE, 1=WiFiDirect, 2=LoRa */
+    external fun aethernetMeshPeerDiscovered(
+        peerPubkey: ByteArray,
+        radioAddr: String,
+        radioType: Int,
+        signalStrength: Int,
+        hasInternet: Boolean,
+        batteryLevel: Int
+    ): Boolean
+
+    /** Notify AetherNet that a mesh peer was lost. */
+    external fun aethernetMeshPeerLost(peerPubkey: ByteArray): Boolean
+
+    /** Feed inbound mesh data to AetherNet. */
+    external fun aethernetMeshDataReceived(data: ByteArray): Boolean
+
+    /** Take outbound mesh data for platform to send. Returns JSON array. */
+    external fun aethernetMeshTakeOutbound(): String?
+
+    // ── AetherNet Persistence ───────────────────────────────────────────────
+
+    /** Persist AetherNet state. Returns JSON with base64 encoded data. */
+    external fun aethernetPersist(): String?
+
+    /** Restore AetherNet state from encrypted bytes. */
+    external fun aethernetRestore(storeForwardData: ByteArray?, trustMapData: ByteArray?): Boolean
 }

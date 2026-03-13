@@ -80,11 +80,10 @@ impl I2PTransport {
     fn sam_handshake(&self) -> TransportResult<()> {
         let stream = TcpStream::connect(&self.sam_addr)
             .map_err(|e| TransportError::ConnectionFailed(format!("SAM connect: {}", e)))?;
-        stream
-            .set_read_timeout(Some(Duration::from_secs(10)))
-            .ok();
+        stream.set_read_timeout(Some(Duration::from_secs(10))).ok();
 
-        let mut stream_clone = stream.try_clone()
+        let mut stream_clone = stream
+            .try_clone()
             .map_err(|e| TransportError::Internal(format!("clone: {}", e)))?;
 
         // HELLO
@@ -174,7 +173,10 @@ impl NetworkTransport for I2PTransport {
 
     fn start(&self) -> TransportResult<()> {
         self.started.store(true, Ordering::SeqCst);
-        info!("[AetherNet/I2P] Transport starting, connecting to SAM at {}", self.sam_addr);
+        info!(
+            "[AetherNet/I2P] Transport starting, connecting to SAM at {}",
+            self.sam_addr
+        );
 
         match self.sam_handshake() {
             Ok(()) => {
@@ -182,7 +184,10 @@ impl NetworkTransport for I2PTransport {
                 Ok(())
             }
             Err(e) => {
-                warn!("[AetherNet/I2P] SAM not available ({}), will retry on demand", e);
+                warn!(
+                    "[AetherNet/I2P] SAM not available ({}), will retry on demand",
+                    e
+                );
                 // Don't fail start — I2P may become available later
                 Ok(())
             }
@@ -235,7 +240,9 @@ impl NetworkTransport for I2PTransport {
         // Open a data connection to SAM for sending
         let data_stream = TcpStream::connect(&self.sam_addr)
             .map_err(|e| TransportError::SendFailed(format!("data connect: {}", e)))?;
-        data_stream.set_write_timeout(Some(Duration::from_secs(30))).ok();
+        data_stream
+            .set_write_timeout(Some(Duration::from_secs(30)))
+            .ok();
 
         let mut data_stream = data_stream;
 

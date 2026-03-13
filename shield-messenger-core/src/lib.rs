@@ -26,6 +26,8 @@ pub use shield_protocol::transport;
 pub use shield_protocol::crdt;
 
 // ── Local modules (app-layer, not part of the standalone protocol) ──────────
+#[cfg(not(target_arch = "wasm32"))]
+pub mod aethernet;
 #[cfg(feature = "audio-codec")]
 pub mod audio;
 pub mod ffi;
@@ -33,8 +35,6 @@ pub mod ffi;
 pub mod network;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod nlx402;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod aethernet;
 
 // ── Re-export main types (backward-compatible) ─────────────────────────────
 pub use crypto::{

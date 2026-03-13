@@ -186,7 +186,7 @@ impl CrowdMesh {
         }
 
         // Check if any neighbor is in a cluster we can join
-        for (_, peer) in &peers {
+        for peer in peers.values() {
             if let Some(cid) = peer.cluster_id {
                 if let Ok(clusters) = self.clusters.lock() {
                     if let Some(cluster) = clusters.get(&cid) {
@@ -366,10 +366,7 @@ impl CrowdMesh {
 
         peers
             .values()
-            .filter(|p| {
-                p.has_internet
-                    || (p.cluster_id.is_some() && p.cluster_id != our_cluster)
-            })
+            .filter(|p| p.has_internet || (p.cluster_id.is_some() && p.cluster_id != our_cluster))
             .cloned()
             .collect()
     }

@@ -11,8 +11,8 @@ use chacha20poly1305::{
     aead::{Aead, KeyInit},
     XChaCha20Poly1305, XNonce,
 };
-use ed25519_dalek::SigningKey;
 use ed25519_dalek::Signer;
+use ed25519_dalek::SigningKey;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret};
@@ -128,10 +128,16 @@ pub struct IdentityVault {
     identities: Mutex<HashMap<TransportType, TransportIdentity>>,
     /// Master key for vault encryption (derived from user's password).
     master_key: Mutex<Option<[u8; 32]>>,
-    /// Rotation interval (seconds).
-    rotation_interval: u64,
+    /// Rotation interval (seconds). Behind Mutex so it can be updated at runtime.
+    rotation_interval: Mutex<u64>,
     /// Historical identities (for verifying messages signed with old keys).
     history: Mutex<HashMap<TransportType, Vec<[u8; 32]>>>,
+}
+
+impl Default for IdentityVault {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl IdentityVault {
@@ -139,7 +145,7 @@ impl IdentityVault {
         Self {
             identities: Mutex::new(HashMap::new()),
             master_key: Mutex::new(None),
-            rotation_interval: DEFAULT_ROTATION_INTERVAL_SECS,
+            rotation_interval: Mutex::new(DEFAULT_ROTATION_INTERVAL_SECS),
             history: Mutex::new(HashMap::new()),
         }
     }
@@ -153,8 +159,9 @@ impl IdentityVault {
 
     /// Set rotation interval (0 = per-message rotation for crisis mode).
     pub fn set_rotation_interval(&self, secs: u64) {
-        // Can't mutate self.rotation_interval since it's not behind a Mutex
-        // but it's used only during identity generation
+        if let Ok(mut interval) = self.rotation_interval.lock() {
+            *interval = secs;
+        }
         info!("[AetherNet/Vault] Rotation interval set to {}s", secs);
     }
 
@@ -180,8 +187,12 @@ impl IdentityVault {
             );
         }
 
-        let mut identity =
-            TransportIdentity::generate(transport_type.clone(), self.rotation_interval);
+        let interval = self
+            .rotation_interval
+            .lock()
+            .map(|v| *v)
+            .unwrap_or(DEFAULT_ROTATION_INTERVAL_SECS);
+        let mut identity = TransportIdentity::generate(transport_type.clone(), interval);
         if let Some(old) = ids.get(&transport_type) {
             identity.generation = old.generation + 1;
         }
@@ -192,11 +203,7 @@ impl IdentityVault {
 
     /// Get an existing identity without creating one.
     pub fn get(&self, transport_type: &TransportType) -> Option<TransportIdentity> {
-        self.identities
-            .lock()
-            .ok()?
-            .get(transport_type)
-            .cloned()
+        self.identities.lock().ok()?.get(transport_type).cloned()
     }
 
     /// Force rotation of all identities (called during crisis mode).
@@ -205,8 +212,12 @@ impl IdentityVault {
             let types: Vec<TransportType> = ids.keys().cloned().collect();
             for tt in types {
                 if let Some(old) = ids.get(&tt) {
-                    let mut new_id =
-                        TransportIdentity::generate(tt.clone(), self.rotation_interval);
+                    let ri = self
+                        .rotation_interval
+                        .lock()
+                        .map(|v| *v)
+                        .unwrap_or(DEFAULT_ROTATION_INTERVAL_SECS);
+                    let mut new_id = TransportIdentity::generate(tt.clone(), ri);
                     new_id.generation = old.generation + 1;
 
                     // Save old key to history
@@ -226,7 +237,7 @@ impl IdentityVault {
 
     /// Encrypt the vault for disk persistence.
     pub fn encrypt_vault(&self) -> Option<Vec<u8>> {
-        let master_key = self.master_key.lock().ok()?.clone()?;
+        let master_key = (*self.master_key.lock().ok()?)?;
         let ids = self.identities.lock().ok()?;
 
         let plaintext = bincode::serialize(&*ids).ok()?;
@@ -282,11 +293,7 @@ impl IdentityVault {
     }
 
     /// Check if a verifying key was ever used by a transport (current or historical).
-    pub fn is_known_key(
-        &self,
-        transport_type: &TransportType,
-        verifying_key: &[u8; 32],
-    ) -> bool {
+    pub fn is_known_key(&self, transport_type: &TransportType, verifying_key: &[u8; 32]) -> bool {
         // Check current identity
         if let Some(id) = self.get(transport_type) {
             if &id.verifying_key == verifying_key {

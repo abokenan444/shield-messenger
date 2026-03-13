@@ -2770,7 +2770,8 @@ class MessageService(private val context: Context) {
     }
 
     /**
-     * Send encrypted message via Tor hidden service using Ping-Pong protocol
+     * Send encrypted message via Tor hidden service using Ping-Pong protocol.
+     * Falls back to AetherNet if Tor delivery fails (queues for store-and-forward).
      */
     private suspend fun sendViaTor(onionAddress: String, encryptedData: String, messageId: String) {
         withContext(Dispatchers.IO) {
@@ -2779,22 +2780,17 @@ class MessageService(private val context: Context) {
                 Log.d(TAG, "Message ID: $messageId")
                 Log.d(TAG, "Encrypted data length: ${encryptedData.length}")
 
-                // Get database to retrieve recipient's keys
                 val dbPassphrase = keyManager.getDatabasePassphrase()
                 val database = ShieldMessengerDatabase.getInstance(context, dbPassphrase)
 
-                // Find contact by onion address
                 val contact = database.contactDao().getContactByOnionAddress(onionAddress)
                     ?: throw Exception("Contact not found for onion address: $onionAddress")
 
-                // Get recipient's public keys
                 val recipientEd25519PubKey = Base64.decode(contact.publicKeyBase64, Base64.NO_WRAP)
                 val recipientX25519PubKey = Base64.decode(contact.x25519PublicKeyBase64, Base64.NO_WRAP)
 
-                // Convert encrypted data to bytes
                 val encryptedBytes = Base64.decode(encryptedData, Base64.NO_WRAP)
 
-                // Send via Tor using Ping-Pong wake protocol
                 val success = RustBridge.sendDirectMessage(
                     recipientEd25519PublicKey = recipientEd25519PubKey,
                     recipientX25519PublicKey = recipientX25519PubKey,
@@ -2803,7 +2799,14 @@ class MessageService(private val context: Context) {
                 )
 
                 if (!success) {
-                    throw Exception("Message delivery failed - recipient may be offline or declined")
+                    // Tor delivery failed — try AetherNet as fallback
+                    Log.w(TAG, "Tor delivery failed for $messageId, attempting AetherNet fallback")
+                    val aetherSent = sendViaAetherNet(recipientEd25519PubKey, encryptedBytes, messageId)
+                    if (!aetherSent) {
+                        throw Exception("Message delivery failed via both Tor and AetherNet")
+                    }
+                    Log.i(TAG, "Message queued via AetherNet: $messageId")
+                    return@withContext
                 }
 
                 Log.i(TAG, "Message sent successfully via Tor: $messageId")
@@ -2812,6 +2815,37 @@ class MessageService(private val context: Context) {
                 Log.e(TAG, "Failed to send via Tor", e)
                 throw e
             }
+        }
+    }
+
+    /**
+     * Send a message through AetherNet multi-transport (Tor/I2P/Mesh with smart switching).
+     * If all transports fail, the message is queued for store-and-forward delivery.
+     */
+    private fun sendViaAetherNet(
+        recipientPubkey: ByteArray,
+        encryptedPayload: ByteArray,
+        messageId: String,
+        priority: Int = 1,
+        transportHint: String = "Tor"
+    ): Boolean {
+        return try {
+            val aetherNet = com.shieldmessenger.network.AetherNetManager.getInstance(context)
+            val status = aetherNet.getStatus()
+
+            // In crisis mode, escalate to Critical priority for redundant delivery
+            val effectivePriority = if (status?.crisisActive == true) 3 else priority
+
+            val sent = aetherNet.send(recipientPubkey, encryptedPayload, effectivePriority, transportHint)
+            if (sent) {
+                Log.i(TAG, "AetherNet sent $messageId (transport=$transportHint, priority=$effectivePriority)")
+            } else {
+                Log.w(TAG, "AetherNet queued $messageId for store-and-forward (pending=${aetherNet.pendingCount()})")
+            }
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "AetherNet send error for $messageId", e)
+            false
         }
     }
 

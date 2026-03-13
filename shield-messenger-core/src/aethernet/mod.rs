@@ -19,33 +19,33 @@
 //! └─────────────────────────────────────────────────┘
 //! ```
 
-pub mod transport;
-pub mod tor_transport;
-pub mod i2p_transport;
-pub mod mesh_transport;
-pub mod switcher;
-pub mod identity_vault;
-pub mod store_forward;
 pub mod crisis;
-pub mod trust_map;
 pub mod crowd_mesh;
+pub mod i2p_transport;
+pub mod identity_vault;
+pub mod mesh_transport;
 pub mod solidarity;
+pub mod store_forward;
+pub mod switcher;
+pub mod tor_transport;
+pub mod transport;
+pub mod trust_map;
 
 // ── Re-exports ──────────────────────────────────────────────────────────────
+pub use crisis::{CrisisConfig, CrisisController, CrisisTrigger};
+pub use crowd_mesh::{Cluster, CrowdMesh, CrowdPeer, EpidemicMessage};
+pub use i2p_transport::I2PTransport;
+pub use identity_vault::{IdentityVault, TransportIdentity};
+pub use mesh_transport::MeshTransport;
+pub use solidarity::{OnionLayer, PeelResult, SolidarityRelay, SolidarityStats};
+pub use store_forward::{QueuedEnvelope, StoreForward};
+pub use switcher::{SmartSwitcher, SwitchingDecision, ThreatLevel};
+pub use tor_transport::TorTransport;
 pub use transport::{
     DeliveryReceipt, Envelope, MessagePriority, NetworkTransport, PeerAddress, Route,
     TransportError, TransportEvent, TransportMetrics, TransportResult, TransportType,
 };
-pub use switcher::{SmartSwitcher, SwitchingDecision, ThreatLevel};
-pub use crisis::{CrisisController, CrisisConfig, CrisisTrigger};
-pub use identity_vault::{IdentityVault, TransportIdentity};
-pub use store_forward::{StoreForward, QueuedEnvelope};
-pub use trust_map::{TrustMap, TrustRecord, PenaltyReason};
-pub use crowd_mesh::{CrowdMesh, CrowdPeer, Cluster, EpidemicMessage};
-pub use solidarity::{SolidarityRelay, SolidarityStats, OnionLayer, PeelResult};
-pub use tor_transport::TorTransport;
-pub use i2p_transport::I2PTransport;
-pub use mesh_transport::MeshTransport;
+pub use trust_map::{PenaltyReason, TrustMap, TrustRecord};
 
 use log::{debug, info, warn};
 
@@ -54,7 +54,7 @@ use log::{debug, info, warn};
 /// The main AetherNet handle. Owns all subsystems.
 pub struct AetherNet {
     /// Smart switching engine.
-    pub switcher: SmartSwitcher,
+    pub switcher: std::sync::Mutex<SmartSwitcher>,
     /// Crisis mode controller.
     pub crisis: CrisisController,
     /// Identity vault.
@@ -73,6 +73,10 @@ pub struct AetherNet {
     pub i2p: I2PTransport,
     /// Mesh transport.
     pub mesh: MeshTransport,
+    /// Our public key.
+    pub local_pubkey: [u8; 32],
+    /// Master key for persistence.
+    pub master_key: [u8; 32],
 }
 
 impl AetherNet {
@@ -85,7 +89,7 @@ impl AetherNet {
         let vault = IdentityVault::new();
         vault.set_master_key(master_key);
 
-        let switcher = SmartSwitcher::new();
+        let switcher = std::sync::Mutex::new(SmartSwitcher::new());
         let crisis = CrisisController::new();
         let store_forward = StoreForward::new();
         store_forward.set_storage_key(master_key);
@@ -99,7 +103,10 @@ impl AetherNet {
         let mesh = MeshTransport::new();
         mesh.set_local_pubkey(local_pubkey);
 
-        info!("[AetherNet] Initialized (pubkey: {:?}...)", &local_pubkey[..4]);
+        info!(
+            "[AetherNet] Initialized (pubkey: {:?}...)",
+            &local_pubkey[..4]
+        );
 
         Self {
             switcher,
@@ -112,6 +119,8 @@ impl AetherNet {
             tor,
             i2p,
             mesh,
+            local_pubkey,
+            master_key,
         }
     }
 
@@ -145,19 +154,21 @@ impl AetherNet {
     ///
     /// In crisis mode, sends redundantly across all available transports.
     pub fn send(&self, envelope: &Envelope, route: &Route) -> TransportResult<()> {
-        // Apply crisis overrides
         let priority = self.crisis.override_priority(envelope.priority);
-        let _threat = self.crisis.threat_level();
+        let threat = self.crisis.threat_level();
 
-        // Collect metrics from all transports
-        let metrics = vec![
-            self.tor.metrics(),
-            self.i2p.metrics(),
-            self.mesh.metrics(),
-        ];
+        // Sync crisis threat level into the switcher
+        if let Ok(mut sw) = self.switcher.lock() {
+            sw.set_threat_level(threat);
+        }
 
-        // Ask switcher which transport(s) to use
-        let decision = self.switcher.evaluate(&metrics, priority);
+        let metrics = vec![self.tor.metrics(), self.i2p.metrics(), self.mesh.metrics()];
+
+        let decision = self
+            .switcher
+            .lock()
+            .ok()
+            .and_then(|sw| sw.evaluate(&metrics, priority));
 
         match decision {
             Some(decision) => {
@@ -165,7 +176,11 @@ impl AetherNet {
                 let mut sent_count = 0;
                 let redundant = decision.redundant;
                 let transports = if redundant {
-                    decision.all_scores.iter().map(|(t, _)| t.clone()).collect::<Vec<_>>()
+                    decision
+                        .all_scores
+                        .iter()
+                        .map(|(t, _)| t.clone())
+                        .collect::<Vec<_>>()
                 } else {
                     vec![decision.transport.clone()]
                 };
@@ -206,7 +221,9 @@ impl AetherNet {
                     );
                     Err(e)
                 } else {
-                    Err(TransportError::Unavailable("No transports available".into()))
+                    Err(TransportError::Unavailable(
+                        "No transports available".into(),
+                    ))
                 }
             }
             None => {
@@ -304,21 +321,124 @@ impl AetherNet {
         }
     }
 
+    /// Set the Tor hidden service onion address for the Tor transport layer.
+    pub fn set_tor_onion(&self, onion: &str) {
+        self.tor.set_local_onion(onion.to_string());
+        let len = onion.len();
+        info!(
+            "[AetherNet] Tor onion set: {}...{}",
+            &onion[..8.min(len)],
+            &onion[len.saturating_sub(6)..]
+        );
+    }
+
+    /// Feed inbound data from the mesh platform layer (BLE/WiFi Direct/LoRa).
+    pub fn mesh_on_peer_discovered(
+        &self,
+        pubkey: [u8; 32],
+        radio_addr: String,
+        radio: mesh_transport::MeshRadio,
+        signal_strength: i16,
+        has_internet: bool,
+        battery_level: Option<u8>,
+    ) {
+        self.mesh.on_peer_discovered(
+            pubkey,
+            radio_addr,
+            radio,
+            signal_strength,
+            has_internet,
+            battery_level,
+        );
+
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let crowd_peer = crowd_mesh::CrowdPeer {
+            pubkey,
+            signal_strength: (signal_strength.max(-100) as f64 + 100.0) / 100.0,
+            battery_level: battery_level.map(|b| b as f64 / 100.0).unwrap_or(0.5),
+            has_internet,
+            cluster_id: None,
+            is_cluster_head: false,
+            last_seen: now,
+            radio_type: format!("{:?}", radio),
+        };
+        self.crowd_mesh.on_peer_discovered(crowd_peer);
+        self.trust_map.record_relay_success(&pubkey, 0);
+    }
+
+    /// Feed inbound mesh data from the platform layer.
+    pub fn mesh_on_data_received(&self, data: &[u8]) {
+        self.mesh.on_data_received(data);
+    }
+
+    /// Notify that a mesh peer was lost.
+    pub fn mesh_on_peer_lost(&self, pubkey: &[u8; 32]) {
+        self.mesh.on_peer_lost(pubkey);
+        self.crowd_mesh.on_peer_lost(pubkey);
+    }
+
+    /// Take outbound mesh packets for the platform to send over BLE/WiFi/LoRa.
+    /// Returns list of (data, optional_target_pubkey) pairs.
+    pub fn mesh_take_outbound(&self) -> Vec<(Vec<u8>, Option<[u8; 32]>)> {
+        let mut result = Vec::new();
+        while let Some(out) = self.mesh.take_outbound() {
+            result.push((out.data, out.target));
+        }
+        result
+    }
+
+    /// Feed inbound Tor data (called when data arrives on the Tor hidden service).
+    pub fn tor_queue_inbound(&self, envelope: Envelope) {
+        self.tor.queue_inbound(envelope);
+    }
+
+    /// Persist store-forward queue and trust map to encrypted bytes.
+    pub fn persist(&self) -> (Option<Vec<u8>>, Option<Vec<u8>>) {
+        let sf = self.store_forward.encrypt_queue();
+        let tm = self.trust_map.serialize();
+        (sf, tm)
+    }
+
+    /// Restore store-forward queue and trust map from encrypted bytes.
+    pub fn restore(&self, sf_data: Option<&[u8]>, tm_data: Option<&[u8]>) {
+        if let Some(data) = sf_data {
+            if self.store_forward.decrypt_queue(data) {
+                info!("[AetherNet] Store-forward queue restored");
+            }
+        }
+        if let Some(data) = tm_data {
+            if self.trust_map.deserialize(data) {
+                info!("[AetherNet] Trust map restored");
+            }
+        }
+    }
+
     /// Periodic maintenance — call every ~30 seconds.
     pub fn tick(&self) {
-        // Process retry queue
+        // Sync crisis threat level into the switcher
+        let threat = self.crisis.threat_level();
+        if let Ok(mut sw) = self.switcher.lock() {
+            sw.set_threat_level(threat);
+        }
+
         self.process_retry_queue();
-        // Purge expired store-forward entries
         self.store_forward.purge_expired();
-        // Purge stale mesh peers
         self.crowd_mesh.purge_stale();
-        // Purge dedup caches
         self.crowd_mesh.purge_dedup();
         self.solidarity.purge_dedup();
-        // Prune stale trust records
         self.trust_map.prune_stale();
-        // Check cluster election
         self.crowd_mesh.check_election(&self.trust_map);
+
+        debug!(
+            "[AetherNet] tick: threat={:?}, pending={}, peers={}, clusters={}",
+            threat,
+            self.store_forward.pending_count(),
+            self.crowd_mesh.peer_count(),
+            self.crowd_mesh.cluster_count(),
+        );
     }
 }
 

@@ -137,7 +137,10 @@ impl NetworkTransport for TorTransport {
         // Parse socks_addr "host:port"
         let parts: Vec<&str> = self.socks_addr.rsplitn(2, ':').collect();
         let (socks_host, socks_port) = if parts.len() == 2 {
-            (parts[1].to_string(), parts[0].parse::<u16>().unwrap_or(9050))
+            (
+                parts[1].to_string(),
+                parts[0].parse::<u16>().unwrap_or(9050),
+            )
         } else {
             ("127.0.0.1".to_string(), 9050u16)
         };

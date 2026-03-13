@@ -369,7 +369,49 @@ class TorService : Service() {
         // Verify bridge usage if bridges were requested
         verifyBridgeUsage()
 
+        // Initialize AetherNet multi-transport mesh networking
+        initializeAetherNet()
+
         Log.w(TAG, "========== onTorReady() COMPLETE ==========")
+    }
+
+    /**
+     * Initialize AetherNet multi-transport mesh networking.
+     * Called once Tor is fully bootstrapped. Derives keys from KeyManager,
+     * initializes and starts AetherNet, and feeds the Tor onion address.
+     */
+    private fun initializeAetherNet() {
+        try {
+            val keyManager = com.securelegion.crypto.KeyManager.getInstance(this)
+            val publicKey = keyManager.getSigningPublicKey()
+
+            // Derive AetherNet master key (separate from database key)
+            val seed = keyManager.getDatabasePassphrase()
+            val digest = java.security.MessageDigest.getInstance("SHA-256")
+            digest.update(seed)
+            digest.update("shield_aethernet_master_v1".toByteArray(Charsets.UTF_8))
+            val masterKey = digest.digest()
+            java.util.Arrays.fill(seed, 0.toByte())
+
+            val aetherNet = com.shieldmessenger.network.AetherNetManager.getInstance(this)
+            if (aetherNet.initialize(publicKey, masterKey)) {
+                aetherNet.start()
+
+                // Feed Tor onion address to AetherNet's Tor transport
+                val onion = torManager.getOnionAddress()
+                if (!onion.isNullOrEmpty()) {
+                    aetherNet.setTorOnion(onion)
+                }
+
+                Log.i(TAG, "AetherNet initialized and started")
+            } else {
+                Log.e(TAG, "AetherNet initialization failed")
+            }
+
+            java.util.Arrays.fill(masterKey, 0.toByte())
+        } catch (e: Exception) {
+            Log.e(TAG, "AetherNet initialization error", e)
+        }
     }
 
     /**
@@ -7966,6 +8008,14 @@ class TorService : Service() {
             Log.d(TAG, "Recorded shutdown timestamp")
         } catch (e: Exception) {
             Log.w(TAG, "Failed to write shutdown timestamp: ${e.message}")
+        }
+
+        // Stop AetherNet
+        try {
+            com.shieldmessenger.network.AetherNetManager.getInstance(this).stop()
+            Log.d(TAG, "AetherNet stopped")
+        } catch (e: Exception) {
+            Log.w(TAG, "Error stopping AetherNet: ${e.message}")
         }
 
         // Cancel all protocol operations and clean up coroutine scope

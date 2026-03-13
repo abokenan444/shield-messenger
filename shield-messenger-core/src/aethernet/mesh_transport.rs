@@ -97,6 +97,12 @@ pub struct MeshOutbound {
     pub attempts: u32,
 }
 
+impl Default for MeshTransport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MeshTransport {
     pub fn new() -> Self {
         Self {
@@ -143,7 +149,8 @@ impl MeshTransport {
             let is_new = !peers.contains_key(&pubkey);
             peers.insert(pubkey, peer);
             let alive_count = peers.values().filter(|p| p.is_alive()).count();
-            self.active_peers.store(alive_count as u32, Ordering::Relaxed);
+            self.active_peers
+                .store(alive_count as u32, Ordering::Relaxed);
 
             if is_new {
                 info!(
@@ -171,7 +178,8 @@ impl MeshTransport {
         if let Ok(mut peers) = self.peers.lock() {
             peers.remove(pubkey);
             let alive_count = peers.values().filter(|p| p.is_alive()).count();
-            self.active_peers.store(alive_count as u32, Ordering::Relaxed);
+            self.active_peers
+                .store(alive_count as u32, Ordering::Relaxed);
         }
     }
 
@@ -186,7 +194,10 @@ impl MeshTransport {
                 }
             }
             Err(e) => {
-                warn!("[AetherNet/Mesh] Failed to deserialize received data: {}", e);
+                warn!(
+                    "[AetherNet/Mesh] Failed to deserialize received data: {}",
+                    e
+                );
             }
         }
     }
@@ -306,7 +317,7 @@ impl NetworkTransport for MeshTransport {
         self.local_pubkey
             .lock()
             .map_err(|_| TransportError::Internal("lock".into()))?
-            .map(|pk| hex::encode(pk))
+            .map(hex::encode)
             .ok_or_else(|| TransportError::Unavailable("no local pubkey set".into()))
     }
 

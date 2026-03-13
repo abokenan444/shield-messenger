@@ -98,6 +98,12 @@ pub struct CrisisController {
     tor_failure_threshold: u32,
 }
 
+impl Default for CrisisController {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CrisisController {
     pub fn new() -> Self {
         Self {
@@ -120,7 +126,7 @@ impl CrisisController {
 
     /// Get the current threat level.
     pub fn threat_level(&self) -> ThreatLevel {
-        self.threat_level.lock().unwrap().clone()
+        *self.threat_level.lock().unwrap()
     }
 
     /// Get crisis configuration.
@@ -176,7 +182,10 @@ impl CrisisController {
             if let Ok(mut tl) = self.threat_level.lock() {
                 if *tl == ThreatLevel::Normal {
                     *tl = ThreatLevel::Elevated;
-                    info!("[AetherNet/Crisis] Threat level elevated (connection failures: {})", count);
+                    info!(
+                        "[AetherNet/Crisis] Threat level elevated (connection failures: {})",
+                        count
+                    );
                 }
             }
         }
@@ -262,7 +271,7 @@ impl CrisisController {
         rng.fill_bytes(&mut ciphertext);
 
         Envelope {
-            id: hex::encode(&id),
+            id: hex::encode(id),
             sender_pubkey: [0u8; 32], // Dummy
             recipient_pubkey: [0u8; 32],
             ciphertext,
@@ -307,7 +316,10 @@ impl CrisisController {
 
     /// Get active triggers.
     pub fn active_triggers(&self) -> Vec<CrisisTrigger> {
-        self.triggers.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.triggers
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 }
 

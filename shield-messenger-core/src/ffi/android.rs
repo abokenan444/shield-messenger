@@ -10955,3 +10955,392 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_aethernetTrustScore(
         0
     )
 }
+
+/// Send a message through AetherNet smart transport selection.
+/// `envelope_json` is a JSON string: {"id":"...", "sender":"hex", "recipient":"hex", "payload":"base64", "priority":1}
+/// `route_json` is a JSON string: {"destination_addr":"hex_or_onion", "transport":"Tor|I2P|Mesh", "redundant":false}
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_aethernetSend(
+    mut env: JNIEnv,
+    _class: JClass,
+    recipient_pubkey: JByteArray,
+    payload: JByteArray,
+    priority: jint,
+    transport_hint: JString,
+) -> jboolean {
+    catch_panic!(
+        env,
+        {
+            let recipient = match jbytearray_to_vec(&mut env, recipient_pubkey) {
+                Ok(v) if v.len() == 32 => {
+                    let mut arr = [0u8; 32];
+                    arr.copy_from_slice(&v);
+                    arr
+                }
+                _ => return JNI_FALSE,
+            };
+
+            let payload_bytes = match jbytearray_to_vec(&mut env, payload) {
+                Ok(v) => v,
+                _ => return JNI_FALSE,
+            };
+
+            let hint_str = jstring_to_string(&mut env, transport_hint).unwrap_or_default();
+
+            if let Some(an) = get_aethernet() {
+                if let Ok(an) = an.lock() {
+                    let prio = match priority {
+                        0 => crate::aethernet::MessagePriority::Bulk,
+                        2 => crate::aethernet::MessagePriority::Urgent,
+                        3 => crate::aethernet::MessagePriority::Critical,
+                        _ => crate::aethernet::MessagePriority::Normal,
+                    };
+
+                    let preferred = match hint_str.as_str() {
+                        "I2P" | "i2p" => Some(crate::aethernet::TransportType::I2P),
+                        "Mesh" | "mesh" => Some(crate::aethernet::TransportType::Mesh),
+                        _ => Some(crate::aethernet::TransportType::Tor),
+                    };
+
+                    let envelope = crate::aethernet::Envelope {
+                        id: uuid::Uuid::new_v4().to_string(),
+                        sender_pubkey: an.local_pubkey,
+                        recipient_pubkey: recipient,
+                        payload: payload_bytes,
+                        priority: prio,
+                        timestamp: std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_secs())
+                            .unwrap_or(0),
+                        ttl: 3600,
+                        hop_count: 0,
+                        max_hops: 10,
+                    };
+
+                    let route = crate::aethernet::Route {
+                        destination: crate::aethernet::PeerAddress {
+                            public_key: recipient,
+                            transport_addr: String::new(),
+                            transport_type: preferred
+                                .clone()
+                                .unwrap_or(crate::aethernet::TransportType::Tor),
+                        },
+                        preferred_transport: preferred,
+                        max_latency: None,
+                        redundant: prio == crate::aethernet::MessagePriority::Critical,
+                    };
+
+                    return if an.send(&envelope, &route).is_ok() {
+                        JNI_TRUE
+                    } else {
+                        JNI_FALSE
+                    };
+                }
+            }
+            JNI_FALSE
+        },
+        JNI_FALSE
+    )
+}
+
+/// Receive pending messages from all AetherNet transports.
+/// Returns a JSON array of envelopes: [{"id":"...", "sender":"hex", "payload":"base64", ...}]
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_aethernetReceive(
+    mut env: JNIEnv,
+    _class: JClass,
+    max_count: jint,
+) -> jstring {
+    catch_panic!(
+        env,
+        {
+            if let Some(an) = get_aethernet() {
+                if let Ok(an) = an.lock() {
+                    let envelopes = an.receive(max_count.max(1) as usize);
+                    if envelopes.is_empty() {
+                        return string_to_jstring(&mut env, "[]")
+                            .map(|s| s.into_raw())
+                            .unwrap_or(std::ptr::null_mut());
+                    }
+
+                    let mut json_arr = String::from("[");
+                    for (i, env_item) in envelopes.iter().enumerate() {
+                        if i > 0 {
+                            json_arr.push(',');
+                        }
+                        json_arr.push_str(&format!(
+                            r#"{{"id":"{}","sender":"{}","recipient":"{}","payload":"{}","priority":{},"timestamp":{},"hop_count":{}}}"#,
+                            env_item.id,
+                            hex::encode(env_item.sender_pubkey),
+                            hex::encode(env_item.recipient_pubkey),
+                            base64::encode(&env_item.payload),
+                            env_item.priority as u8,
+                            env_item.timestamp,
+                            env_item.hop_count,
+                        ));
+                    }
+                    json_arr.push(']');
+
+                    return string_to_jstring(&mut env, &json_arr)
+                        .map(|s| s.into_raw())
+                        .unwrap_or(std::ptr::null_mut());
+                }
+            }
+            string_to_jstring(&mut env, "[]")
+                .map(|s| s.into_raw())
+                .unwrap_or(std::ptr::null_mut())
+        },
+        std::ptr::null_mut()
+    )
+}
+
+/// Set Tor onion address for AetherNet Tor transport.
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_aethernetSetTorOnion(
+    mut env: JNIEnv,
+    _class: JClass,
+    onion: JString,
+) -> jboolean {
+    catch_panic!(
+        env,
+        {
+            let onion_str = match jstring_to_string(&mut env, onion) {
+                Ok(s) => s,
+                _ => return JNI_FALSE,
+            };
+
+            if let Some(an) = get_aethernet() {
+                if let Ok(an) = an.lock() {
+                    an.set_tor_onion(&onion_str);
+                    return JNI_TRUE;
+                }
+            }
+            JNI_FALSE
+        },
+        JNI_FALSE
+    )
+}
+
+/// Notify AetherNet that a mesh peer was discovered (from BLE/WiFi Direct/LoRa).
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_aethernetMeshPeerDiscovered(
+    mut env: JNIEnv,
+    _class: JClass,
+    peer_pubkey: JByteArray,
+    radio_addr: JString,
+    radio_type: jint,
+    signal_strength: jint,
+    has_internet: jboolean,
+    battery_level: jint,
+) -> jboolean {
+    catch_panic!(
+        env,
+        {
+            let pk = match jbytearray_to_vec(&mut env, peer_pubkey) {
+                Ok(v) if v.len() == 32 => {
+                    let mut arr = [0u8; 32];
+                    arr.copy_from_slice(&v);
+                    arr
+                }
+                _ => return JNI_FALSE,
+            };
+
+            let addr = jstring_to_string(&mut env, radio_addr).unwrap_or_default();
+
+            let radio = match radio_type {
+                1 => crate::aethernet::mesh_transport::MeshRadio::WifiDirect,
+                2 => crate::aethernet::mesh_transport::MeshRadio::LoRa,
+                _ => crate::aethernet::mesh_transport::MeshRadio::Ble,
+            };
+
+            let batt = if battery_level >= 0 && battery_level <= 100 {
+                Some(battery_level as u8)
+            } else {
+                None
+            };
+
+            if let Some(an) = get_aethernet() {
+                if let Ok(an) = an.lock() {
+                    an.mesh_on_peer_discovered(
+                        pk,
+                        addr,
+                        radio,
+                        signal_strength as i16,
+                        has_internet == JNI_TRUE,
+                        batt,
+                    );
+                    return JNI_TRUE;
+                }
+            }
+            JNI_FALSE
+        },
+        JNI_FALSE
+    )
+}
+
+/// Notify AetherNet that a mesh peer was lost.
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_aethernetMeshPeerLost(
+    mut env: JNIEnv,
+    _class: JClass,
+    peer_pubkey: JByteArray,
+) -> jboolean {
+    catch_panic!(
+        env,
+        {
+            let pk = match jbytearray_to_vec(&mut env, peer_pubkey) {
+                Ok(v) if v.len() == 32 => {
+                    let mut arr = [0u8; 32];
+                    arr.copy_from_slice(&v);
+                    arr
+                }
+                _ => return JNI_FALSE,
+            };
+
+            if let Some(an) = get_aethernet() {
+                if let Ok(an) = an.lock() {
+                    an.mesh_on_peer_lost(&pk);
+                    return JNI_TRUE;
+                }
+            }
+            JNI_FALSE
+        },
+        JNI_FALSE
+    )
+}
+
+/// Feed inbound mesh data to AetherNet (received from BLE/WiFi Direct/LoRa).
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_aethernetMeshDataReceived(
+    mut env: JNIEnv,
+    _class: JClass,
+    data: JByteArray,
+) -> jboolean {
+    catch_panic!(
+        env,
+        {
+            let bytes = match jbytearray_to_vec(&mut env, data) {
+                Ok(v) => v,
+                _ => return JNI_FALSE,
+            };
+
+            if let Some(an) = get_aethernet() {
+                if let Ok(an) = an.lock() {
+                    an.mesh_on_data_received(&bytes);
+                    return JNI_TRUE;
+                }
+            }
+            JNI_FALSE
+        },
+        JNI_FALSE
+    )
+}
+
+/// Take outbound mesh data that needs to be sent via platform radio (BLE/WiFi/LoRa).
+/// Returns JSON: [{"data":"base64","target":"hex_or_null"}]
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_aethernetMeshTakeOutbound(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jstring {
+    catch_panic!(
+        env,
+        {
+            if let Some(an) = get_aethernet() {
+                if let Ok(an) = an.lock() {
+                    let outbound = an.mesh_take_outbound();
+                    if outbound.is_empty() {
+                        return string_to_jstring(&mut env, "[]")
+                            .map(|s| s.into_raw())
+                            .unwrap_or(std::ptr::null_mut());
+                    }
+
+                    let mut json_arr = String::from("[");
+                    for (i, (data, target)) in outbound.iter().enumerate() {
+                        if i > 0 {
+                            json_arr.push(',');
+                        }
+                        let target_str = target
+                            .map(|t| format!("\"{}\"", hex::encode(t)))
+                            .unwrap_or_else(|| "null".to_string());
+                        json_arr.push_str(&format!(
+                            r#"{{"data":"{}","target":{}}}"#,
+                            base64::encode(data),
+                            target_str,
+                        ));
+                    }
+                    json_arr.push(']');
+
+                    return string_to_jstring(&mut env, &json_arr)
+                        .map(|s| s.into_raw())
+                        .unwrap_or(std::ptr::null_mut());
+                }
+            }
+            string_to_jstring(&mut env, "[]")
+                .map(|s| s.into_raw())
+                .unwrap_or(std::ptr::null_mut())
+        },
+        std::ptr::null_mut()
+    )
+}
+
+/// Persist AetherNet state (store-forward queue and trust map) and return encrypted bytes.
+/// Returns JSON: {"store_forward":"base64_or_null","trust_map":"base64_or_null"}
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_aethernetPersist(
+    mut env: JNIEnv,
+    _class: JClass,
+) -> jstring {
+    catch_panic!(
+        env,
+        {
+            if let Some(an) = get_aethernet() {
+                if let Ok(an) = an.lock() {
+                    let (sf, tm) = an.persist();
+                    let sf_b64 = sf
+                        .map(|v| format!("\"{}\"", base64::encode(&v)))
+                        .unwrap_or_else(|| "null".to_string());
+                    let tm_b64 = tm
+                        .map(|v| format!("\"{}\"", base64::encode(&v)))
+                        .unwrap_or_else(|| "null".to_string());
+
+                    let json = format!(r#"{{"store_forward":{},"trust_map":{}}}"#, sf_b64, tm_b64,);
+
+                    return string_to_jstring(&mut env, &json)
+                        .map(|s| s.into_raw())
+                        .unwrap_or(std::ptr::null_mut());
+                }
+            }
+            string_to_jstring(&mut env, r#"{"store_forward":null,"trust_map":null}"#)
+                .map(|s| s.into_raw())
+                .unwrap_or(std::ptr::null_mut())
+        },
+        std::ptr::null_mut()
+    )
+}
+
+/// Restore AetherNet state from previously persisted encrypted bytes.
+#[no_mangle]
+pub extern "C" fn Java_com_securelegion_crypto_RustBridge_aethernetRestore(
+    mut env: JNIEnv,
+    _class: JClass,
+    store_forward_data: JByteArray,
+    trust_map_data: JByteArray,
+) -> jboolean {
+    catch_panic!(
+        env,
+        {
+            let sf = jbytearray_to_vec(&mut env, store_forward_data).ok();
+            let tm = jbytearray_to_vec(&mut env, trust_map_data).ok();
+
+            if let Some(an) = get_aethernet() {
+                if let Ok(an) = an.lock() {
+                    an.restore(sf.as_deref(), tm.as_deref());
+                    return JNI_TRUE;
+                }
+            }
+            JNI_FALSE
+        },
+        JNI_FALSE
+    )
+}

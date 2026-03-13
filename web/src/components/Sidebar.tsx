@@ -32,6 +32,9 @@ export function Sidebar({ isOpen }: SidebarProps) {
       {/* Wallet */}
       <SidebarButton icon="💰" tooltip="المحفظة" onClick={() => navigate('/wallet')} />
 
+      {/* AetherNet */}
+      <SidebarButton icon="🌐" tooltip="AetherNet" onClick={() => navigate('/aethernet-dashboard')} />
+
       <div className="flex-1" />
 
       {/* Settings */}

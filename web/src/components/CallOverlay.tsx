@@ -5,8 +5,6 @@ import { ShieldIcon } from './icons/ShieldIcon';
 
 export function CallOverlay() {
   const activeCall = useCallStore((s) => s.activeCall);
-  const localStream = useCallStore((s) => s.localStream);
-  const remoteStream = useCallStore((s) => s.remoteStream);
   const audioEnabled = useCallStore((s) => s.audioEnabled);
   const speakerOn = useCallStore((s) => s.speakerOn);
   const { hangup, toggleAudio, toggleSpeaker } = useCallStore();
@@ -89,7 +87,6 @@ export function CallOverlay() {
 export function IncomingCallDialog() {
   const showIncoming = useCallStore((s) => s.showIncomingCall);
   const incomingFrom = useCallStore((s) => s.incomingCallFrom);
-  const incomingType = useCallStore((s) => s.incomingCallType);
   const { acceptCall, rejectCall } = useCallStore();
   const { t } = useTranslation();
 

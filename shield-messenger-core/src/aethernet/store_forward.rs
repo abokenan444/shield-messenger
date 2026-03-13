@@ -3,8 +3,8 @@
 //! Queues outbound envelopes when recipients are offline, with priority ordering,
 //! TTL expiry, exponential backoff retry, and encrypted-at-rest storage.
 
-use std::collections::BinaryHeap;
 use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -26,7 +26,7 @@ const MAX_RETRIES: u32 = 50;
 /// Base backoff in milliseconds.
 const BASE_BACKOFF_MS: u64 = 1000;
 /// Maximum backoff cap: 1 hour.
-const MAX_BACKOFF_MS: u64 = 3600_000;
+const MAX_BACKOFF_MS: u64 = 3_600_000;
 /// Maximum queue size (to prevent memory exhaustion).
 const MAX_QUEUE_SIZE: usize = 10_000;
 
@@ -77,14 +77,16 @@ impl QueuedEnvelope {
     /// Record a failed delivery attempt and compute next backoff.
     pub fn record_failure(&mut self) {
         self.attempts += 1;
-        let backoff = (BASE_BACKOFF_MS * 2u64.saturating_pow(self.attempts.min(20)))
-            .min(MAX_BACKOFF_MS);
+        let backoff =
+            (BASE_BACKOFF_MS * 2u64.saturating_pow(self.attempts.min(20))).min(MAX_BACKOFF_MS);
         // Add jitter (0-25% of backoff)
         let jitter = (rand::random::<u64>() % (backoff / 4 + 1)) as u64;
         self.next_retry_at = now_millis() + backoff + jitter;
         debug!(
             "[AetherNet/SAF] Attempt {} failed for envelope {}, next retry in {}ms",
-            self.attempts, self.envelope.id, backoff + jitter
+            self.attempts,
+            self.envelope.id,
+            backoff + jitter
         );
     }
 
@@ -126,6 +128,12 @@ pub struct StoreForward {
     delivered_max: usize,
 }
 
+impl Default for StoreForward {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StoreForward {
     pub fn new() -> Self {
         Self {
@@ -153,7 +161,10 @@ impl StoreForward {
         // Dedup: check if already delivered
         if let Ok(delivered) = self.delivered.lock() {
             if delivered.contains(&envelope.id) {
-                debug!("[AetherNet/SAF] Dropping duplicate envelope {}", envelope.id);
+                debug!(
+                    "[AetherNet/SAF] Dropping duplicate envelope {}",
+                    envelope.id
+                );
                 return false;
             }
         }
@@ -177,7 +188,10 @@ impl StoreForward {
 
         if let Ok(mut q) = self.queue.lock() {
             if q.len() >= MAX_QUEUE_SIZE {
-                warn!("[AetherNet/SAF] Queue full ({} items), dropping lowest priority", q.len());
+                warn!(
+                    "[AetherNet/SAF] Queue full ({} items), dropping lowest priority",
+                    q.len()
+                );
                 // Remove the lowest priority item
                 let mut items: Vec<_> = q.drain().collect();
                 items.sort();
@@ -190,7 +204,11 @@ impl StoreForward {
             }
             let id = entry.envelope.id.clone();
             q.push(entry);
-            info!("[AetherNet/SAF] Enqueued envelope {} ({} total)", id, q.len());
+            info!(
+                "[AetherNet/SAF] Enqueued envelope {} ({} total)",
+                id,
+                q.len()
+            );
             true
         } else {
             false
@@ -271,7 +289,7 @@ impl StoreForward {
 
     /// Encrypt the queue for disk persistence.
     pub fn encrypt_queue(&self) -> Option<Vec<u8>> {
-        let key = self.storage_key.lock().ok()?.clone()?;
+        let key = (*self.storage_key.lock().ok()?)?;
         let q = self.queue.lock().ok()?;
 
         let items: Vec<QueuedEnvelope> = q.iter().cloned().collect();
@@ -345,7 +363,10 @@ impl StoreForward {
             }
         }
         if purged > 0 {
-            info!("[AetherNet/SAF] Purged {} expired/exhausted entries", purged);
+            info!(
+                "[AetherNet/SAF] Purged {} expired/exhausted entries",
+                purged
+            );
         }
         purged
     }
