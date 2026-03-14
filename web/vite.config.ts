@@ -5,6 +5,7 @@ import topLevelAwait from 'vite-plugin-top-level-await';
 import path from 'path';
 
 export default defineConfig({
+  base: process.env.VITE_BASE_PATH || '/',
   plugins: [react(), wasm(), topLevelAwait()],
   resolve: {
     alias: {

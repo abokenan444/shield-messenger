@@ -16,9 +16,11 @@ initNotifications().then((ok) => {
   }
 });
 
+const basePath = import.meta.env.BASE_URL || '/';
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={basePath.replace(/\/$/, '')}>
       <I18nProvider>
         <App />
       </I18nProvider>
