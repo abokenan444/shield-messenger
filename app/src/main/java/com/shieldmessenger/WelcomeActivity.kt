@@ -46,11 +46,7 @@ class WelcomeActivity : BaseActivity() {
         }
 
         // Security: Prevent screenshots and screen recording
-        // TODO: Re-enable FLAG_SECURE after demo recording
-        // window.setFlags(
-        // WindowManager.LayoutParams.FLAG_SECURE,
-        // WindowManager.LayoutParams.FLAG_SECURE
-        // )
+        // Security: FLAG_SECURE set by BaseActivity.onCreate()
 
         // Make status bar black to match app theme
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {

@@ -15,6 +15,7 @@ import java.math.BigInteger
 import java.security.MessageDigest
 import org.bouncycastle.jce.provider.BouncyCastleProvider
 import java.security.Security
+import com.shieldmessenger.security.SecureKeystore
 
 /**
  * KeyManager - Unified key management for wallet and messaging
@@ -81,9 +82,16 @@ class KeyManager private constructor(context: Context) {
         }
     }
 
-    private val masterKey: MasterKey = MasterKey.Builder(appContext)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
+    private val masterKey: MasterKey = run {
+        val builder = MasterKey.Builder(appContext)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+        // Request StrongBox hardware protection if available
+        if (SecureKeystore.hasStrongBox(appContext)) {
+            builder.setRequestStrongBoxBacked(true)
+            Log.i(TAG, "MasterKey: StrongBox-backed")
+        }
+        builder.build()
+    }
 
     private val encryptedPrefs = EncryptedSharedPreferences.create(
         appContext,

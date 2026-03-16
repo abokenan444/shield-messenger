@@ -10,6 +10,7 @@ import android.view.View
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.app.AppCompatActivity
+import com.shieldmessenger.security.EndpointProtection
 import com.shieldmessenger.utils.BadgeUtils
 import com.shieldmessenger.utils.LocaleHelper
 
@@ -42,11 +43,10 @@ abstract class BaseActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         // Security: Prevent screenshots and screen recording app-wide
-        // TODO: Re-enable FLAG_SECURE after demo recording
-        // window.setFlags(
-        // WindowManager.LayoutParams.FLAG_SECURE,
-        // WindowManager.LayoutParams.FLAG_SECURE
-        // )
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
     }
 
     override fun onResume() {
@@ -63,6 +63,9 @@ abstract class BaseActivity : AppCompatActivity() {
         // checkAutoLock()
         startAutoLockTimer()
         updateFriendRequestBadge()
+
+        // Show endpoint-protection warning on compromised devices (once per activity)
+        EndpointProtection.showWarningIfNeeded(this)
     }
 
     override fun onPause() {

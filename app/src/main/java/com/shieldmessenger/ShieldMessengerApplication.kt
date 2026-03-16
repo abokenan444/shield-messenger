@@ -13,6 +13,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.shieldmessenger.crypto.TorManager
+import com.shieldmessenger.security.EndpointProtection
 import com.shieldmessenger.utils.ANRWatchdog
 import com.shieldmessenger.utils.CrashReporter
 import IPtProxy.Controller
@@ -77,6 +78,9 @@ class ShieldMessengerApplication : Application() {
 
         // Force dark mode regardless of system settings
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+
+        // Run endpoint-protection checks (root, debug, hooking, integrity, keystore)
+        EndpointProtection.runChecks(this)
 
         // Initialize crash reporter (local-only, privacy-respecting)
         CrashReporter.initialize(this)

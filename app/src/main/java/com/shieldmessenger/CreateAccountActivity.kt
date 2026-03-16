@@ -67,11 +67,7 @@ class CreateAccountActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
 
         // Security: Prevent screenshots and screen recording
-        // TODO: Re-enable FLAG_SECURE after demo recording
-        // window.setFlags(
-        // WindowManager.LayoutParams.FLAG_SECURE,
-        // WindowManager.LayoutParams.FLAG_SECURE
-        // )
+        // Security: FLAG_SECURE set by BaseActivity.onCreate()
 
         // Make status bar transparent with light icons (matches dark theme)
         window.statusBarColor = android.graphics.Color.TRANSPARENT
