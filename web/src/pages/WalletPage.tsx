@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWalletStore, type WalletTransaction } from '../lib/store/walletStore';
 import { useTranslation } from '../lib/i18n';
@@ -6,10 +6,18 @@ import { useTranslation } from '../lib/i18n';
 export function WalletPage() {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { hasWallet, walletType, address, tokens, transactions, totalUsdBalance, createWallet, importWallet } = useWalletStore();
+  const {
+    hasWallet, walletType, address, mnemonic, tokens, transactions,
+    totalUsdBalance, loading, error,
+    createWallet, importWallet, refreshBalance, refreshTransactions,
+    sendTransaction, restoreSession, logout,
+  } = useWalletStore();
   const [tab, setTab] = useState<'tokens' | 'history'>('tokens');
   const [showSend, setShowSend] = useState(false);
+  const [showBackup, setShowBackup] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
 
   // Wallet creation state
   const [setupStep, setSetupStep] = useState<'choose' | 'import' | null>(null);
@@ -21,27 +29,38 @@ export function WalletPage() {
   const [sendAmount, setSendAmount] = useState('');
   const [sendToken, setSendToken] = useState('SOL');
 
+  // Restore wallet session on mount (re-derive keypair from stored mnemonic)
+  useEffect(() => {
+    if (hasWallet && walletType === 'solana' && mnemonic) {
+      restoreSession();
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleCopy = () => {
     if (address) navigator.clipboard.writeText(address);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!sendTo.trim() || !sendAmount) return;
-    useWalletStore.getState().addTransaction({
-      id: 'tx-' + Date.now(),
-      type: 'send',
-      token: sendToken,
-      amount: parseFloat(sendAmount),
-      address: sendTo,
-      timestamp: Date.now(),
-      status: 'pending',
-      txHash: '0x' + Math.random().toString(16).slice(2, 18),
-    });
-    setShowSend(false);
-    setSendTo('');
-    setSendAmount('');
+    setSending(true);
+    setSendError(null);
+    try {
+      await sendTransaction(sendTo.trim(), parseFloat(sendAmount), sendToken);
+      setShowSend(false);
+      setSendTo('');
+      setSendAmount('');
+    } catch (e) {
+      setSendError(e instanceof Error ? e.message : 'Transaction failed');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleRefresh = () => {
+    refreshBalance();
+    refreshTransactions();
   };
 
   if (!hasWallet) {
@@ -98,7 +117,7 @@ export function WalletPage() {
                 ))}
               </div>
               <button
-                onClick={() => { createWallet(selectedType); setSetupStep(null); }}
+                onClick={() => { createWallet(selectedType); setSetupStep(null); setShowBackup(true); }}
                 className="btn-primary w-full py-3 mt-4"
               >
                 {t.wallet_createWallet} {selectedType === 'solana' ? 'Solana' : 'Zcash'}
@@ -158,7 +177,56 @@ export function WalletPage() {
         <span className="text-xs bg-dark-800 px-2 py-0.5 rounded text-dark-400">
           {walletType === 'solana' ? 'Solana' : 'Zcash'}
         </span>
+        <div className="flex-1" />
+        <button onClick={handleRefresh} disabled={loading} className="text-dark-400 hover:text-dark-200 transition text-sm disabled:opacity-30">
+          {loading ? '⟳' : '↻'} 
+        </button>
+        <button onClick={() => setShowBackup(true)} className="text-dark-400 hover:text-dark-200 transition text-sm" title="Backup seed phrase">
+          🔑
+        </button>
+        <button onClick={logout} className="text-red-400 hover:text-red-300 transition text-sm" title="Disconnect wallet">
+          ⏻
+        </button>
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="bg-red-900/30 border-b border-red-800 px-4 py-2 text-red-400 text-sm">
+          {error}
+        </div>
+      )}
+
+      {/* Mnemonic Backup Dialog */}
+      {showBackup && mnemonic && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-dark-900 rounded-2xl p-6 max-w-md w-full space-y-4 border border-dark-700">
+            <h3 className="text-lg font-semibold text-center">🔑 Seed Phrase Backup</h3>
+            <p className="text-dark-400 text-sm text-center">
+              Write down these words in order. Do NOT share them with anyone. This is the only way to recover your wallet.
+            </p>
+            <div className="grid grid-cols-3 gap-2 bg-dark-800 p-4 rounded-xl" dir="ltr">
+              {mnemonic.split(' ').map((word, i) => (
+                <div key={i} className="text-sm">
+                  <span className="text-dark-500">{i + 1}.</span>{' '}
+                  <span className="text-white font-mono">{word}</span>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => { navigator.clipboard.writeText(mnemonic); }}
+              className="w-full py-2 bg-dark-700 rounded-xl text-sm hover:bg-dark-600 transition"
+            >
+              📋 Copy to clipboard
+            </button>
+            <button
+              onClick={() => setShowBackup(false)}
+              className="btn-primary w-full py-2"
+            >
+              I&apos;ve saved it
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-2xl mx-auto p-4 md:p-6 space-y-6">
         {/* Balance Card */}
@@ -193,6 +261,11 @@ export function WalletPage() {
         {showSend && (
           <div className="card border border-primary-800">
             <h3 className="font-semibold mb-4">{t.wallet_send}</h3>
+            {sendError && (
+              <div className="bg-red-900/30 border border-red-800 rounded-lg px-3 py-2 mb-3 text-red-400 text-sm">
+                {sendError}
+              </div>
+            )}
             <div className="space-y-3">
               <div>
                 <label className="text-sm text-dark-400 block mb-1">{t.wallet_sendTo}</label>
@@ -231,10 +304,14 @@ export function WalletPage() {
                 </div>
               </div>
               <div className="flex gap-2">
-                <button onClick={handleSend} disabled={!sendTo.trim() || !sendAmount} className="btn-primary flex-1 disabled:opacity-30">
-                  {t.wallet_sendConfirm}
+                <button
+                  onClick={handleSend}
+                  disabled={!sendTo.trim() || !sendAmount || sending}
+                  className="btn-primary flex-1 disabled:opacity-30"
+                >
+                  {sending ? '⟳ Sending...' : t.wallet_sendConfirm}
                 </button>
-                <button onClick={() => setShowSend(false)} className="px-4 py-2 bg-dark-700 rounded-xl hover:bg-dark-600 transition">
+                <button onClick={() => { setShowSend(false); setSendError(null); }} className="px-4 py-2 bg-dark-700 rounded-xl hover:bg-dark-600 transition">
                   {t.friends_cancel}
                 </button>
               </div>

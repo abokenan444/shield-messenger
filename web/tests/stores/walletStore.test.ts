@@ -1,15 +1,21 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useWalletStore } from '../../src/lib/store/walletStore';
 
+// Valid 12-word BIP39 mnemonic for testing
+const TEST_MNEMONIC = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+
 describe('walletStore', () => {
   beforeEach(() => {
     useWalletStore.setState({
       hasWallet: false,
       walletType: null,
       address: null,
+      mnemonic: null,
       tokens: [],
       transactions: [],
       totalUsdBalance: 0,
+      loading: false,
+      error: null,
     });
   });
 
@@ -19,37 +25,53 @@ describe('walletStore', () => {
       expect(useWalletStore.getState().walletType).toBeNull();
     });
 
-    it('should create a Solana wallet', () => {
-      useWalletStore.getState().createWallet('solana');
+    it('should create a Solana wallet', async () => {
+      await useWalletStore.getState().createWallet('solana');
       const state = useWalletStore.getState();
       expect(state.hasWallet).toBe(true);
       expect(state.walletType).toBe('solana');
-      expect(state.address).toContain('So1');
+      // Real wallet generates a base58 public key (32-44 chars)
+      expect(state.address).toBeTruthy();
+      expect(state.address!.length).toBeGreaterThanOrEqual(32);
+      expect(state.mnemonic).toBeTruthy();
+      expect(state.mnemonic!.split(' ').length).toBe(12);
       expect(state.tokens.length).toBeGreaterThanOrEqual(1);
       expect(state.tokens[0].symbol).toBe('SOL');
     });
 
-    it('should create a Zcash wallet', () => {
-      useWalletStore.getState().createWallet('zcash');
+    it('should create a Zcash wallet', async () => {
+      await useWalletStore.getState().createWallet('zcash');
       const state = useWalletStore.getState();
       expect(state.hasWallet).toBe(true);
       expect(state.walletType).toBe('zcash');
-      expect(state.address).toContain('zs1');
+      // Zcash is not supported on web, address is null
+      expect(state.address).toBeNull();
       expect(state.tokens[0].symbol).toBe('ZEC');
     });
   });
 
   describe('wallet import', () => {
-    it('should import Solana wallet with seed phrase', () => {
-      useWalletStore.getState().importWallet('solana', 'seed phrase words');
+    it('should import Solana wallet with valid seed phrase', async () => {
+      await useWalletStore.getState().importWallet('solana', TEST_MNEMONIC);
       const state = useWalletStore.getState();
       expect(state.hasWallet).toBe(true);
       expect(state.walletType).toBe('solana');
-      expect(state.tokens[0].balance).toBeGreaterThan(0);
+      expect(state.address).toBeTruthy();
+      expect(state.address!.length).toBeGreaterThanOrEqual(32);
+      // Balance starts at 0, fresh wallet
+      expect(state.tokens[0].balance).toBe(0);
     });
 
-    it('should import Zcash wallet with seed phrase', () => {
-      useWalletStore.getState().importWallet('zcash', 'seed phrase words');
+    it('should reject invalid seed phrase', async () => {
+      await useWalletStore.getState().importWallet('solana', 'not a valid seed phrase');
+      const state = useWalletStore.getState();
+      // Should not create wallet on invalid seed
+      expect(state.hasWallet).toBe(false);
+      expect(state.error).toBeTruthy();
+    });
+
+    it('should import Zcash wallet with seed phrase', async () => {
+      await useWalletStore.getState().importWallet('zcash', 'seed phrase words');
       const state = useWalletStore.getState();
       expect(state.hasWallet).toBe(true);
       expect(state.walletType).toBe('zcash');
