@@ -66,6 +66,12 @@ export function TPLinkSetupPage() {
             {t.tp_step2_warn}
           </p>
         </div>
+        <div className="mt-3 bg-green-950/30 border border-green-900/50 rounded-xl p-4">
+          <p className="text-green-300 text-sm flex items-start gap-2">
+            <span className="text-lg mt-0.5">🛡️</span>
+            {t.tp_step2_security}
+          </p>
+        </div>
       </StepSection>
 
       {/* Step 3: Mesh Network */}
@@ -96,10 +102,14 @@ export function TPLinkSetupPage() {
         <div className="bg-dark-900 border border-dark-700 rounded-xl p-4 font-mono text-sm text-dark-200 overflow-x-auto mb-4">
           <pre>{`# Install OpenWrt on TP-Link (if supported)
 # Download firmware from openwrt.org for your model
+# IMPORTANT: Your device needs at least 64MB RAM for Tor
 
 # After OpenWrt installation:
 opkg update
 opkg install tor tor-geoip
+
+# Verify available RAM before proceeding
+free -m   # Look for 64MB+ total memory
 
 # Configure Tor
 cat > /etc/tor/torrc << EOF
@@ -112,7 +122,12 @@ EOF
 /etc/init.d/tor enable
 /etc/init.d/tor start
 
-# Configure firewall to allow SOCKS
+# Install mDNS for local device discovery (avahi)
+opkg install avahi-daemon
+/etc/init.d/avahi-daemon enable
+/etc/init.d/avahi-daemon start
+
+# Configure firewall to allow SOCKS + mDNS
 uci add firewall rule
 uci set firewall.@rule[-1].name='Allow-Tor-SOCKS'
 uci set firewall.@rule[-1].src='lan'

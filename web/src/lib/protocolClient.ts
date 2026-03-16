@@ -25,6 +25,8 @@ import {
   type ConversationKeyState,
 } from './cryptoStore';
 import type { IdentityKeyChangeResult } from './wasmBridge';
+import { CallManager, callManager } from './webrtcService';
+import type { CallSignal } from './webrtcService';
 
 export interface AuthResult {
   userId: string;
@@ -46,6 +48,8 @@ let currentPrivateKey: string | null = null;
 
 // WebSocket relay
 let ws: WebSocket | null = null;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let reconnectDelay = 1000; // start at 1s, backoff to 30s max
 let messageListeners: Array<(conversationId: string, message: { id: string; senderId: string; content: string; timestamp: number }) => void> = [];
 let friendRequestListeners: Array<(requestId: string, senderName: string) => void> = [];
 
@@ -61,6 +65,17 @@ export async function initCore(): Promise<void> {
   await wasm.initWasm();
   initialized = true;
   console.log('[SM] Protocol core initialized — WASM version:', wasm.getVersion());
+
+  // Reconnect immediately when app returns to foreground (mobile PWA)
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && (!ws || ws.readyState !== WebSocket.OPEN)) {
+        if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+        reconnectDelay = 1000;
+        connectRelay();
+      }
+    });
+  }
 }
 
 /**
@@ -79,12 +94,24 @@ function connectRelay(): void {
 
   ws.onopen = () => {
     console.log('[SM] Connected to relay');
+    reconnectDelay = 1000; // reset backoff on successful connect
     // Register our public key with the relay
     ws?.send(JSON.stringify({
       type: 'register',
       userId: currentUserId,
       publicKey: currentPublicKey,
     }));
+
+    // Wire up call signaling transport
+    CallManager._relaySend = (signal: CallSignal) => {
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'call-signal',
+          recipientId: signal.to,
+          signal,
+        }));
+      }
+    };
   };
 
   ws.onmessage = (event) => {
@@ -96,8 +123,13 @@ function connectRelay(): void {
 
   ws.onclose = () => {
     ws = null;
-    // Reconnect after delay
-    setTimeout(() => connectRelay(), 5000);
+    // Reconnect with exponential backoff (1s → 2s → 4s → ... → 30s max)
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      connectRelay();
+    }, reconnectDelay);
+    reconnectDelay = Math.min(reconnectDelay * 2, 30000);
   };
 
   ws.onerror = () => {
@@ -107,6 +139,17 @@ function connectRelay(): void {
 
 function handleRelayMessage(data: { type: string; [key: string]: unknown }): void {
   switch (data.type) {
+    case 'ping': {
+      // Respond to server heartbeat
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'pong' }));
+      }
+      break;
+    }
+    case 'ack': {
+      // Server acknowledged receipt of our message — could update delivery status
+      break;
+    }
     case 'message': {
       const { conversationId, messageId, senderId, ciphertext, timestamp } = data as unknown as {
         conversationId: string; messageId: string; senderId: string; ciphertext: string; timestamp: number;
@@ -129,6 +172,18 @@ function handleRelayMessage(data: { type: string; [key: string]: unknown }): voi
         listener(requestId, senderName);
       }
       notifyFriendRequest(senderName, requestId);
+      break;
+    }
+    case 'call-signal': {
+      const { senderId: callSenderId, signal: callSignal } = data as unknown as { senderId: string; signal: CallSignal };
+      if (callSignal) {
+        // callSignal.from is set by the relay's senderId
+        callSignal.from = callSenderId;
+        if (callSignal.type === 'offer') {
+          callManager.handleIncomingCall(callSignal, 'voice');
+        }
+        callManager.handleSignal(callSignal);
+      }
       break;
     }
   }

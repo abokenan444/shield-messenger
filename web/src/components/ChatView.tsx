@@ -209,7 +209,7 @@ export function ChatView({ roomId }: ChatViewProps) {
       </div>
 
       {/* Message Input */}
-      <div className="px-6 py-4 bg-dark-900 border-t border-dark-800">
+      <div className="px-6 py-4 bg-dark-900 border-t border-dark-800" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
         <form onSubmit={handleSend} className="flex items-center gap-3">
           <button
             type="button"

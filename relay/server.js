@@ -119,6 +119,22 @@ wss.on('connection', (ws) => {
         }
         break;
       }
+
+      case 'call-signal': {
+        if (!userId) return;
+        const { recipientId: callRecipient, signal } = data;
+        if (!callRecipient || !signal) return;
+
+        const callTarget = clients.get(callRecipient);
+        if (callTarget && callTarget.ws.readyState === 1) {
+          callTarget.ws.send(JSON.stringify({
+            type: 'call-signal',
+            senderId: userId,
+            signal,
+          }));
+        }
+        break;
+      }
     }
   });
 

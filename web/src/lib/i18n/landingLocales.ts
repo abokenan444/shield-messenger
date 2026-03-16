@@ -308,6 +308,7 @@ export interface LandingT {
   tp_step2_s3: string;
   tp_step2_s4: string;
   tp_step2_warn: string;
+  tp_step2_security: string;
   tp_step3_title: string;
   tp_step3_body: string;
   tp_step3_s1: string;
@@ -451,7 +452,7 @@ const ar: LandingT = {
   footer_open_source: 'مفتوح المصدر',
   footer_community: 'مدعوم من المجتمع',
   footer_no_data: 'لا نبيع بياناتك',
-  footer_rights: '© 2026 Shield Messenger — جميع الحقوق محفوظة. الكود مفتوح المصدر بموجب ترخيص MIT.',
+  footer_rights: '© 2026 Shield Messenger — جميع الحقوق محفوظة. الكود مفتوح المصدر بموجب ترخيص PolyForm Noncommercial 1.0.0.',
 
   blog_title: 'المدونة',
   blog_read_more: 'اقرأ المزيد',
@@ -481,7 +482,7 @@ const ar: LandingT = {
   tos_section3_title: 'الامتثال القانوني',
   tos_section3_body: 'إذا تلقينا أمراً قضائياً صحيحاً وسارياً في نطاقنا القضائي، قد نضطر للامتثال ضمن أضيق الحدود. لن نقدم أي شيء يتجاوز البيانات المحدودة جداً التي لدينا (مثل البريد الإلكتروني المشفر للمشتركين المدفوعين فقط).',
   tos_section4_title: 'حقوق الملكية',
-  tos_section4_body: 'الكود مفتوح المصدر بموجب ترخيص MIT. الاسم "Shield Messenger" والعلامة التجارية والشعار هي حقوق محفوظة.',
+  tos_section4_body: 'الكود مفتوح المصدر بموجب ترخيص PolyForm Noncommercial 1.0.0. الاسم "Shield Messenger" والعلامة التجارية والشعار هي حقوق محفوظة.',
   tos_section5_title: 'التعديلات',
   tos_section5_body: 'نحتفظ بالحق في تعديل هذه الشروط. سيتم إخطار المستخدمين بأي تغييرات جوهرية عبر التطبيق أو الموقع.',
 
@@ -622,9 +623,10 @@ const ar: LandingT = {
   tp_step2_body: 'هيّئ الشبكة لدعم AetherNet بأفضل أداء:',
   tp_step2_s1: 'من التطبيق: اذهب إلى الإعدادات المتقدمة → الشبكة.',
   tp_step2_s2: 'فعّل "وضع الجسر" (Bridge Mode) إذا كنت تستخدم مودم موجود.',
-  tp_step2_s3: 'في إعدادات DHCP: خصّص نطاق IP ثابت لأجهزة Shield Messenger.',
-  tp_step2_s4: 'فعّل UPnP لتسهيل اكتشاف الأجهزة على الشبكة المحلية.',
+  tp_step2_s3: 'في إعدادات DHCP: خصّص عناوين IP ثابتة (Static IP) لأجهزة Shield Messenger — هذا يضمن بقاء عنوان كل جهاز ثابتاً حتى بعد إعادة التشغيل، مما يسمح لـ AetherNet بتوجيه الرسائل مباشرةً بدون فترة اكتشاف.',
+  tp_step2_s4: 'اكتشاف الأجهزة يتم تلقائياً عبر mDNS (Multicast DNS) — لا تحتاج لتفعيل UPnP. بروتوكول mDNS آمن ويعمل محلياً فقط دون فتح منافذ خارجية.',
   tp_step2_warn: 'تأكد من تفعيل تشفير WPA3 (أو WPA2 كحد أدنى) لحماية الشبكة اللاسلكية.',
+  tp_step2_security: 'نصيحة أمنية: يُنصح بتعطيل UPnP في إعدادات الراوتر. UPnP يسمح لأي جهاز بفتح منافذ تلقائياً دون إذنك، وهو خطر أمني كبير. Shield Messenger يستخدم mDNS بدلاً منه.',
   tp_step3_title: 'إعداد الشبكة المحلية Mesh',
   tp_step3_body: 'أضف أجهزة Deco إضافية لتوسيع نطاق الشبكة:',
   tp_step3_s1: 'ضع أجهزة Deco الإضافية في مواقع استراتيجية (كل 10-15 متراً).',
@@ -647,11 +649,11 @@ const ar: LandingT = {
   tp_test4: 'Tor يعمل عبر الراوتر (إعداد متقدم)',
   tp_trouble_title: 'حل المشاكل',
   tp_trouble_q1: 'لا يتم اكتشاف أجهزة أخرى على الشبكة',
-  tp_trouble_a1: 'تأكد من تواجد جميع الأجهزة على نفس الشبكة، وأن UPnP مفعّل. أعد تشغيل التطبيق وانتظر 30 ثانية.',
+  tp_trouble_a1: 'تأكد من تواجد جميع الأجهزة على نفس الشبكة المحلية (نفس SSID). أعد تشغيل التطبيق وانتظر 30 ثانية ليكتمل اكتشاف mDNS. تحقق من عدم تفعيل عزل العملاء (AP Isolation) في الراوتر.',
   tp_trouble_q2: 'الاتصال بطيء بين أجهزة Deco',
   tp_trouble_a2: 'قرّب أجهزة Deco من بعضها (لا تتجاوز 15 متراً). تجنّب وضعها خلف جدران سميكة أو أجسام معدنية.',
   tp_trouble_q3: 'Tor لا يعمل على OpenWrt',
-  tp_trouble_a3: 'تحقق من الذاكرة المتوفرة (يحتاج Tor 32 ميجابايت كحد أدنى). تأكد من فتح المنفذ 9050 في جدار الحماية.',
+  tp_trouble_a3: 'تحقق من الذاكرة المتوفرة (يحتاج Tor الحديث 64 ميجابايت كحد أدنى للعمل باستقرار). تأكد من فتح المنفذ 9050 في جدار الحماية.',
   tp_cta: 'تحميل Shield Messenger',
   tp_updated: 'آخر تحديث: مارس 2026',
 };
@@ -768,7 +770,7 @@ const en: LandingT = {
   footer_open_source: 'Open Source',
   footer_community: 'Community Supported',
   footer_no_data: 'We Don\'t Sell Your Data',
-  footer_rights: '© 2026 Shield Messenger — All rights reserved. Code is open source under MIT License.',
+  footer_rights: '© 2026 Shield Messenger — All rights reserved. Code is open source under PolyForm Noncommercial License 1.0.0.',
 
   blog_title: 'Blog',
   blog_read_more: 'Read more',
@@ -798,7 +800,7 @@ const en: LandingT = {
   tos_section3_title: 'Legal Compliance',
   tos_section3_body: 'If we receive a valid court order within our jurisdiction, we may be compelled to comply within the narrowest possible scope. We will not provide anything beyond the very limited data we hold (such as encrypted email addresses of paid subscribers only).',
   tos_section4_title: 'Intellectual Property',
-  tos_section4_body: 'The code is open source under MIT License. The name "Shield Messenger", trademark, and logo are reserved rights.',
+  tos_section4_body: 'The code is open source under PolyForm Noncommercial License 1.0.0. The name "Shield Messenger", trademark, and logo are reserved rights.',
   tos_section5_title: 'Changes',
   tos_section5_body: 'We reserve the right to modify these terms. Users will be notified of any material changes through the app or website.',
 
@@ -939,9 +941,10 @@ const en: LandingT = {
   tp_step2_body: 'Configure the network for optimal AetherNet performance:',
   tp_step2_s1: 'In the app: go to Advanced Settings → Network.',
   tp_step2_s2: 'Enable Bridge Mode if you\'re using an existing modem.',
-  tp_step2_s3: 'In DHCP settings: assign static IPs for Shield Messenger devices.',
-  tp_step2_s4: 'Enable UPnP for easy device discovery on the local network.',
+  tp_step2_s3: 'In DHCP settings: assign static IPs (DHCP reservations) for Shield Messenger devices — this ensures each device keeps a consistent address after reboots, allowing AetherNet to route messages directly without a discovery delay.',
+  tp_step2_s4: 'Device discovery is handled automatically via mDNS (Multicast DNS) — no need to enable UPnP. mDNS is secure and works locally without opening external ports.',
   tp_step2_warn: 'Make sure WPA3 encryption (or WPA2 minimum) is enabled to protect the wireless network.',
+  tp_step2_security: 'Security tip: Disable UPnP in your router settings. UPnP allows any device to open ports automatically without your permission, which is a significant security risk. Shield Messenger uses mDNS instead, which is safe and works locally.',
   tp_step3_title: 'Mesh Network Setup',
   tp_step3_body: 'Add additional Deco units to extend network coverage:',
   tp_step3_s1: 'Place additional Deco units at strategic locations (every 10-15 meters).',
@@ -964,11 +967,11 @@ const en: LandingT = {
   tp_test4: 'Tor running through the router (advanced setup)',
   tp_trouble_title: 'Troubleshooting',
   tp_trouble_q1: 'Other devices not discovered on the network',
-  tp_trouble_a1: 'Make sure all devices are on the same network and UPnP is enabled. Restart the app and wait 30 seconds.',
+  tp_trouble_a1: 'Make sure all devices are on the same local network (same SSID). Restart the app and wait 30 seconds for mDNS discovery to complete. Check that client isolation (AP Isolation) is disabled on your router.',
   tp_trouble_q2: 'Slow connection between Deco units',
   tp_trouble_a2: 'Move Deco units closer together (max 15 meters apart). Avoid placing them behind thick walls or metal objects.',
   tp_trouble_q3: 'Tor not working on OpenWrt',
-  tp_trouble_a3: 'Check available memory (Tor needs at least 32MB). Make sure port 9050 is open in the firewall.',
+  tp_trouble_a3: 'Check available memory (modern Tor requires at least 64MB RAM to run stably). Make sure port 9050 is open in the firewall.',
   tp_cta: 'Download Shield Messenger',
   tp_updated: 'Last updated: March 2026',
 };
@@ -1085,7 +1088,7 @@ const fr: LandingT = {
   footer_open_source: 'Open Source',
   footer_community: 'Soutenu par la communauté',
   footer_no_data: 'Nous ne vendons pas vos données',
-  footer_rights: '© 2026 Shield Messenger — Tous droits réservés. Code open source sous licence MIT.',
+  footer_rights: '© 2026 Shield Messenger — Tous droits réservés. Code open source sous licence PolyForm Noncommercial 1.0.0.',
 
   blog_title: 'Blog',
   blog_read_more: 'Lire la suite',
@@ -1115,7 +1118,7 @@ const fr: LandingT = {
   tos_section3_title: 'Conformité légale',
   tos_section3_body: 'Si nous recevons une ordonnance judiciaire valide, nous pouvons être contraints de nous conformer dans les limites les plus étroites.',
   tos_section4_title: 'Propriété intellectuelle',
-  tos_section4_body: 'Le code est open source sous licence MIT. Le nom et le logo sont des droits réservés.',
+  tos_section4_body: 'Le code est open source sous licence PolyForm Noncommercial 1.0.0. Le nom et le logo sont des droits réservés.',
   tos_section5_title: 'Modifications',
   tos_section5_body: 'Nous nous réservons le droit de modifier ces conditions. Les utilisateurs seront informés de tout changement important.',
 
@@ -1256,9 +1259,10 @@ const fr: LandingT = {
   tp_step2_body: 'Configurez le réseau pour des performances AetherNet optimales :',
   tp_step2_s1: 'Dans l\'application : Paramètres Avancés → Réseau.',
   tp_step2_s2: 'Activez le Mode Bridge si vous utilisez un modem existant.',
-  tp_step2_s3: 'Dans les paramètres DHCP : attribuez des IP statiques aux appareils Shield.',
-  tp_step2_s4: 'Activez UPnP pour la découverte automatique des appareils.',
+  tp_step2_s3: 'Dans les paramètres DHCP : attribuez des IP statiques (réservations DHCP) aux appareils Shield — cela garantit une adresse fixe après redémarrage, permettant à AetherNet de router les messages directement sans délai de découverte.',
+  tp_step2_s4: 'La découverte des appareils se fait automatiquement via mDNS (Multicast DNS) — pas besoin d\'activer UPnP. Le mDNS est sécurisé et fonctionne localement sans ouvrir de ports externes.',
   tp_step2_warn: 'Assurez-vous que le chiffrement WPA3 (ou WPA2 minimum) est activé.',
+  tp_step2_security: 'Conseil sécurité : Désactivez UPnP dans les paramètres du routeur. UPnP permet à n\'importe quel appareil d\'ouvrir des ports automatiquement sans votre permission, ce qui représente un risque de sécurité majeur. Shield Messenger utilise mDNS à la place.',
   tp_step3_title: 'Configuration du Réseau Mesh',
   tp_step3_body: 'Ajoutez des unités Deco supplémentaires :',
   tp_step3_s1: 'Placez les unités Deco tous les 10-15 mètres.',
@@ -1281,11 +1285,11 @@ const fr: LandingT = {
   tp_test4: 'Tor fonctionnel via le routeur (config avancée)',
   tp_trouble_title: 'Dépannage',
   tp_trouble_q1: 'Aucun appareil découvert sur le réseau',
-  tp_trouble_a1: 'Vérifiez que tous les appareils sont sur le même réseau avec UPnP activé. Redémarrez l\'application.',
+  tp_trouble_a1: 'Vérifiez que tous les appareils sont sur le même réseau local (même SSID). Redémarrez l\'application et attendez 30 secondes pour la découverte mDNS. Vérifiez que l\'isolation des clients (AP Isolation) est désactivée.',
   tp_trouble_q2: 'Connexion lente entre les unités Deco',
   tp_trouble_a2: 'Rapprochez les unités Deco (max 15 mètres). Évitez les murs épais et objets métalliques.',
   tp_trouble_q3: 'Tor ne fonctionne pas sur OpenWrt',
-  tp_trouble_a3: 'Vérifiez la mémoire disponible (Tor nécessite 32 Mo minimum). Ouvrez le port 9050 dans le pare-feu.',
+  tp_trouble_a3: 'Vérifiez la mémoire disponible (Tor moderne nécessite 64 Mo minimum pour fonctionner de manière stable). Ouvrez le port 9050 dans le pare-feu.',
   tp_cta: 'Télécharger Shield Messenger',
   tp_updated: 'Dernière mise à jour : Mars 2026',
 };
@@ -1306,7 +1310,7 @@ const es: LandingT = {
   price_reminder: 'Tu suscripción ayuda a sostener el proyecto y no afecta tu privacidad.',
   faq_title: 'Preguntas frecuentes',
   cta_title: 'Comienza a comunicarte de forma segura',
-  footer_rights: '© 2026 Shield Messenger — Todos los derechos reservados. Código abierto bajo licencia MIT.',
+  footer_rights: '© 2026 Shield Messenger — Todos los derechos reservados. Código abierto bajo licencia PolyForm Noncommercial 1.0.0.',
   pp_title: 'Política de privacidad', tos_title: 'Términos de servicio', tr_title: 'Política de transparencia — Solicitudes gubernamentales',
 };
 
@@ -1323,7 +1327,7 @@ const de: LandingT = {
   price_title: 'Preise', price_free: 'Kostenlos', price_free_price: '0 €', price_supporter: 'Unterstützer', price_supporter_price: '4,99 €/Monat', price_enterprise: 'Unternehmen', price_enterprise_price: 'Kontakt',
   faq_title: 'Häufig gestellte Fragen',
   cta_title: 'Jetzt sicher kommunizieren',
-  footer_rights: '© 2026 Shield Messenger — Alle Rechte vorbehalten. Code ist Open Source unter MIT-Lizenz.',
+  footer_rights: '© 2026 Shield Messenger — Alle Rechte vorbehalten. Code ist Open Source unter PolyForm Noncommercial 1.0.0 Lizenz.',
   pp_title: 'Datenschutzrichtlinie', tos_title: 'Nutzungsbedingungen', tr_title: 'Transparenzpolitik — Regierungsanfragen',
 };
 
@@ -1340,7 +1344,7 @@ const tr: LandingT = {
   price_title: 'Fiyatlar', price_free: 'Ücretsiz', price_free_price: '$0', price_supporter: 'Destekçi', price_supporter_price: '$4.99/ay', price_enterprise: 'Kurumsal', price_enterprise_price: 'Bize Ulaşın',
   faq_title: 'Sıkça Sorulan Sorular',
   cta_title: 'Güvenli İletişime Şimdi Başlayın',
-  footer_rights: '© 2026 Shield Messenger — Tüm hakları saklıdır. Kod MIT Lisansı altında açık kaynaktır.',
+  footer_rights: '© 2026 Shield Messenger — Tüm hakları saklıdır. Kod PolyForm Noncommercial 1.0.0 Lisansı altında açık kaynaktır.',
   pp_title: 'Gizlilik Politikası', tos_title: 'Kullanım Şartları', tr_title: 'Şeffaflık Politikası — Hükümet Talepleri',
 };
 
@@ -1353,7 +1357,7 @@ const fa: LandingT = {
   hero_cta_download: 'اکنون دانلود کنید', hero_cta_features: 'کشف ویژگی‌ها',
   priv_bold_statement: 'اگر دولتی از ما داده‌های کاربران را بخواهد، ما نمی‌توانیم پاسخ دهیم زیرا داده‌ها اصلاً وجود ندارند.',
   price_title: 'قیمت‌ها', price_free: 'رایگان', price_free_price: '$0', price_supporter: 'حامی', price_supporter_price: '$4.99/ماه', price_enterprise: 'سازمانی', price_enterprise_price: 'تماس بگیرید',
-  footer_rights: '© 2026 Shield Messenger — تمامی حقوق محفوظ است. کد تحت مجوز MIT اپن سورس است.',
+  footer_rights: '© 2026 Shield Messenger — تمامی حقوق محفوظ است. کد تحت مجوز PolyForm Noncommercial 1.0.0 اپن سورس است.',
   pp_title: 'سیاست حریم خصوصی', tos_title: 'شرایط استفاده', tr_title: 'سیاست شفافیت — درخواست‌های دولتی',
 };
 
@@ -1365,7 +1369,7 @@ const ur: LandingT = {
   hero_subtitle: 'ایک مکمل طور پر انکرپٹڈ، غیر مرکزی پیغام رسانی پلیٹ فارم جو آپ کی شناخت اور رازداری کو سب سے بچاتا ہے — حتی ہم سے بھی۔',
   hero_cta_download: 'ابھی ڈاؤن لوڈ کریں', hero_cta_features: 'خصوصیات دریافت کریں',
   priv_bold_statement: 'اگر کوئی حکومت ہم سے صارفین کا ڈیٹا مانگے تو ہم فراہم نہیں کر سکتے کیونکہ ڈیٹا موجود ہی نہیں ہے۔',
-  footer_rights: '© 2026 Shield Messenger — جملہ حقوق محفوظ ہیں۔ کوڈ MIT لائسنس کے تحت اوپن سورس ہے۔',
+  footer_rights: '© 2026 Shield Messenger — جملہ حقوق محفوظ ہیں۔ کوڈ PolyForm Noncommercial 1.0.0 لائسنس کے تحت اوپن سورس ہے۔',
   pp_title: 'رازداری کی پالیسی', tos_title: 'استعمال کی شرائط', tr_title: 'شفافیت کی پالیسی — حکومتی درخواستیں',
 };
 
@@ -1378,7 +1382,7 @@ const zh: LandingT = {
   hero_cta_download: '立即下载', hero_cta_features: '探索功能',
   priv_bold_statement: '如果政府要求我们提供用户数据，我们根本无法提供，因为数据不存在。',
   price_title: '定价', price_free: '免费', price_free_price: '$0', price_supporter: '支持者', price_supporter_price: '$4.99/月', price_enterprise: '企业', price_enterprise_price: '联系我们',
-  footer_rights: '© 2026 Shield Messenger — 保留所有权利。代码根据 MIT 许可证开源。',
+  footer_rights: '© 2026 Shield Messenger — 保留所有权利。代码根据 PolyForm Noncommercial 1.0.0 许可证开源。',
   pp_title: '隐私政策', tos_title: '服务条款', tr_title: '透明度政策——政府请求',
 };
 
@@ -1391,7 +1395,7 @@ const ru: LandingT = {
   hero_cta_download: 'Скачать сейчас', hero_cta_features: 'Узнать больше',
   priv_bold_statement: 'Если правительство запросит у нас пользовательские данные, мы просто не сможем их предоставить, потому что данных не существует.',
   price_title: 'Цены', price_free: 'Бесплатно', price_free_price: '$0', price_supporter: 'Поддержка', price_supporter_price: '$4.99/мес', price_enterprise: 'Предприятие', price_enterprise_price: 'Связаться',
-  footer_rights: '© 2026 Shield Messenger — Все права защищены. Код открыт под лицензией MIT.',
+  footer_rights: '© 2026 Shield Messenger — Все права защищены. Код открыт под лицензией PolyForm Noncommercial 1.0.0.',
   pp_title: 'Политика конфиденциальности', tos_title: 'Условия использования', tr_title: 'Политика прозрачности — Правительственные запросы',
 };
 
@@ -1403,7 +1407,7 @@ const pt: LandingT = {
   hero_subtitle: 'Uma plataforma de mensagens descentralizada e completamente criptografada que protege sua identidade e privacidade de todos — até de nós.',
   hero_cta_download: 'Baixar agora', hero_cta_features: 'Descobrir recursos',
   priv_bold_statement: 'Se um governo nos pedir dados de usuários, simplesmente não podemos fornecer porque os dados não existem.',
-  footer_rights: '© 2026 Shield Messenger — Todos os direitos reservados. Código aberto sob licença MIT.',
+  footer_rights: '© 2026 Shield Messenger — Todos os direitos reservados. Código aberto sob licença PolyForm Noncommercial 1.0.0.',
   pp_title: 'Política de Privacidade', tos_title: 'Termos de Serviço', tr_title: 'Política de Transparência — Solicitações Governamentais',
 };
 
@@ -1415,7 +1419,7 @@ const ja: LandingT = {
   hero_subtitle: 'あなたのアイデンティティとプライバシーをすべての人から保護する、完全に暗号化された分散型メッセージングプラットフォーム — 私たちからさえも。',
   hero_cta_download: '今すぐダウンロード', hero_cta_features: '機能を見る',
   priv_bold_statement: '政府がユーザーデータを要求しても、データが存在しないため提供することは不可能です。',
-  footer_rights: '© 2026 Shield Messenger — 全著作権所有。コードはMITライセンスの下でオープンソースです。',
+  footer_rights: '© 2026 Shield Messenger — 全著作権所有。コードはPolyForm Noncommercial 1.0.0ライセンスの下でオープンソースです。',
   pp_title: 'プライバシーポリシー', tos_title: '利用規約', tr_title: '透明性ポリシー — 政府からの要請',
 };
 
@@ -1427,7 +1431,7 @@ const ko: LandingT = {
   hero_subtitle: '모든 사람으로부터 — 심지어 우리로부터도 — 당신의 신원과 프라이버시를 보호하는 완전히 암호화된 분산형 메시징 플랫폼.',
   hero_cta_download: '지금 다운로드', hero_cta_features: '기능 알아보기',
   priv_bold_statement: '정부가 사용자 데이터를 요청해도 데이터가 존재하지 않기 때문에 제공할 수 없습니다.',
-  footer_rights: '© 2026 Shield Messenger — 모든 권리 보유. 코드는 MIT 라이선스 하에 오픈소스입니다.',
+  footer_rights: '© 2026 Shield Messenger — 모든 권리 보유. 코드는 PolyForm Noncommercial 1.0.0 라이선스 하에 오픈소스입니다.',
   pp_title: '개인정보처리방침', tos_title: '이용약관', tr_title: '투명성 정책 — 정부 요청',
 };
 
@@ -1439,7 +1443,7 @@ const hi: LandingT = {
   hero_subtitle: 'पूरी तरह से एन्क्रिप्टेड, विकेंद्रीकृत मैसेजिंग प्लेटफ़ॉर्म जो आपकी पहचान और गोपनीयता को सभी से सुरक्षित रखता है — हमसे भी।',
   hero_cta_download: 'अभी डाउनलोड करें', hero_cta_features: 'विशेषताएं जानें',
   priv_bold_statement: 'अगर कोई सरकार हमसे उपयोगकर्ता डेटा मांगती है, तो हम बस प्रदान नहीं कर सकते क्योंकि डेटा मौजूद ही नहीं है।',
-  footer_rights: '© 2026 Shield Messenger — सभी अधिकार सुरक्षित। कोड MIT लाइसेंस के तहत ओपन सोर्स है।',
+  footer_rights: '© 2026 Shield Messenger — सभी अधिकार सुरक्षित। कोड PolyForm Noncommercial 1.0.0 लाइसेंस के तहत ओपन सोर्स है।',
   pp_title: 'गोपनीयता नीति', tos_title: 'सेवा की शर्तें', tr_title: 'पारदर्शिता नीति — सरकारी अनुरोध',
 };
 
@@ -1451,7 +1455,7 @@ const id: LandingT = {
   hero_subtitle: 'Platform pesan terdesentralisasi yang sepenuhnya terenkripsi yang melindungi identitas dan privasi Anda dari semua orang — bahkan dari kami.',
   hero_cta_download: 'Unduh Sekarang', hero_cta_features: 'Jelajahi Fitur',
   priv_bold_statement: 'Jika pemerintah meminta data pengguna kami, kami tidak dapat memberikannya karena data tersebut tidak ada.',
-  footer_rights: '© 2026 Shield Messenger — Hak cipta dilindungi. Kode sumber terbuka di bawah Lisensi MIT.',
+  footer_rights: '© 2026 Shield Messenger — Hak cipta dilindungi. Kode sumber terbuka di bawah Lisensi PolyForm Noncommercial 1.0.0.',
   pp_title: 'Kebijakan Privasi', tos_title: 'Ketentuan Layanan', tr_title: 'Kebijakan Transparansi — Permintaan Pemerintah',
 };
 
@@ -1463,7 +1467,7 @@ const ms: LandingT = {
   hero_subtitle: 'Platform pesanan terdesentralisasi yang disulitkan sepenuhnya yang melindungi identiti dan privasi anda daripada semua orang — malah daripada kami.',
   hero_cta_download: 'Muat Turun Sekarang', hero_cta_features: 'Terokai Ciri-ciri',
   priv_bold_statement: 'Jika kerajaan meminta data pengguna kami, kami tidak dapat memberikannya kerana data tersebut tidak wujud.',
-  footer_rights: '© 2026 Shield Messenger — Hak cipta terpelihara. Kod sumber terbuka di bawah Lesen MIT.',
+  footer_rights: '© 2026 Shield Messenger — Hak cipta terpelihara. Kod sumber terbuka di bawah Lesen PolyForm Noncommercial 1.0.0.',
   pp_title: 'Dasar Privasi', tos_title: 'Terma Perkhidmatan', tr_title: 'Dasar Ketelusan — Permintaan Kerajaan',
 };
 
@@ -1475,7 +1479,7 @@ const sw: LandingT = {
   hero_subtitle: 'Jukwaa la ujumbe lisiloongozwa na kati ambalo limelindwa kwa usimbuaji kamili — hata sisi hatuwezi kusoma ujumbe wako.',
   hero_cta_download: 'Pakua Sasa', hero_cta_features: 'Gundua Vipengele',
   priv_bold_statement: 'Ikiwa serikali itatuomba data ya watumiaji, hatuwezi kutoa kwa sababu data haipo.',
-  footer_rights: '© 2026 Shield Messenger — Haki zote zimehifadhiwa. Msimbo ni chanzo huria chini ya Leseni ya MIT.',
+  footer_rights: '© 2026 Shield Messenger — Haki zote zimehifadhiwa. Msimbo ni chanzo huria chini ya Leseni ya PolyForm Noncommercial 1.0.0.',
   pp_title: 'Sera ya Faragha', tos_title: 'Masharti ya Huduma', tr_title: 'Sera ya Uwazi — Maombi ya Serikali',
 };
 
@@ -1487,7 +1491,7 @@ const it: LandingT = {
   hero_subtitle: 'Una piattaforma di messaggistica decentralizzata completamente crittografata che protegge la tua identità e privacy da tutti — persino da noi.',
   hero_cta_download: 'Scarica ora', hero_cta_features: 'Scopri le funzionalità',
   priv_bold_statement: 'Se un governo ci chiedesse i dati degli utenti, semplicemente non potremmo fornirli perché i dati non esistono.',
-  footer_rights: '© 2026 Shield Messenger — Tutti i diritti riservati. Codice open source sotto licenza MIT.',
+  footer_rights: '© 2026 Shield Messenger — Tutti i diritti riservati. Codice open source sotto licenza PolyForm Noncommercial 1.0.0.',
   pp_title: 'Informativa sulla Privacy', tos_title: 'Termini di Servizio', tr_title: 'Politica di Trasparenza — Richieste Governative',
 };
 
@@ -1562,7 +1566,7 @@ const nl: LandingT = {
   cta_android: 'Android APK', cta_pwa: 'Webapp (PWA)', cta_ios: 'iOS TestFlight',
   cta_install_pwa: 'Om de PWA te installeren: open de link in je browser → klik op "Toevoegen aan startscherm" of het installatiepictogram in de adresbalk.',
   footer_open_source: 'Open Source', footer_community: 'Ondersteund door de gemeenschap', footer_no_data: 'Wij verkopen je gegevens niet',
-  footer_rights: '© 2026 Shield Messenger — Alle rechten voorbehouden. Code is open source onder MIT-licentie.',
+  footer_rights: '© 2026 Shield Messenger — Alle rechten voorbehouden. Code is open source onder PolyForm Noncommercial 1.0.0-licentie.',
   blog_title: 'Blog', blog_read_more: 'Lees meer', blog_no_posts: 'Nog geen berichten.', blog_loading: 'Laden...',
   pp_title: 'Privacybeleid',
   pp_intro: 'Je privacy is voor ons niet zomaar een beleid — het is de basis van ons bestaan. Dit document legt duidelijk uit hoe we met je gegevens omgaan — of beter gezegd, hoe we dat niet doen.',
@@ -1586,7 +1590,7 @@ const nl: LandingT = {
   tos_section3_title: 'Juridische naleving',
   tos_section3_body: 'Als we een geldig gerechtelijk bevel ontvangen binnen ons rechtsgebied, kunnen we verplicht worden om binnen de smalst mogelijke reikwijdte mee te werken. We zullen niets verstrekken dat verder gaat dan de zeer beperkte gegevens die we hebben (zoals versleutelde e-mailadressen van alleen betaalde abonnees).',
   tos_section4_title: 'Intellectueel eigendom',
-  tos_section4_body: 'De code is open source onder MIT-licentie. De naam "Shield Messenger", het handelsmerk en het logo zijn voorbehouden rechten.',
+  tos_section4_body: 'De code is open source onder PolyForm Noncommercial 1.0.0-licentie. De naam "Shield Messenger", het handelsmerk en het logo zijn voorbehouden rechten.',
   tos_section5_title: 'Wijzigingen',
   tos_section5_body: 'We behouden ons het recht voor om deze voorwaarden te wijzigen. Gebruikers worden op de hoogte gebracht van wezenlijke wijzigingen via de app of website.',
   tr_title: 'Transparantiebeleid — Overheidsverzoeken',

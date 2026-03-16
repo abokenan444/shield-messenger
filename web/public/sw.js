@@ -12,7 +12,7 @@
  * is fetched and decrypted by the main thread after wake-up.
  */
 
-const CACHE_NAME = 'sl-cache-v2';
+const CACHE_NAME = 'sl-cache-v3';
 const SHELL_ASSETS = [
   '/',
   '/index.html',
@@ -67,23 +67,31 @@ self.addEventListener('fetch', (event) => {
     return; // Don't cache API calls
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const fetchPromise = fetch(event.request)
+  // Network-first for HTML (shell assets) so deploys take effect immediately
+  // Cache-first for hashed static assets (immutable)
+  const isShellAsset = SHELL_ASSETS.includes(url.pathname);
+  const isHTML = event.request.destination === 'document' || isShellAsset;
+
+  if (isHTML) {
+    // Network-first: always try fresh HTML, fall back to cache offline
+    event.respondWith(
+      fetch(event.request)
         .then((response) => {
-          // Cache successful responses for shell assets
-          if (response.ok && SHELL_ASSETS.includes(url.pathname)) {
+          if (response.ok && isShellAsset) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
           }
           return response;
         })
-        .catch(() => {
-          // Return cached version if network fails
-          return cached;
-        });
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
 
-      return cached || fetchPromise;
+  // Cache-first for other static assets (JS/CSS with hashed names)
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      return cached || fetch(event.request);
     })
   );
 });
