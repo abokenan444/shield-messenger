@@ -55,6 +55,8 @@ export interface LandingT {
   feat_trust_levels_desc: string;
   feat_file_restriction: string;
   feat_file_restriction_desc: string;
+  feat_endpoint_protection: string;
+  feat_endpoint_protection_desc: string;
 
   // Privacy guarantee
   priv_title: string;
@@ -225,6 +227,15 @@ export interface LandingT {
   wp_crypto_row5_algo: string;
   wp_crypto_row6_purpose: string;
   wp_crypto_row6_algo: string;
+  wp_endpoint_title: string;
+  wp_endpoint_body: string;
+  wp_endpoint_b1: string;
+  wp_endpoint_b2: string;
+  wp_endpoint_b3: string;
+  wp_endpoint_b4: string;
+  wp_endpoint_b5: string;
+  wp_endpoint_b6: string;
+  wp_endpoint_b7: string;
   wp_closing: string;
   wp_diagram_handshake_title: string;
   wp_diagram_network_title: string;
@@ -392,6 +403,8 @@ const ar: LandingT = {
   feat_trust_levels_desc: 'ثلاث مستويات ثقة (L0 غير موثوق، L1 مشفر، L2 موثّق) تُخزن محلياً عبر SQLCipher. كل مستوى يحدد صلاحيات مختلفة للتفاعل.',
   feat_file_restriction: 'حماية الملفات الذكية',
   feat_file_restriction_desc: 'لا يمكن إرسال أو استقبال الملفات إلا مع جهات الاتصال الموثّقة (المستوى L2). تحذير تلقائي عند محاولة مشاركة ملفات مع جهات غير موثّقة.',
+  feat_endpoint_protection: 'حماية الجهاز من الاختراق',
+  feat_endpoint_protection_desc: 'حماية متقدمة متعددة الطبقات ضد الاختراق والتلاعب: كشف الروت والتصحيح، التحقق من سلامة التطبيق، تخزين المفاتيح في الأجهزة المادية (StrongBox/TEE)، وحماية الذاكرة.',
 
   priv_title: 'كيف نضمن الخصوصية؟',
   priv_no_data: 'لا نجمع أي بيانات شخصية — لا اسم، لا بريد إلكتروني، لا رقم هاتف، لا موقع جغرافي.',
@@ -543,6 +556,15 @@ const ar: LandingT = {
   wp_crypto_row4_purpose: 'تشفير قاعدة البيانات', wp_crypto_row4_algo: 'SQLCipher (AES-256-CBC)',
   wp_crypto_row5_purpose: 'إخفاء الهوية', wp_crypto_row5_algo: 'Tor Hidden Services (.onion)',
   wp_crypto_row6_purpose: 'تشفير المكالمات', wp_crypto_row6_algo: 'XChaCha20-Poly1305 AEAD',
+  wp_endpoint_title: '7. حماية الجهاز من الاختراق (Endpoint Protection)',
+  wp_endpoint_body: 'في التحديث الأخير (v0.2.0)، أضفنا نظام حماية متقدم متعدد الطبقات يحمي تطبيقك من محاولات الاختراق والتلاعب على مستوى الجهاز:',
+  wp_endpoint_b1: 'كشف الروت والتصحيح (Root & Debug Detection): يكتشف التطبيق تلقائياً أجهزة الروت وأدوات التصحيح والمحاكيات وأدوات الاعتراض مثل Frida و Xposed، ويُنهي نفسه فوراً لحماية بياناتك.',
+  wp_endpoint_b2: 'التحقق من سلامة التطبيق (App Integrity): يتحقق من شهادة التوقيع الرقمي للتطبيق عند كل تشغيل للتأكد من عدم تعديل الكود. أي تلاعب يؤدي لإيقاف التطبيق فوراً.',
+  wp_endpoint_b3: 'تخزين المفاتيح في الأجهزة المادية (Hardware Keystore): يستخدم شريحة الأمان StrongBox أو وحدة TEE لتخزين مفاتيح التشفير في أجهزة مادية معزولة لا يمكن استخراجها حتى مع صلاحيات الروت.',
+  wp_endpoint_b4: 'حماية الذاكرة (Memory Guard): يمسح جميع البيانات الحساسة من ذاكرة التشغيل (RAM) فور الانتهاء من استخدامها — لمنع استخراج المفاتيح من تفريغ الذاكرة.',
+  wp_endpoint_b5: 'منع التقاط الشاشة (Screenshot Prevention): يمنع التطبيق التقاط لقطات الشاشة وتسجيل الشاشة أثناء عرض المحادثات لحماية خصوصية محادثاتك.',
+  wp_endpoint_b6: 'منسّق الأمان المركزي (Security Orchestrator): يعمل كطبقة تنسيق مركزية تدير جميع طبقات الحماية وتتخذ إجراءات فورية عند اكتشاف أي تهديد.',
+  wp_endpoint_b7: 'تشغيل تلقائي عند بدء التطبيق: جميع طبقات الحماية تعمل تلقائياً عند فتح التطبيق دون أي تدخل من المستخدم.',
   wp_closing: 'Shield Messenger مبني على مبدأ بسيط: بياناتك ملكك أنت فقط. لا نجمعها، لا نخزّنها، ولا نستطيع قراءتها حتى لو أردنا. هذا ليس وعداً تسويقياً — إنه واقع تقني يمكن لأي خبير التحقق منه في الكود المفتوح المصدر.',
   wp_diagram_handshake_title: 'مخطط عملية التعارف الثلاثية (Hybrid Handshake)',
   wp_diagram_network_title: 'مخطط عمارة الشبكة (Network Architecture)',
@@ -710,6 +732,8 @@ const en: LandingT = {
   feat_trust_levels_desc: 'Three trust levels (L0 Untrusted, L1 Encrypted, L2 Verified) stored locally via SQLCipher. Each level defines different interaction permissions.',
   feat_file_restriction: 'Smart File Protection',
   feat_file_restriction_desc: 'Files can only be sent or received with verified contacts (Level L2). Automatic warning when attempting to share files with unverified contacts.',
+  feat_endpoint_protection: 'Endpoint Protection',
+  feat_endpoint_protection_desc: 'Multi-layered device hardening against tampering: root/debug detection, APK integrity verification, hardware-backed keystore (StrongBox/TEE), and memory guard.',
 
   priv_title: 'How Do We Guarantee Privacy?',
   priv_no_data: 'We collect zero personal data — no name, no email, no phone number, no location.',
@@ -861,6 +885,15 @@ const en: LandingT = {
   wp_crypto_row4_purpose: 'Database Encryption', wp_crypto_row4_algo: 'SQLCipher (AES-256-CBC)',
   wp_crypto_row5_purpose: 'Identity Concealment', wp_crypto_row5_algo: 'Tor Hidden Services (.onion)',
   wp_crypto_row6_purpose: 'Call Encryption', wp_crypto_row6_algo: 'XChaCha20-Poly1305 AEAD',
+  wp_endpoint_title: '7. Endpoint Protection (Device Hardening)',
+  wp_endpoint_body: 'In the latest update (v0.2.0), we added a multi-layered endpoint protection system that guards your app against tampering and exploitation at the device level:',
+  wp_endpoint_b1: 'Root & Debug Detection: The app automatically detects rooted devices, debuggers, emulators, and hooking frameworks like Frida and Xposed, and terminates immediately to protect your data.',
+  wp_endpoint_b2: 'App Integrity Verification: Verifies the APK signing certificate on every launch to ensure the code has not been modified. Any tampering causes immediate termination.',
+  wp_endpoint_b3: 'Hardware-Backed Keystore: Uses the StrongBox security chip or TEE (Trusted Execution Environment) to store encryption keys in isolated hardware — unextractable even with root access.',
+  wp_endpoint_b4: 'Memory Guard: Wipes all sensitive data from RAM immediately after use — preventing key extraction from memory dumps.',
+  wp_endpoint_b5: 'Screenshot Prevention: Blocks screenshots and screen recording while conversations are displayed to protect chat privacy.',
+  wp_endpoint_b6: 'Security Orchestrator: A central coordination layer that manages all protection layers and takes immediate action when any threat is detected.',
+  wp_endpoint_b7: 'Automatic Activation: All protection layers activate automatically at app launch with zero user intervention required.',
   wp_closing: 'Shield Messenger is built on a simple principle: your data belongs to you alone. We don\'t collect it, we don\'t store it, and we can\'t read it even if we wanted to. This isn\'t a marketing promise — it\'s a technical reality that any expert can verify in our open-source code.',
   wp_diagram_handshake_title: 'Three-Phase Friend Request (Hybrid Handshake)',
   wp_diagram_network_title: 'Network Architecture',
@@ -1019,6 +1052,8 @@ const fr: LandingT = {
   feat_identifiers: 'Identifiants intelligents',
   feat_identifiers_desc: 'Système d\'identifiants unique comme ahmed.s9442@securechat avec composant aléatoire.',
   feat_wallet: 'Portefeuille numérique',
+  feat_endpoint_protection: 'Protection de l\'appareil',
+  feat_endpoint_protection_desc: 'Renforcement multi-couches de l\'appareil contre toute manipulation : détection root/débogage, vérification d\'intégrité APK, keystore matériel (StrongBox/TEE), et protection mémoire.',
   feat_wallet_desc: 'Portefeuille intégré pour envoyer et recevoir Zcash et Solana dans les conversations.',
   feat_pwa: 'PWA en secours',
   feat_pwa_desc: 'Application web progressive fonctionnant sur tous les navigateurs modernes avec support Tor via WebAssembly.',
@@ -1179,6 +1214,15 @@ const fr: LandingT = {
   wp_crypto_row4_purpose: 'Chiffrement de la base', wp_crypto_row4_algo: 'SQLCipher (AES-256-CBC)',
   wp_crypto_row5_purpose: 'Anonymisation', wp_crypto_row5_algo: 'Tor Hidden Services (.onion)',
   wp_crypto_row6_purpose: 'Chiffrement des appels', wp_crypto_row6_algo: 'XChaCha20-Poly1305 AEAD',
+  wp_endpoint_title: '7. Protection de l\'appareil (Endpoint Protection)',
+  wp_endpoint_body: 'Dans la dernière mise à jour (v0.2.0), nous avons ajouté un système de protection multi-couches qui protège votre application contre la manipulation et l\'exploitation au niveau de l\'appareil :',
+  wp_endpoint_b1: 'Détection Root & Débogage : L\'application détecte automatiquement les appareils rootés, les débogueurs, les émulateurs et les frameworks de hooking comme Frida et Xposed, et se termine immédiatement pour protéger vos données.',
+  wp_endpoint_b2: 'Vérification d\'intégrité : Vérifie le certificat de signature APK à chaque lancement pour s\'assurer que le code n\'a pas été modifié. Toute manipulation entraîne une fermeture immédiate.',
+  wp_endpoint_b3: 'Keystore matériel : Utilise la puce de sécurité StrongBox ou le TEE pour stocker les clés de chiffrement dans du matériel isolé — inextractible même avec accès root.',
+  wp_endpoint_b4: 'Protection mémoire : Efface toutes les données sensibles de la RAM immédiatement après utilisation — empêchant l\'extraction des clés depuis les dumps mémoire.',
+  wp_endpoint_b5: 'Blocage des captures d\'écran : Bloque les captures et l\'enregistrement d\'écran pendant l\'affichage des conversations pour protéger la confidentialité.',
+  wp_endpoint_b6: 'Orchestrateur de sécurité : Une couche de coordination centrale qui gère toutes les couches de protection et prend des mesures immédiates en cas de menace.',
+  wp_endpoint_b7: 'Activation automatique : Toutes les couches de protection s\'activent automatiquement au lancement de l\'application sans intervention de l\'utilisateur.',
   wp_closing: 'Shield Messenger repose sur un principe simple : vos données vous appartiennent. Nous ne les collectons pas, ne les stockons pas, et ne pouvons pas les lire. C\'est une réalité technique vérifiable dans notre code open source.',
   wp_diagram_handshake_title: 'Processus de demande d\'ami en trois phases (Handshake hybride)',
   wp_diagram_network_title: 'Architecture réseau',
@@ -1522,6 +1566,8 @@ const nl: LandingT = {
   feat_decentralized: 'Volledige decentralisatie',
   feat_decentralized_desc: 'Geen centrale berichtenservers. Directe verbinding tussen apparaten via Tor Hidden Services. Drie verborgen diensten: ontdekking, vriendschapsverzoeken en berichten.',
   feat_identifiers: 'Slimme identificatoren',
+  feat_endpoint_protection: 'Apparaatbeveiliging',
+  feat_endpoint_protection_desc: 'Meerlaagse apparaatbeveiliging tegen manipulatie: root/debug-detectie, APK-integriteitsverificatie, hardwarematige keystore (StrongBox/TEE) en geheugenbescherming.',
   feat_identifiers_desc: 'Uniek identificatiesysteem zoals ahmed.s9442@securechat met een willekeurig deel om raden te voorkomen. Zoeken via DHT zonder centrale server.',
   feat_wallet: 'Digitale portemonnee',
   feat_wallet_desc: 'Ingebouwde portemonnee voor het verzenden en ontvangen van Zcash (afgeschermde transacties) en Solana rechtstreeks in gesprekken met volledige beveiliging.',
@@ -1637,6 +1683,15 @@ const nl: LandingT = {
   wp_calls_title: '5. Spraakgesprekken',
   wp_calls_body: 'Gesprekken volgen dezelfde beveiligingsprincipes:',
   wp_calls_b1: 'Kortstondige sleuteluitwisseling (X25519) voor elk gesprek — compromittering van één gesprek heeft geen invloed op andere.',
+  wp_endpoint_title: '7. Apparaatbeveiliging (Endpoint Protection)',
+  wp_endpoint_body: 'In de laatste update (v0.2.0) hebben we een meerlaags beveiligingssysteem toegevoegd dat uw app beschermt tegen manipulatie en exploitatie op apparaatniveau:',
+  wp_endpoint_b1: 'Root- & Debug-detectie: De app detecteert automatisch gerooide apparaten, debuggers, emulators en hooking-frameworks zoals Frida en Xposed, en sluit onmiddellijk af om uw gegevens te beschermen.',
+  wp_endpoint_b2: 'App-integriteitsverificatie: Verifieert het APK-ondertekeningscertificaat bij elke start om te garanderen dat de code niet is gewijzigd. Elke manipulatie leidt tot onmiddellijke afsluiting.',
+  wp_endpoint_b3: 'Hardwarematige Keystore: Gebruikt de StrongBox-beveiligingschip of TEE om versleutelingssleutels op te slaan in geïsoleerde hardware — onuitneembaar zelfs met root-toegang.',
+  wp_endpoint_b4: 'Geheugenbescherming: Wist alle gevoelige gegevens onmiddellijk uit het RAM-geheugen na gebruik — voorkomt sleutelextractie uit geheugendumps.',
+  wp_endpoint_b5: 'Schermafdruk-blokkering: Blokkeert screenshots en schermopname tijdens het weergeven van gesprekken om de chatprivacy te beschermen.',
+  wp_endpoint_b6: 'Beveiligingsorkestrator: Een centrale coördinatielaag die alle beveiligingslagen beheert en onmiddellijke actie onderneemt bij elke gedetecteerde bedreiging.',
+  wp_endpoint_b7: 'Automatische activering: Alle beveiligingslagen worden automatisch geactiveerd bij het starten van de app zonder enige gebruikersinterventie.',
   wp_calls_b2: 'Audio versleuteld met XChaCha20-Poly1305 AEAD met Opus-codec (48 kHz, 40 ms per frame).',
   wp_calls_b3: 'Audiotransport via 6 parallelle Tor-circuits met adaptieve planning.',
   wp_calls_b4: 'Geen audio gaat via onze servers — directe verbinding tussen apparaten via Tor.',

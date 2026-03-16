@@ -116,6 +116,10 @@ export function WhitepaperPage() {
         </table>
       </div>
 
+      {/* ── Section 7: Endpoint Protection ── */}
+      <SectionBlock title={t.wp_endpoint_title} body={t.wp_endpoint_body} />
+      <BulletList items={[t.wp_endpoint_b1, t.wp_endpoint_b2, t.wp_endpoint_b3, t.wp_endpoint_b4, t.wp_endpoint_b5, t.wp_endpoint_b6, t.wp_endpoint_b7]} />
+
       {/* ── Closing ── */}
       <blockquote className="mt-12 bg-primary-900/20 border border-primary-800/50 rounded-2xl p-8">
         <p className="text-primary-200 text-lg leading-relaxed font-medium italic">
