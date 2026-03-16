@@ -35,7 +35,7 @@ graph TD
             A --> D[Port 9153: ACKs]
         end
         subgraph Voice Tor Instance (SOCKS: 9052)
-            E[Ephemeral Voice Hidden Service] --> F[Port 9152: Voice/Video Stream]
+            E[Ephemeral Voice Hidden Service] --> F[Port 9152: Voice Stream]
         end
         G[Shield Messenger Core] <--> A
         G <--> E
@@ -58,7 +58,7 @@ The protocol uses a standardized set of ports for different functions:
 | **9150** | Messaging | 8080 | Main channel for PING/PONG, handshake, text, files, and friend requests. |
 | **9151** | Messaging | 9151 | Reserved for future use (e.g., TAP messages). |
 | **9153** | Messaging | 9153 | Dedicated listener for delivery confirmations (ACKs) to optimize flow control. |
-| **9152** | Voice | 9152 | Low-latency, high-throughput channel for encrypted voice/video streams. |
+| **9152** | Voice | 9152 | Low-latency, high-throughput channel for encrypted voice streams. |
 
 ---
 
@@ -123,7 +123,7 @@ To resist traffic analysis, the protocol implements a multi-layered padding and 
 - **Traffic Shaping Profiles:** The padding strategy can be adapted based on the type of communication:
     - **Chat:** Optimized for low-latency, bursty text messages.
     - **File Transfer:** Optimized for high-throughput, sustained data streams.
-    - **Voice/Video:** Optimized for constant-bitrate, low-latency media streams.
+    - **Voice:** Optimized for constant-bitrate, low-latency media streams.
 
 ---
 
@@ -162,3 +162,31 @@ The wipe process is configurable but typically includes:
 - **Indistinguishability:** The Duress PIN hash is stored using the same Argon2id hashing parameters as the primary PIN. An attacker examining the device's storage cannot tell if a Duress PIN is configured or distinguish its hash from the real one.
 - **Silent Operation:** The wipe process is silent and provides no feedback to the user (or coercer). The app simply appears to be a fresh, unused installation.
 - **Self-Destruction:** The duress configuration itself can be wiped, removing all evidence that the feature was ever enabled.
+
+---
+
+## 7. AetherNet Multi-Transport Layer
+
+Shield Messenger's networking is extended by **AetherNet**, a multi-transport abstraction that provides intelligent routing across Tor, I2P, and local mesh networks.
+
+### 7.1. Transport Selection
+
+AetherNet's Smart Switching Engine evaluates available transports using a weighted scoring model (anonymity 35%, latency 25%, reliability 20%, bandwidth 10%, battery 5%, threat 5%) and selects the optimal path for each message. The threat level is synchronized with the Crisis Controller to dynamically adjust routing behavior.
+
+### 7.2. Crisis Mode Integration
+
+When activated (manually or by detecting network tampering/traffic analysis), crisis mode:
+- Forces redundant delivery across all available transports
+- Rotates all transport identities immediately
+- Pads messages to fixed sizes and generates dummy traffic
+- Escalates all message priorities
+
+### 7.3. Store-and-Forward
+
+When no transport is available, messages are queued locally with XChaCha20-Poly1305 encryption, retried with exponential backoff, and persisted across app restarts.
+
+### 7.4. Mesh Networking
+
+For offline scenarios (no internet), AetherNet falls back to local mesh networking via BLE, Wi-Fi Direct, or LoRa. The Crowd-Adaptive Mesh module automatically forms clusters, elects relay heads, and implements epidemic routing for high-priority messages.
+
+For full AetherNet documentation, see [AETHERNET.md](./AETHERNET.md).
