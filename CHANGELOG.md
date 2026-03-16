@@ -5,6 +5,56 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-03-16
+
+### Added
+
+#### Endpoint Protection - 7-Layer Android Security Hardening
+
+1. **StrongBox/TEE Hardware Keystore** (security/SecureKeystore.kt)
+   - Hardware-backed AES-256-GCM key generation with StrongBox/TEE/Software fallback
+   - KeyManager upgraded with StrongBox-backed MasterKey
+
+2. **Root and Tamper Detection** (security/RootDetector.kt)
+   - su binary detection (12 paths), root package detection (12 packages)
+   - Debugger detection (TracerPid), emulator detection (score-based)
+   - Hooking framework detection: Frida, Xposed, LSPosed, Magisk
+
+3. **App Integrity Verification** (security/IntegrityChecker.kt)
+   - APK signing certificate SHA-256 verification
+   - Debuggable build and installer package checks
+
+4. **Memory Protection** (security/MemoryGuard.kt)
+   - Secure memory wiping, scoped helpers, AutoCloseable wrapper
+
+5. **Screenshot Prevention** - FLAG_SECURE re-enabled in all activities
+
+6. **Security Orchestrator** (security/EndpointProtection.kt)
+   - Async security checks on startup, warning dialogs for compromised devices
+   - Integrated into ShieldMessengerApplication and BaseActivity
+
+7. **Existing layers verified**: SQLCipher, EncryptedSharedPreferences, backup disabled, cleartext disabled
+
+#### TURN Relay for Voice Calls
+- TURN/TURNS server config for NAT traversal
+- call-signal relay message type for WebRTC signaling
+
+#### WebSocket Auto-Reconnect
+- Exponential backoff (1s-30s), visibility change reconnect for mobile PWA
+
+#### Solana Wallet Integration (Web)
+- Wallet state management, solanaService.ts, nginx config
+
+### Changed
+- PROTOCOL.md: voice-only references, AetherNet mesh section
+- Service worker caching improvements
+
+### New Files
+- security/EndpointProtection.kt, IntegrityChecker.kt, MemoryGuard.kt, RootDetector.kt, SecureKeystore.kt
+- web/solanaService.ts, web/nginx-shieldmessenger.conf
+
+---
+
 ## [Unreleased]
 
 ### Added
