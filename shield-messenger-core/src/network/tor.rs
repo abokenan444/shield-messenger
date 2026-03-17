@@ -1724,20 +1724,30 @@ impl TorManager {
             .ok_or("Control port not connected")?;
 
         // Now create the hidden service - descriptors will be uploaded and we'll receive events
-        // IMPORTANT: Expose FOUR ports for Ping-Pong-Tap-ACK protocol:
-        // - Port 9150 → local 8080 (Ping listener - main hidden service port)
-        // - Port 8080 → local 8080 (Pong listener - SAME as main listener for routing)
-        // - Port 9151 → local 9151 (Tap listener)
-        // - Port 9153 → local 9153 (ACK/Delivery Confirmation listener)
+        // Build port list dynamically to avoid duplicate entries when service_port matches
+        // a hardcoded port (e.g., friend request HS uses service_port=9151)
         let (actual_onion_address, _is_new_service) = {
             let mut stream = control.lock().await;
+
+            // Build port mappings, deduplicating any that match the dynamic port
+            let mut ports = vec![format!("Port={},127.0.0.1:{}", service_port, local_port)];
+            if service_port != 8080 && local_port != 8080 {
+                ports.push("Port=8080,127.0.0.1:8080".to_string());
+            }
+            if service_port != 9151 {
+                ports.push("Port=9151,127.0.0.1:9151".to_string());
+            }
+            if service_port != 9153 {
+                ports.push("Port=9153,127.0.0.1:9153".to_string());
+            }
+            let port_spec = ports.join(" ");
 
             // Create ephemeral hidden service with Detach flag
             // Detach allows the service to persist beyond the control connection and be deleted from any connection
             // This fixes "service already registered" errors from crashed/orphaned services
             let command = format!(
-                "ADD_ONION ED25519-V3:{} Flags=Detach Port={},127.0.0.1:{} Port=8080,127.0.0.1:8080 Port=9151,127.0.0.1:9151 Port=9153,127.0.0.1:9153\r\n",
-                key_base64, service_port, local_port
+                "ADD_ONION ED25519-V3:{} Flags=Detach {}\r\n",
+                key_base64, port_spec
             );
 
             stream.write_all(command.as_bytes()).await?;

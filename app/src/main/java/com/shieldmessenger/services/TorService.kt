@@ -514,7 +514,15 @@ class TorService : Service() {
             Log.w(TAG, "Listener not running - starting incoming listener...")
             startIncomingListener()
         } else {
-            Log.w(TAG, "Listener already running - skipping")
+            Log.w(TAG, "Listener already running - ensuring all pollers are started...")
+            // Listener already running but pollers may not be — start them all
+            startPingPoller()
+            startMessagePoller()
+            startVoicePoller()
+            startTapPoller()
+            startFriendRequestPoller()
+            startPongPoller()
+            startPollerWatchdog()
         }
 
         // Start bandwidth monitoring
@@ -2457,6 +2465,8 @@ class TorService : Service() {
                 startMessagePoller()
                 startVoicePoller()
                 startTapPoller()
+                startFriendRequestPoller()
+                startPongPoller()
                 startSessionCleanup()
 
                 // CRITICAL: Always initialize voice service when listener is running
