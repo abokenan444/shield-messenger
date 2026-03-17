@@ -1452,9 +1452,11 @@ class TorService : Service() {
         ) {
             val svc = instance
             if (svc == null) {
-                Log.e(TAG, "sendFriendRequestInBackground: TorService not running, marking failed")
+                Log.e(TAG, "sendFriendRequestInBackground: TorService not running, scheduling retry")
                 updatePendingRequestStatus(context, requestId, com.shieldmessenger.models.PendingFriendRequest.STATUS_FAILED)
                 context.sendBroadcast(Intent(ACTION_FRIEND_REQUEST_STATUS_CHANGED))
+                // Schedule a delayed retry — TorService may start soon
+                scheduleBackgroundRetry(context, requestId, recipientOnion, encryptedPayload, isPhase2 = false)
                 return
             }
 
@@ -1487,6 +1489,11 @@ class TorService : Service() {
                 Log.i(TAG, "Background friend request finished (id=$requestId, success=$success, newStatus=$newStatus)")
                 updatePendingRequestStatus(context, requestId, newStatus)
                 context.sendBroadcast(Intent(ACTION_FRIEND_REQUEST_STATUS_CHANGED))
+
+                if (!success) {
+                    // Schedule retry after 30 seconds
+                    scheduleBackgroundRetry(context, requestId, recipientOnion, encryptedPayload, isPhase2 = false)
+                }
             }
         }
 
@@ -1502,9 +1509,10 @@ class TorService : Service() {
         ) {
             val svc = instance
             if (svc == null) {
-                Log.e(TAG, "acceptFriendRequestInBackground: TorService not running, marking failed")
+                Log.e(TAG, "acceptFriendRequestInBackground: TorService not running, scheduling retry")
                 updatePendingRequestStatus(context, requestId, com.shieldmessenger.models.PendingFriendRequest.STATUS_FAILED)
                 context.sendBroadcast(Intent(ACTION_FRIEND_REQUEST_STATUS_CHANGED))
+                scheduleBackgroundRetry(context, requestId, recipientOnion, encryptedAcceptance, isPhase2 = true)
                 return
             }
 
@@ -1537,6 +1545,10 @@ class TorService : Service() {
                 Log.i(TAG, "Background Phase 2 accept finished (id=$requestId, success=$success, newStatus=$newStatus)")
                 updatePendingRequestStatus(context, requestId, newStatus)
                 context.sendBroadcast(Intent(ACTION_FRIEND_REQUEST_STATUS_CHANGED))
+
+                if (!success) {
+                    scheduleBackgroundRetry(context, requestId, recipientOnion, encryptedAcceptance, isPhase2 = true)
+                }
             }
         }
 
@@ -1574,6 +1586,40 @@ class TorService : Service() {
                     prefs.edit().putStringSet("pending_requests_v2", updatedSet).apply()
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to update pending request status", e)
+                }
+            }
+        }
+
+        /**
+         * Schedule a delayed background retry for a failed friend request.
+         * Uses a coroutine with delay to retry after Tor/TransportGate become available.
+         * Max 3 automatic retries with increasing delay.
+         */
+        private val retryCountMap = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
+        private fun scheduleBackgroundRetry(
+            context: Context,
+            requestId: String,
+            recipientOnion: String,
+            encryptedPayload: ByteArray,
+            isPhase2: Boolean
+        ) {
+            val retryCount = retryCountMap.getOrDefault(requestId, 0)
+            if (retryCount >= 3) {
+                Log.w(TAG, "Max retries reached for friend request $requestId")
+                retryCountMap.remove(requestId)
+                return
+            }
+            retryCountMap[requestId] = retryCount + 1
+            val delayMs = 30_000L * (retryCount + 1) // 30s, 60s, 90s
+
+            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                kotlinx.coroutines.delay(delayMs)
+                Log.i(TAG, "Retrying failed friend request (id=$requestId, attempt=${retryCount + 1}, phase2=$isPhase2)")
+                if (isPhase2) {
+                    acceptFriendRequestInBackground(requestId, recipientOnion, encryptedPayload, context)
+                } else {
+                    sendFriendRequestInBackground(requestId, recipientOnion, encryptedPayload, context)
                 }
             }
         }

@@ -108,6 +108,15 @@
 -keep class com.shieldmessenger.services.ZcashService { *; }
 -keep class com.shieldmessenger.services.ContactCardManager { *; }
 -keep class com.shieldmessenger.services.CrustService { *; }
+-keep class com.shieldmessenger.services.FriendRequestService { *; }
+
+# ==================== SECURITY CLASSES (ENDPOINT PROTECTION) ====================
+
+-keep class com.shieldmessenger.security.** { *; }
+
+# ==================== NETWORK CLASSES (TRANSPORT GATE, AETHERNET) ====================
+
+-keep class com.shieldmessenger.network.** { *; }
 
 # ==================== BROADCAST RECEIVERS (MANIFEST REFERENCED) ====================
 
