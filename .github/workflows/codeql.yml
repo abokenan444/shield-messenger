@@ -39,11 +39,10 @@ jobs:
       uses: github/codeql-action/init@v3
       with:
         languages: ${{ matrix.language }}
+        build-mode: manual
 
     - name: Build with Gradle
-      run: ./gradlew assembleFdroidRelease --no-daemon
-      env:
-        JAVA_HOME: ${{ env.JAVA_HOME }}
+      run: ./gradlew :app:assembleGoogleplayDebug --no-daemon
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
