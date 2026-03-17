@@ -1371,18 +1371,40 @@ class AddFriendActivity : BaseActivity() {
                     .removeSuffix("/")
                     .trim()
 
-                Log.d(TAG, "Phase 1: Initiating friend request to: $sanitizedOnion (original: $friendOnion)")
+                Log.e(TAG, "Phase 1: Initiating friend request to: $sanitizedOnion")
 
                 // Get YOUR info for Phase 1
                 val keyManager = KeyManager.getInstance(this@AddFriendActivity)
-                val ownDisplayName = keyManager.getUsername()
-                    ?: throw Exception("Username not set")
-                val ownFriendRequestOnion = keyManager.getFriendRequestOnion()
-                    ?: throw Exception("Friend request .onion not set")
-                val ownX25519PublicKey = keyManager.getEncryptionPublicKey()
-                val ownKyberPublicKey = keyManager.getKyberPublicKey()
 
-                Log.d(TAG, "Sending Phase 1 key exchange as: $ownDisplayName")
+                val ownDisplayName = try {
+                    keyManager.getUsername() ?: throw Exception("Username not set")
+                } catch (e: Exception) {
+                    ThemedToast.show(this@AddFriendActivity, "Error: ${e.message}")
+                    return@launch
+                }
+
+                val ownFriendRequestOnion = try {
+                    keyManager.getFriendRequestOnion() ?: throw Exception("Friend request .onion not set")
+                } catch (e: Exception) {
+                    ThemedToast.show(this@AddFriendActivity, "Error: ${e.message}")
+                    return@launch
+                }
+
+                val ownX25519PublicKey = try {
+                    keyManager.getEncryptionPublicKey()
+                } catch (e: Exception) {
+                    ThemedToast.show(this@AddFriendActivity, "Key error: ${e.message}")
+                    return@launch
+                }
+
+                val ownKyberPublicKey = try {
+                    keyManager.getKyberPublicKey()
+                } catch (e: Exception) {
+                    ThemedToast.show(this@AddFriendActivity, "Kyber key error: ${e.message}")
+                    return@launch
+                }
+
+                Log.e(TAG, "Phase 1 keys loaded OK for: $ownDisplayName")
 
                 // Build Phase 1 payload (minimal public info + Kyber key for quantum resistance)
                 val phase1UnsignedJson = org.json.JSONObject().apply {
@@ -1407,15 +1429,18 @@ class AddFriendActivity : BaseActivity() {
                     put("signature", android.util.Base64.encodeToString(phase1Signature, android.util.Base64.NO_WRAP))
                 }.toString()
 
-                Log.d(TAG, "Phase 1 payload signed with Ed25519")
-
                 // Encrypt Phase 1 with PIN
                 val cardManager = com.shieldmessenger.services.ContactCardManager(this@AddFriendActivity)
-                val encryptedPhase1 = withContext(Dispatchers.IO) {
-                    cardManager.encryptWithPin(phase1Payload, friendPin)
+                val encryptedPhase1 = try {
+                    withContext(Dispatchers.IO) {
+                        cardManager.encryptWithPin(phase1Payload, friendPin)
+                    }
+                } catch (e: Exception) {
+                    ThemedToast.show(this@AddFriendActivity, "Encryption failed: ${e.message}")
+                    return@launch
                 }
 
-                Log.d(TAG, "Encrypted Phase 1 payload: ${encryptedPhase1.size} bytes")
+                Log.e(TAG, "Encrypted Phase 1: ${encryptedPhase1.size} bytes")
 
                 // Save as "sending" immediately — background worker will update to pending/failed
                 val requestId = java.util.UUID.randomUUID().toString()
@@ -1451,6 +1476,12 @@ class AddFriendActivity : BaseActivity() {
 
                 // Reload UI — shows clock icon for "sending" entry
                 loadPendingFriendRequests()
+
+                // Check if TorService is available before attempting send
+                if (!com.shieldmessenger.services.TorService.isRunning()) {
+                    Log.e(TAG, "TorService not running — request saved, will retry when Tor starts")
+                    ThemedToast.show(this@AddFriendActivity, "Tor not ready — request queued, will retry automatically")
+                }
 
                 // Kick off background send via TorService (survives Activity navigation)
                 com.shieldmessenger.services.TorService.sendFriendRequestInBackground(

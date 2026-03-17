@@ -1461,23 +1461,22 @@ class TorService : Service() {
             }
 
             svc.serviceScope.launch(Dispatchers.IO) {
-                Log.i(TAG, "Background friend request send started (id=$requestId, target=$recipientOnion)")
+                Log.w(TAG, "Background friend request send started (id=$requestId, target=$recipientOnion)")
 
+                // Best-effort gate wait — proceed even if gate times out
                 val gateOpened = getTransportGate()?.awaitOpen(
                     com.shieldmessenger.network.TransportGate.TIMEOUT_HANDSHAKE_MS
                 ) ?: false
+                if (!gateOpened) {
+                    Log.w(TAG, "Transport gate timed out, attempting send anyway")
+                }
 
-                val success = if (gateOpened) {
-                    try {
-                        com.securelegion.crypto.RustBridge.sendFriendRequest(
-                            recipientOnion, encryptedPayload
-                        )
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Background friend request failed", e)
-                        false
-                    }
-                } else {
-                    Log.w(TAG, "Transport gate timed out for background friend request")
+                val success = try {
+                    com.securelegion.crypto.RustBridge.sendFriendRequest(
+                        recipientOnion, encryptedPayload
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Background friend request failed", e)
                     false
                 }
 
@@ -1486,12 +1485,11 @@ class TorService : Service() {
                 else
                     com.shieldmessenger.models.PendingFriendRequest.STATUS_FAILED
 
-                Log.i(TAG, "Background friend request finished (id=$requestId, success=$success, newStatus=$newStatus)")
+                Log.w(TAG, "Background friend request finished (id=$requestId, success=$success, newStatus=$newStatus)")
                 updatePendingRequestStatus(context, requestId, newStatus)
                 context.sendBroadcast(Intent(ACTION_FRIEND_REQUEST_STATUS_CHANGED))
 
                 if (!success) {
-                    // Schedule retry after 30 seconds
                     scheduleBackgroundRetry(context, requestId, recipientOnion, encryptedPayload, isPhase2 = false)
                 }
             }
@@ -1517,23 +1515,22 @@ class TorService : Service() {
             }
 
             svc.serviceScope.launch(Dispatchers.IO) {
-                Log.i(TAG, "Background Phase 2 accept started (id=$requestId, target=$recipientOnion)")
+                Log.w(TAG, "Background Phase 2 accept started (id=$requestId, target=$recipientOnion)")
 
+                // Best-effort gate wait — proceed even if gate times out
                 val gateOpened = getTransportGate()?.awaitOpen(
                     com.shieldmessenger.network.TransportGate.TIMEOUT_HANDSHAKE_MS
                 ) ?: false
+                if (!gateOpened) {
+                    Log.w(TAG, "Transport gate timed out, attempting Phase 2 send anyway")
+                }
 
-                val success = if (gateOpened) {
-                    try {
-                        com.securelegion.crypto.RustBridge.sendFriendRequestAccepted(
-                            recipientOnion, encryptedAcceptance
-                        )
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Background Phase 2 accept failed", e)
-                        false
-                    }
-                } else {
-                    Log.w(TAG, "Transport gate timed out for background Phase 2 accept")
+                val success = try {
+                    com.securelegion.crypto.RustBridge.sendFriendRequestAccepted(
+                        recipientOnion, encryptedAcceptance
+                    )
+                } catch (e: Exception) {
+                    Log.e(TAG, "Background Phase 2 accept failed", e)
                     false
                 }
 
@@ -1542,7 +1539,7 @@ class TorService : Service() {
                 else
                     com.shieldmessenger.models.PendingFriendRequest.STATUS_FAILED
 
-                Log.i(TAG, "Background Phase 2 accept finished (id=$requestId, success=$success, newStatus=$newStatus)")
+                Log.w(TAG, "Background Phase 2 accept finished (id=$requestId, success=$success, newStatus=$newStatus)")
                 updatePendingRequestStatus(context, requestId, newStatus)
                 context.sendBroadcast(Intent(ACTION_FRIEND_REQUEST_STATUS_CHANGED))
 
@@ -1596,6 +1593,7 @@ class TorService : Service() {
          * Max 3 automatic retries with increasing delay.
          */
         private val retryCountMap = java.util.concurrent.ConcurrentHashMap<String, Int>()
+        private const val MAX_RETRIES = 5
 
         private fun scheduleBackgroundRetry(
             context: Context,
@@ -1605,17 +1603,36 @@ class TorService : Service() {
             isPhase2: Boolean
         ) {
             val retryCount = retryCountMap.getOrDefault(requestId, 0)
-            if (retryCount >= 3) {
-                Log.w(TAG, "Max retries reached for friend request $requestId")
+            if (retryCount >= MAX_RETRIES) {
+                Log.e(TAG, "Max retries ($MAX_RETRIES) reached for friend request $requestId")
                 retryCountMap.remove(requestId)
+                // Show user-visible notification that the send failed
+                try {
+                    val notifManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                    val channelId = "friend_request_channel"
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        val channel = android.app.NotificationChannel(channelId, "Friend Requests", android.app.NotificationManager.IMPORTANCE_HIGH)
+                        notifManager.createNotificationChannel(channel)
+                    }
+                    val notification = android.app.Notification.Builder(context, channelId)
+                        .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                        .setContentTitle("Friend request failed")
+                        .setContentText("Could not reach recipient. Please try again later.")
+                        .setAutoCancel(true)
+                        .build()
+                    notifManager.notify(requestId.hashCode(), notification)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to show failure notification", e)
+                }
                 return
             }
             retryCountMap[requestId] = retryCount + 1
-            val delayMs = 30_000L * (retryCount + 1) // 30s, 60s, 90s
+            // Exponential backoff: 15s, 30s, 60s, 120s, 240s
+            val delayMs = 15_000L * (1L shl retryCount)
 
             kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
                 kotlinx.coroutines.delay(delayMs)
-                Log.i(TAG, "Retrying failed friend request (id=$requestId, attempt=${retryCount + 1}, phase2=$isPhase2)")
+                Log.w(TAG, "Retrying friend request (id=$requestId, attempt=${retryCount + 1}/$MAX_RETRIES, delay=${delayMs}ms, phase2=$isPhase2)")
                 if (isPhase2) {
                     acceptFriendRequestInBackground(requestId, recipientOnion, encryptedPayload, context)
                 } else {
