@@ -37,6 +37,10 @@ object EndpointProtection {
     var keystoreLevel: SecureKeystore.ProtectionLevel? = null
         private set
 
+    /** Guard: show the security warning at most once per app session. */
+    @Volatile
+    private var warningShownThisSession = false
+
     /**
      * Run all endpoint-protection checks on a background thread.
      * Safe to call from Application.onCreate().
@@ -68,6 +72,7 @@ object EndpointProtection {
      * Returns true if a warning was shown.
      */
     fun showWarningIfNeeded(activity: Activity): Boolean {
+        if (warningShownThisSession) return false
         val assessment = lastAssessment ?: return false
 
         if (assessment.threatLevel == RootDetector.ThreatLevel.SAFE) return false
@@ -107,6 +112,7 @@ object EndpointProtection {
                 .setPositiveButton("I Understand") { dialog, _ -> dialog.dismiss() }
                 .setCancelable(true)
                 .show()
+            warningShownThisSession = true
         } catch (e: Exception) {
             Log.e(TAG, "Could not show security warning", e)
             return false

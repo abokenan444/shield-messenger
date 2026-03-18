@@ -203,10 +203,9 @@ class WalletIdentityActivity : BaseActivity() {
             }
         }
 
-        // Toggle address/PIN visibility based on legacy setting
-        val showManualFields = securityPrefs.getBoolean("legacy_manual_entry", false)
+        // Always show address/PIN section so users can see their PIN
         val addressPinSection = view.findViewById<View>(R.id.addressPinSection)
-        addressPinSection.visibility = if (showManualFields) View.VISIBLE else View.GONE
+        addressPinSection.visibility = View.VISIBLE
 
         // PIN uses counter
         val pinUsesText = view.findViewById<TextView>(R.id.pinUsesText)

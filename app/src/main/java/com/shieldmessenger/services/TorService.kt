@@ -3051,8 +3051,8 @@ class TorService : Service() {
                             val request = com.shieldmessenger.models.PendingFriendRequest.fromJson(requestJson)
                             if (request.direction == com.shieldmessenger.models.PendingFriendRequest.DIRECTION_OUTGOING) {
                                 val json = org.json.JSONObject(request.contactCardJson ?: "{}")
-                                // Phase 2 saved state has "hybrid_shared_secret", Phase 1 doesn't
-                                if (json.has("hybrid_shared_secret")) {
+                                // Use explicit sent_phase marker to distinguish Phase 2 outgoing from Phase 1
+                                if (json.optInt("sent_phase", 0) == 2) {
                                     hasOutgoingPhase2 = true
                                 } else if (json.has("username")) {
                                     hasOutgoingPhase1 = true
@@ -3475,7 +3475,8 @@ class TorService : Service() {
                     val request = com.shieldmessenger.models.PendingFriendRequest.fromJson(requestJson)
                     // Look for outgoing pending requests (we sent Phase 2, waiting for ACK)
                     if (request.direction == com.shieldmessenger.models.PendingFriendRequest.DIRECTION_OUTGOING &&
-                        request.status == com.shieldmessenger.models.PendingFriendRequest.STATUS_PENDING &&
+                        (request.status == com.shieldmessenger.models.PendingFriendRequest.STATUS_PENDING ||
+                         request.status == com.shieldmessenger.models.PendingFriendRequest.STATUS_SENDING) &&
                         request.contactCardJson != null) {
 
                         val partialJson = org.json.JSONObject(request.contactCardJson)

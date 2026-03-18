@@ -1295,6 +1295,7 @@ class AddFriendActivity : BaseActivity() {
                     put("username", senderUsername)
                     put("friend_request_onion", senderFriendRequestOnion)
                     put("x25519_public_key", senderX25519PublicKeyBase64)
+                    put("sent_phase", 2) // Marker so 0x08 handler can distinguish Phase 2 outgoing from Phase 1
                     if (senderKyberPublicKey != null) {
                         put("kyber_public_key", Base64.encodeToString(senderKyberPublicKey, Base64.NO_WRAP))
                     }
