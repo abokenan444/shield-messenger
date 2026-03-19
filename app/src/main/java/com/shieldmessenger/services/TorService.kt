@@ -3063,10 +3063,17 @@ class TorService : Service() {
                         }
                     }
 
-                    when {
-                        hasOutgoingPhase1 -> handlePhase2FriendRequest(encryptedPayload) // We sent Phase 1, this is Phase 2
-                        hasOutgoingPhase2 -> handlePhase3Acknowledgment(encryptedPayload) // We sent Phase 2, this is Phase 3
-                        else -> Log.e(TAG, "Received 0x08 but no matching outgoing request found")
+                    // Try both handlers with fallback — avoids misrouting when
+                    // both Phase 1 and Phase 2 outgoing requests exist concurrently
+                    var handled = false
+                    if (hasOutgoingPhase1) {
+                        handled = handlePhase2FriendRequest(encryptedPayload)
+                    }
+                    if (!handled && hasOutgoingPhase2) {
+                        handled = handlePhase3Acknowledgment(encryptedPayload)
+                    }
+                    if (!handled) {
+                        Log.e(TAG, "Received 0x08 but no matching outgoing request found")
                     }
                 }
                 else -> {
@@ -3197,7 +3204,7 @@ class TorService : Service() {
      * Payload: Full ContactCard JSON encrypted with X25519
      * This is received when someone accepts OUR outgoing friend request
      */
-    private fun handlePhase2FriendRequest(encryptedPayload: ByteArray) {
+    private fun handlePhase2FriendRequest(encryptedPayload: ByteArray): Boolean {
         try {
             Log.i(TAG, "Processing Phase 2 friend request (X25519-encrypted)")
 
@@ -3211,17 +3218,19 @@ class TorService : Service() {
             for (requestJson in pendingRequestsSet) {
                 try {
                     val request = com.shieldmessenger.models.PendingFriendRequest.fromJson(requestJson)
-                    // Look for outgoing requests with Phase 1 data
+                    // Only match Phase 1 outgoing requests (no sent_phase marker)
                     if (request.direction == com.shieldmessenger.models.PendingFriendRequest.DIRECTION_OUTGOING &&
                         request.contactCardJson != null) {
 
                         val phase1Json = org.json.JSONObject(request.contactCardJson)
+                        // Skip Phase 2 outgoing requests (they have sent_phase=2)
+                        if (phase1Json.optInt("sent_phase", 0) != 0) continue
                         val x25519Base64 = phase1Json.opt("x25519_public_key") as? String
 
                         if (x25519Base64 != null) {
                             senderX25519PublicKey = android.util.Base64.decode(x25519Base64, android.util.Base64.NO_WRAP)
                             matchingRequest = request
-                            Log.d(TAG, "Found matching outgoing request to: ${request.displayName}")
+                            Log.d(TAG, "Found matching outgoing Phase 1 request to: ${request.displayName}")
                             break
                         }
                     }
@@ -3231,8 +3240,8 @@ class TorService : Service() {
             }
 
             if (senderX25519PublicKey == null || matchingRequest == null) {
-                Log.e(TAG, "No matching outgoing friend request found for Phase 2")
-                return
+                Log.w(TAG, "No matching outgoing Phase 1 request found for Phase 2")
+                return false
             }
 
             // Decrypt with sender's X25519 public key
@@ -3244,7 +3253,7 @@ class TorService : Service() {
 
             if (decryptedJson == null) {
                 Log.e(TAG, "Failed to decrypt Phase 2 ContactCard")
-                return
+                return false
             }
 
             Log.i(TAG, "Phase 2 decrypted successfully")
@@ -3281,7 +3290,7 @@ class TorService : Service() {
 
                         if (!signatureValid) {
                             Log.e(TAG, "Phase 2 signature verification FAILED - rejecting (possible MitM)")
-                            return
+                            return false
                         }
                         Log.i(TAG, "Phase 2 signature verified (Ed25519)")
                     }
@@ -3307,7 +3316,7 @@ class TorService : Service() {
 
             if (contactCard == null) {
                 Log.e(TAG, "Failed to parse ContactCard from Phase 2")
-                return
+                return false
             }
 
             Log.i(TAG, "Friend request accepted by: ${contactCard.displayName}")
@@ -3400,8 +3409,10 @@ class TorService : Service() {
             // Send Phase 3 ACK back to sender's friend-request .onion
             sendPhase3Acknowledgment(contactCard)
 
+            return true
         } catch (e: Exception) {
             Log.e(TAG, "Error processing Phase 2 friend request", e)
+            return false
         }
     }
 
@@ -3436,17 +3447,30 @@ class TorService : Service() {
                 recipientX25519PublicKey = contactCard.x25519PublicKey
             )
 
-            // Send to their friend-request .onion (reuse Phase 2 function - same wire format)
+            // Send to their friend-request .onion with retry (reuse Phase 2 function - same wire format)
             serviceScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                val success = com.securelegion.crypto.RustBridge.sendFriendRequestAccepted(
-                    recipientOnion = contactCard.friendRequestOnion,
-                    encryptedAcceptance = encryptedAck
-                )
+                var sent = false
+                for (attempt in 1..5) {
+                    val success = try {
+                        com.securelegion.crypto.RustBridge.sendFriendRequestAccepted(
+                            recipientOnion = contactCard.friendRequestOnion,
+                            encryptedAcceptance = encryptedAck
+                        )
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Phase 3 ACK attempt $attempt exception", e)
+                        false
+                    }
 
-                if (success) {
-                    Log.i(TAG, "Phase 3 ACK sent to ${contactCard.displayName}")
-                } else {
-                    Log.e(TAG, "Failed to send Phase 3 ACK to ${contactCard.displayName}")
+                    if (success) {
+                        Log.i(TAG, "Phase 3 ACK sent to ${contactCard.displayName} (attempt $attempt)")
+                        sent = true
+                        break
+                    }
+                    Log.w(TAG, "Phase 3 ACK attempt $attempt/$5 failed for ${contactCard.displayName}, retrying...")
+                    kotlinx.coroutines.delay(5_000L * attempt)
+                }
+                if (!sent) {
+                    Log.e(TAG, "Failed to send Phase 3 ACK to ${contactCard.displayName} after 5 attempts")
                 }
             }
 
@@ -3459,7 +3483,7 @@ class TorService : Service() {
      * Handle Phase 3 acknowledgment (X25519-encrypted)
      * Payload: Simple confirmation that they received and processed Phase 2
      */
-    private fun handlePhase3Acknowledgment(encryptedPayload: ByteArray) {
+    private fun handlePhase3Acknowledgment(encryptedPayload: ByteArray): Boolean {
         try {
             Log.i(TAG, "Processing Phase 3 acknowledgment (X25519-encrypted)")
 
@@ -3473,19 +3497,21 @@ class TorService : Service() {
             for (requestJson in pendingRequestsSet) {
                 try {
                     val request = com.shieldmessenger.models.PendingFriendRequest.fromJson(requestJson)
-                    // Look for outgoing pending requests (we sent Phase 2, waiting for ACK)
+                    // Only match Phase 2 outgoing requests (sent_phase=2)
                     if (request.direction == com.shieldmessenger.models.PendingFriendRequest.DIRECTION_OUTGOING &&
                         (request.status == com.shieldmessenger.models.PendingFriendRequest.STATUS_PENDING ||
                          request.status == com.shieldmessenger.models.PendingFriendRequest.STATUS_SENDING) &&
                         request.contactCardJson != null) {
 
                         val partialJson = org.json.JSONObject(request.contactCardJson)
+                        // Skip Phase 1 outgoing requests (no sent_phase marker)
+                        if (partialJson.optInt("sent_phase", 0) != 2) continue
                         val x25519Base64 = partialJson.opt("x25519_public_key") as? String
 
                         if (x25519Base64 != null) {
                             senderX25519PublicKey = android.util.Base64.decode(x25519Base64, android.util.Base64.NO_WRAP)
                             matchingRequest = request
-                            Log.d(TAG, "Found matching pending request for: ${request.displayName}")
+                            Log.d(TAG, "Found matching Phase 2 outgoing request for: ${request.displayName}")
                             break
                         }
                     }
@@ -3495,8 +3521,8 @@ class TorService : Service() {
             }
 
             if (senderX25519PublicKey == null || matchingRequest == null) {
-                Log.e(TAG, "No matching pending request found for Phase 3 ACK")
-                return
+                Log.w(TAG, "No matching Phase 2 outgoing request found for Phase 3 ACK")
+                return false
             }
 
             // Decrypt ACK
@@ -3508,7 +3534,7 @@ class TorService : Service() {
 
             if (decryptedJson == null) {
                 Log.e(TAG, "Failed to decrypt Phase 3 ACK")
-                return
+                return false
             }
 
             Log.i(TAG, "Phase 3 ACK decrypted successfully")
@@ -3601,8 +3627,10 @@ class TorService : Service() {
 
             Log.i(TAG, "Phase 3 complete - ACK received from ${contactCard.displayName}")
 
+            return true
         } catch (e: Exception) {
             Log.e(TAG, "Error processing Phase 3 acknowledgment", e)
+            return false
         }
     }
 
