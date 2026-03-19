@@ -392,7 +392,7 @@ class TorManager(private val context: Context) {
                     HiddenServicePort $DEFAULT_SERVICE_PORT 127.0.0.1:$DEFAULT_LOCAL_PORT
                     HiddenServicePort 9153 127.0.0.1:9153
                     HiddenServiceDir ${friendRequestHiddenServiceDir.absolutePath}
-                    HiddenServicePort 9151 127.0.0.1:9151
+                    HiddenServicePort 9151 127.0.0.1:$DEFAULT_LOCAL_PORT
                     HiddenServicePort 9152 127.0.0.1:8081
                     $bridgeConfig
                 """.trimIndent()

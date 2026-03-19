@@ -1175,6 +1175,13 @@ pub static VOICE_TX: once_cell::sync::OnceCell<
 pub static ACK_TX: once_cell::sync::OnceCell<
     Arc<StdMutex<tokio::sync::mpsc::UnboundedSender<(u64, Vec<u8>)>>>,
 > = once_cell::sync::OnceCell::new();
+
+/// Global channel for TAP messages
+/// Allows direct routing from handle_incoming_connection to the tap poller
+/// Initialized when main listener starts on port 8080
+pub static TAP_TX: once_cell::sync::OnceCell<
+    Arc<StdMutex<tokio::sync::mpsc::UnboundedSender<Vec<u8>>>>,
+> = once_cell::sync::OnceCell::new();
 /// Line-oriented Tor control protocol reader
 /// CRITICAL: Handles multi-line Tor responses properly
 /// Response formats:
@@ -2665,9 +2672,18 @@ impl TorManager {
                 }
             }
             MSG_TYPE_TAP => {
-                log::info!("→ Routing to TAP handler");
-                // Send full buffer (INCLUDING type byte at offset 0)
-                ping_tx.send((conn_id, buf)).ok();
+                log::info!("→ Routing to TAP handler (direct channel)");
+                // Route TAP messages to dedicated TAP_TX channel
+                // This eliminates the need for a separate TAP listener on port 9151
+                if let Some(tap_tx) = TAP_TX.get() {
+                    let tx_lock = tap_tx.lock().unwrap();
+                    if let Err(e) = tx_lock.send(buf) {
+                        log::error!("Failed to send TAP to channel: {}", e);
+                    }
+                } else {
+                    log::warn!("TAP channel not initialized - falling back to PING channel");
+                    ping_tx.send((conn_id, buf)).ok();
+                }
             }
             MSG_TYPE_DELIVERY_CONFIRMATION => {
                 log::warn!("Received ACK on main listener (port 8080) - should go to port 9153!");

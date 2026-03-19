@@ -2506,20 +2506,16 @@ class TorService : Service() {
             startMessagePoller()
             startVoicePoller()
 
-            // PHASE 3: Start tap listener on port 9151
-            Log.d(TAG, "Starting tap listener on port 9151...")
-            val tapSuccess = RustBridge.startTapListener(9151)
-            if (tapSuccess) {
-                Log.i(TAG, "Tap listener started successfully")
-            } else {
-                Log.w(TAG, "Tap listener already running")
-            }
+            // PHASE 3: FR and TAP channels are now initialized by startHiddenServiceListener
+            // (torrc routes friend request HS port 9151 → local 8080, same listener handles all)
+            // No separate listener needed — just start pollers
+            Log.i(TAG, "All channels initialized on port 8080 — starting TAP and FR pollers")
 
             // Start polling for incoming taps
             startTapPoller()
 
             // Start polling for incoming friend requests
-            // Both share port 9151, routed by message type in Rust
+            // FR channel initialized by startHiddenServiceListener, routed by type byte in Rust
             startFriendRequestPoller()
 
             // PONGs arrive at main listener (port 8080) and are routed by message type
@@ -3196,6 +3192,15 @@ class TorService : Service() {
 
         } catch (e: Exception) {
             Log.e(TAG, "Error processing Phase 1 friend request", e)
+            // Show notification even on error so user knows something arrived
+            try {
+                showFriendRequestNotification("Unknown (processing error)")
+                val broadcastIntent = android.content.Intent("com.shieldmessenger.FRIEND_REQUEST_RECEIVED")
+                broadcastIntent.setPackage(packageName)
+                sendBroadcast(broadcastIntent)
+            } catch (ne: Exception) {
+                Log.e(TAG, "Failed to show error notification", ne)
+            }
         }
     }
 

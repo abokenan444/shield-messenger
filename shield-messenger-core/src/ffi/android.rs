@@ -1292,6 +1292,29 @@ pub extern "C" fn Java_com_securelegion_crypto_RustBridge_startHiddenServiceList
                         "VOICE channel initialized for call signaling (separate from MESSAGE)"
                     );
 
+                    // Initialize FRIEND_REQUEST channel for 0x07/0x08 routing
+                    // All friend request traffic now arrives on port 8080 (torrc routes 9151→8080)
+                    let (fr_tx, fr_rx) = mpsc::unbounded_channel::<Vec<u8>>();
+                    if let Err(_) = GLOBAL_FRIEND_REQUEST_RECEIVER.set(Arc::new(Mutex::new(fr_rx))) {
+                        log::warn!("FRIEND_REQUEST_RECEIVER already initialized (listener restart?)");
+                    }
+                    let fr_tx_arc = Arc::new(std::sync::Mutex::new(fr_tx));
+                    if let Err(_) = crate::network::tor::FRIEND_REQUEST_TX.set(fr_tx_arc) {
+                        log::warn!("FRIEND_REQUEST_TX channel already initialized");
+                    }
+                    log::info!("FRIEND_REQUEST channel initialized for direct routing on port 8080");
+
+                    // Initialize TAP channel for 0x05 routing
+                    let (tap_tx, tap_rx) = mpsc::unbounded_channel::<Vec<u8>>();
+                    if let Err(_) = GLOBAL_TAP_RECEIVER.set(Arc::new(Mutex::new(tap_rx))) {
+                        log::warn!("TAP_RECEIVER already initialized (listener restart?)");
+                    }
+                    let tap_tx_arc = Arc::new(std::sync::Mutex::new(tap_tx));
+                    if let Err(_) = crate::network::tor::TAP_TX.set(tap_tx_arc) {
+                        log::warn!("TAP_TX channel already initialized");
+                    }
+                    log::info!("TAP channel initialized for direct routing on port 8080");
+
                     1 as jboolean
                 }
                 Err(e) => {
